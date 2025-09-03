@@ -10,34 +10,29 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { FileUploader } from '@/components/forms/file-uploader'
-import { HKIEntry, JENIS_HKI_OPTIONS, STATUS_OPTIONS } from '@/lib/types'
+import { HKIEntry, JenisHKI, StatusHKI, FasilitasiTahun, Pengusul } from '@/lib/types'
 import { toast } from 'sonner'
 
 const hkiSchema = z.object({
-  nama_hki: z.string().min(1, 'Nama HKI is required'),
-  jenis_hki: z.enum(['Merek', 'Hak Cipta', 'Paten', 'Paten Sederhana', 'Indikasi Geografis']),
-  nama_pemohon: z.string().min(1, 'Nama pemohon is required'),
-  nomor_permohonan: z.string().min(1, 'Nomor permohonan is required'),
-  tanggal_permohonan: z.string().min(1, 'Tanggal permohonan is required'),
-  status: z.enum(['Diterima', 'Didaftar', 'Ditolak', 'Dalam Proses']),
-  fasilitasi_tahun: z.number().min(2000).max(new Date().getFullYear() + 5),
+  nama_hki: z.string().min(1, 'Nama HKI wajib diisi'),
+  nama_pemohon: z.string().min(1, 'Nama pemohon wajib diisi'),
+  alamat: z.string().optional(),
+  jenis_produk: z.string().optional(),
+  nomor_permohonan: z.string().optional(),
+  tanggal_permohonan: z.string().optional(),
   keterangan: z.string().optional(),
+
+  jenis_hki_id: z.string({ required_error: 'Jenis HKI wajib dipilih' }),
+  status_id: z.string({ required_error: 'Status wajib dipilih' }),
+  fasilitasi_tahun_id: z.string({ required_error: 'Tahun fasilitasi wajib dipilih' }),
+  pengusul_id: z.string().optional(),
 })
 
 type HKIFormData = z.infer<typeof hkiSchema>
@@ -45,9 +40,13 @@ type HKIFormData = z.infer<typeof hkiSchema>
 interface HKIFormProps {
   initialData?: HKIEntry
   mode: 'create' | 'edit'
+  jenisOptions: JenisHKI[]
+  statusOptions: StatusHKI[]
+  tahunOptions: FasilitasiTahun[]
+  pengusulOptions: Pengusul[]
 }
 
-export function HKIForm({ initialData, mode }: HKIFormProps) {
+export function HKIForm({ initialData, mode, jenisOptions, statusOptions, tahunOptions, pengusulOptions }: HKIFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -56,263 +55,203 @@ export function HKIForm({ initialData, mode }: HKIFormProps) {
     resolver: zodResolver(hkiSchema),
     defaultValues: {
       nama_hki: initialData?.nama_hki || '',
-      jenis_hki: initialData?.jenis_hki || 'Merek',
-      nama_pemohon: initialData?.nama_pemohon || '',
+      nama_pemohon: initialData?.pemohon?.nama || '',
+      alamat: initialData?.pemohon?.alamat || '',
+      jenis_produk: initialData?.jenis_produk || '',
       nomor_permohonan: initialData?.nomor_permohonan || '',
-      tanggal_permohonan: initialData?.tanggal_permohonan || '',
-      status: initialData?.status || 'Dalam Proses',
-      fasilitasi_tahun: initialData?.fasilitasi_tahun || new Date().getFullYear(),
+      tanggal_permohonan: initialData?.tanggal_permohonan?.split('T')[0] || '',
       keterangan: initialData?.keterangan || '',
+      jenis_hki_id: initialData?.jenis_hki?.id?.toString(),
+      status_id: initialData?.status_hki?.id?.toString(),
+      fasilitasi_tahun_id: initialData?.fasilitasi_tahun?.id?.toString(),
+      pengusul_id: initialData?.pengusul?.id?.toString(),
     },
   })
 
   const onSubmit = async (data: HKIFormData) => {
     setIsLoading(true)
+    const toastId = toast.loading(`Sedang menyimpan data...`)
 
     try {
       const formData = new FormData()
       Object.entries(data).forEach(([key, value]) => {
-        formData.append(key, value?.toString() || '')
+        if (value) formData.append(key, value.toString())
       })
-      
-      if (selectedFile) {
-        formData.append('file', selectedFile)
-      }
+
+      if (selectedFile) formData.append('file', selectedFile)
 
       const url = mode === 'create' ? '/api/hki' : `/api/hki/${initialData?.id}`
       const method = mode === 'create' ? 'POST' : 'PATCH'
 
-      const response = await fetch(url, {
-        method,
-        body: formData,
-      })
-
+      const response = await fetch(url, { method, body: formData })
       const result = await response.json()
 
-      if (!response.ok) {
-        if (result.error?.includes('nama_hki')) {
-          toast.error('Nama HKI sudah terdaftar.')
-        } else {
-          toast.error(result.error || 'Failed to save HKI entry')
-        }
-        return
-      }
+      if (!response.ok) throw new Error(result.error || 'Gagal menyimpan data')
 
-      toast.success(`HKI entry ${mode === 'create' ? 'created' : 'updated'} successfully`)
+      toast.success(`Entri HKI berhasil ${mode === 'create' ? 'dibuat' : 'diperbarui'}!`, { id: toastId })
       router.push('/hki')
       router.refresh()
-    } catch (error) {
-      toast.error('An unexpected error occurred')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Terjadi kesalahan', { id: toastId })
     } finally {
       setIsLoading(false)
     }
   }
 
-  const currentYear = new Date().getFullYear()
-  const years = Array.from({ length: 10 }, (_, i) => currentYear - i + 5)
-
   return (
-    <Card className="max-w-4xl mx-auto">
+    <Card>
       <CardHeader>
-        <CardTitle>
-          {mode === 'create' ? 'Create New HKI Entry' : 'Edit HKI Entry'}
-        </CardTitle>
+        <CardTitle>{mode === 'create' ? 'Buat Entri HKI Baru' : `Edit Entri`}</CardTitle>
+        <CardDescription>Isi detail entri HKI pada formulir di bawah ini.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Nama HKI */}
-              <FormField
-                control={form.control}
-                name="nama_hki"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nama HKI *</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter HKI name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Jenis HKI */}
-              <FormField
-                control={form.control}
-                name="jenis_hki"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Jenis HKI *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select HKI type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {JENIS_HKI_OPTIONS.map((jenis) => (
-                          <SelectItem key={jenis} value={jenis}>
-                            {jenis}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField name="nama_hki" control={form.control} render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>Nama HKI *</FormLabel>
+                  <FormControl><Input {...field} placeholder="Contoh: Sistem Inventaris Cerdas" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
               {/* Nama Pemohon */}
-              <FormField
-                control={form.control}
-                name="nama_pemohon"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nama Pemohon *</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter applicant name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField name="nama_pemohon" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nama Pemohon *</FormLabel>
+                  <FormControl><Input {...field} placeholder="Contoh: PT. Inovasi Bangsa" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
-              {/* Nomor Permohonan */}
-              <FormField
-                control={form.control}
-                name="nomor_permohonan"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nomor Permohonan *</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Enter application number" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Alamat */}
+              <FormField name="alamat" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Alamat Pemohon</FormLabel>
+                  <FormControl><Input {...field} value={field.value || ''} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
-              {/* Tanggal Permohonan */}
-              <FormField
-                control={form.control}
-                name="tanggal_permohonan"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tanggal Permohonan *</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="date" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Jenis HKI */}
+              <FormField name="jenis_hki_id" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Jenis HKI *</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Pilih Jenis HKI" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {jenisOptions.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id.toString()}>{opt.nama}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
               {/* Status */}
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {STATUS_OPTIONS.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {status}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField name="status_id" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status *</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Pilih Status" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {statusOptions.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id.toString()}>{opt.nama}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
-              {/* Fasilitasi Tahun */}
-              <FormField
-                control={form.control}
-                name="fasilitasi_tahun"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fasilitasi Tahun *</FormLabel>
-                    <Select 
-                      onValueChange={(value) => field.onChange(parseInt(value))} 
-                      defaultValue={field.value?.toString()}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select year" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {years.map((year) => (
-                          <SelectItem key={year} value={year.toString()}>
-                            {year}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Jenis Produk */}
+              <FormField name="jenis_produk" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Jenis Produk</FormLabel>
+                  <FormControl><Input {...field} value={field.value || ''} placeholder="Contoh: Perangkat Lunak" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* Pengusul */}
+              <FormField name="pengusul_id" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Pengusul</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Pilih Pengusul" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {pengusulOptions.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id.toString()}>{opt.nama}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* Nomor Permohonan */}
+              <FormField name="nomor_permohonan" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nomor Permohonan</FormLabel>
+                  <FormControl><Input {...field} value={field.value || ''} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* Tanggal Permohonan */}
+              <FormField name="tanggal_permohonan" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tanggal Permohonan</FormLabel>
+                  <FormControl><Input {...field} value={field.value || ''} type="date" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* Tahun Fasilitasi */}
+              <FormField name="fasilitasi_tahun_id" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fasilitasi Tahun *</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Pilih Tahun" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {tahunOptions.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id.toString()}>{opt.tahun}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
             </div>
 
             {/* Keterangan */}
-            <FormField
-              control={form.control}
-              name="keterangan"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Keterangan</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      placeholder="Additional notes or comments"
-                      rows={3}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField name="keterangan" control={form.control} render={({ field }) => (
+              <FormItem>
+                <FormLabel>Keterangan</FormLabel>
+                <FormControl><Textarea {...field} value={field.value || ''} placeholder="Catatan tambahan..." rows={4} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-            {/* File Upload */}
-            <div className="space-y-2">
-              <Label>Certificate File (PDF)</Label>
-              <FileUploader
-                onFileSelect={setSelectedFile}
-                accept=".pdf"
-                maxSize={10 * 1024 * 1024} // 10MB
-              />
+            {/* Upload File */}
+            <div>
+              <Label>File Sertifikat (PDF, maks. 10MB)</Label>
+              <FileUploader onFileSelect={setSelectedFile} accept=".pdf" maxSize={10 * 1024 * 1024} />
               {initialData?.sertifikat_path && !selectedFile && (
-                <p className="text-sm text-green-600">
-                  ✓ Certificate file is already uploaded
+                <p className="text-sm text-green-600 mt-2">
+                  ✓ Berkas sudah ada. Unggah file baru untuk menggantinya.
                 </p>
               )}
             </div>
 
-            {/* Form Actions */}
+            {/* Action Buttons */}
             <div className="flex gap-4 pt-6">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.back()}
-                disabled={isLoading}
-              >
-                Cancel
-              </Button>
+              <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>Batal</Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading 
-                  ? (mode === 'create' ? 'Creating...' : 'Updating...') 
-                  : (mode === 'create' ? 'Create HKI Entry' : 'Update HKI Entry')
-                }
+                {isLoading ? 'Menyimpan...' : (mode === 'create' ? 'Buat Entri' : 'Simpan Perubahan')}
               </Button>
             </div>
           </form>

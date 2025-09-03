@@ -1,149 +1,242 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
 import { Button } from '@/components/ui/button'
-import { Upload, File, X } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import {
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
+} from '@/components/ui/form'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { FileUploader } from '@/components/forms/file-uploader'
+import { HKIEntry, JenisHKI, StatusHKI, FasilitasiTahun, Pengusul } from '@/lib/types'
+import { toast } from 'sonner'
 
-interface FileUploaderProps {
-  onFileSelect: (file: File | null) => void
-  accept?: string
-  maxSize?: number
-  className?: string
+// Skema validasi
+const hkiSchema = z.object({
+  nama_hki: z.string().min(1, 'Nama HKI wajib diisi'),
+  nama_pemohon: z.string().min(1, 'Nama pemohon wajib diisi'),
+  alamat: z.string().optional(),
+  jenis_produk: z.string().optional(),
+  tanggal_permohonan: z.string().optional(),
+  keterangan: z.string().optional(),
+
+  jenis_hki_id: z.string().min(1, 'Jenis HKI wajib dipilih'),
+  status_id: z.string().min(1, 'Status wajib dipilih'),
+  fasilitasi_tahun_id: z.string().min(1, 'Tahun fasilitasi wajib dipilih'),
+  pengusul_id: z.string().optional(),
+})
+
+type HKIFormData = z.infer<typeof hkiSchema>
+
+interface HKIFormProps {
+  initialData?: HKIEntry
+  mode: 'create' | 'edit'
+  jenisOptions: JenisHKI[]
+  statusOptions: StatusHKI[]
+  tahunOptions: FasilitasiTahun[]
+  pengusulOptions: Pengusul[]
 }
 
-export function FileUploader({ 
-  onFileSelect, 
-  accept = '.pdf',
-  maxSize = 5 * 1024 * 1024, // 5MB default
-  className 
-}: FileUploaderProps) {
+export function HKIForm({ initialData, mode, jenisOptions, statusOptions, tahunOptions, pengusulOptions }: HKIFormProps) {
+  const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [dragActive, setDragActive] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleFileSelect = (file: File) => {
-    if (file.size > maxSize) {
-      alert(`File size must be less than ${Math.round(maxSize / 1024 / 1024)}MB`)
-      return
+  const form = useForm<HKIFormData>({
+    resolver: zodResolver(hkiSchema),
+    defaultValues: {
+      nama_hki: initialData?.nama_hki || '',
+      nama_pemohon: initialData?.pemohon?.nama || '',
+      alamat: initialData?.pemohon?.alamat || '',
+      jenis_produk: initialData?.jenis_produk || '',
+      tanggal_permohonan: initialData?.tanggal_permohonan?.split('T')[0] || '',
+      keterangan: initialData?.keterangan || '',
+      jenis_hki_id: initialData?.jenis_hki?.id?.toString() || '',
+      status_id: initialData?.status_hki?.id?.toString() || '',
+      fasilitasi_tahun_id: initialData?.fasilitasi_tahun?.id?.toString() || '',
+      pengusul_id: initialData?.pengusul?.id?.toString() || '',
+    },
+  })
+
+  const onSubmit = async (data: HKIFormData) => {
+    setIsLoading(true)
+    const toastId = toast.loading(`Sedang menyimpan data...`)
+
+    try {
+      const formData = new FormData()
+      Object.entries(data).forEach(([key, value]) => {
+        if (value) formData.append(key, value.toString())
+      })
+
+      if (selectedFile) formData.append('file', selectedFile)
+
+      const url = mode === 'create' ? '/api/hki' : `/api/hki/${initialData?.id}`
+      const method = mode === 'create' ? 'POST' : 'PATCH'
+
+      const response = await fetch(url, { method, body: formData })
+      const result = await response.json()
+
+      if (!response.ok) throw new Error(result.error || 'Gagal menyimpan data')
+
+      toast.success(`Entri HKI berhasil ${mode === 'create' ? 'dibuat' : 'diperbarui'}!`, { id: toastId })
+      router.push('/hki')
+      router.refresh()
+    } catch (error: any) {
+      toast.error(error.message, { id: toastId })
+    } finally {
+      setIsLoading(false)
     }
-
-    setSelectedFile(file)
-    onFileSelect(file)
-  }
-
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true)
-    } else if (e.type === 'dragleave') {
-      setDragActive(false)
-    }
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
-
-    const files = e.dataTransfer.files
-    if (files && files[0]) {
-      handleFileSelect(files[0])
-    }
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (files && files[0]) {
-      handleFileSelect(files[0])
-    }
-  }
-
-  const clearFile = () => {
-    setSelectedFile(null)
-    onFileSelect(null)
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-  }
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
   return (
-    <div className={cn('space-y-4', className)}>
-      <div
-        className={cn(
-          'border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer',
-          dragActive 
-            ? 'border-blue-500 bg-blue-50' 
-            : selectedFile
-              ? 'border-green-500 bg-green-50'
-              : 'border-gray-300 hover:border-gray-400'
-        )}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={accept}
-          onChange={handleInputChange}
-          className="hidden"
-        />
+    <Card>
+      <CardHeader>
+        <CardTitle>{mode === 'create' ? 'Buat Entri HKI Baru' : 'Edit Entri'}</CardTitle>
+        <CardDescription>Isi detail entri HKI pada formulir di bawah ini.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Nama HKI */}
+              <FormField name="nama_hki" control={form.control} render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>Nama HKI *</FormLabel>
+                  <FormControl><Input {...field} placeholder="Contoh: Sistem Inventaris Cerdas" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
-        {selectedFile ? (
-          <div className="space-y-2">
-            <File className="h-8 w-8 text-green-600 mx-auto" />
-            <div>
-              <p className="font-medium text-green-700">{selectedFile.name}</p>
-              <p className="text-sm text-green-600">{formatFileSize(selectedFile.size)}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <Upload className="h-8 w-8 text-gray-400 mx-auto" />
-            <div>
-              <p className="font-medium text-gray-700">
-                Click to upload or drag and drop
-              </p>
-              <p className="text-sm text-gray-500">
-                PDF files up to {Math.round(maxSize / 1024 / 1024)}MB
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+              {/* Nama Pemohon */}
+              <FormField name="nama_pemohon" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nama Pemohon *</FormLabel>
+                  <FormControl><Input {...field} placeholder="Contoh: PT. Inovasi Bangsa" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
 
-      {selectedFile && (
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-2">
-            <File className="h-4 w-4 text-gray-600" />
-            <span className="text-sm font-medium">{selectedFile.name}</span>
-            <span className="text-xs text-gray-500">
-              ({formatFileSize(selectedFile.size)})
-            </span>
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={clearFile}
-            className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
-    </div>
+              {/* Alamat */}
+              <FormField name="alamat" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Alamat Pemohon</FormLabel>
+                  <FormControl><Input {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* Jenis HKI */}
+              <FormField name="jenis_hki_id" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Jenis HKI *</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Pilih Jenis HKI" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {jenisOptions.map((opt) => (<SelectItem key={opt.id} value={opt.id.toString()}>{opt.nama}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* Status */}
+              <FormField name="status_id" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status *</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Pilih Status" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {statusOptions.map((opt) => (<SelectItem key={opt.id} value={opt.id.toString()}>{opt.nama}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* Jenis Produk */}
+              <FormField name="jenis_produk" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Jenis Produk</FormLabel>
+                  <FormControl><Input {...field} placeholder="Contoh: Perangkat Lunak" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* Pengusul */}
+              <FormField name="pengusul_id" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Pengusul</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Pilih Pengusul" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {pengusulOptions.map((opt) => (<SelectItem key={opt.id} value={opt.id.toString()}>{opt.nama}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* Tanggal Permohonan */}
+              <FormField name="tanggal_permohonan" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tanggal Permohonan</FormLabel>
+                  <FormControl><Input {...field} type="date" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* Tahun Fasilitasi */}
+              <FormField name="fasilitasi_tahun_id" control={form.control} render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fasilitasi Tahun *</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Pilih Tahun" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {tahunOptions.map((opt) => (<SelectItem key={opt.id} value={opt.id.toString()}>{opt.tahun}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
+            </div>
+
+            {/* Keterangan */}
+            <FormField name="keterangan" control={form.control} render={({ field }) => (
+              <FormItem>
+                <FormLabel>Keterangan</FormLabel>
+                <FormControl><Textarea {...field} placeholder="Catatan tambahan..." rows={4} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+
+            {/* Upload File */}
+            <div>
+              <Label>File Sertifikat (PDF, maks. 10MB)</Label>
+              <FileUploader onFileSelect={setSelectedFile} accept=".pdf" maxSize={10 * 1024 * 1024} />
+              {initialData?.sertifikat_path && !selectedFile && (
+                <p className="text-sm text-green-600 mt-2">✓ Berkas sudah ada. Unggah file baru untuk menggantinya.</p>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-4 pt-6">
+              <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>Batal</Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Menyimpan...' : (mode === 'create' ? 'Buat Entri' : 'Simpan Perubahan')}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
   )
 }

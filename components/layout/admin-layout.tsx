@@ -1,20 +1,29 @@
-import { Sidebar } from './sidebar'
-import { Topbar } from './topbar'
+'use client'
 
-interface AdminLayoutProps {
-  children: React.ReactNode
-}
+import React, { useState } from 'react';
+import { Sidebar } from './sidebar';
+import { Topbar } from './topbar';
 
-export function AdminLayout({ children }: AdminLayoutProps) {
+export function AdminLayout({ children }: { children: React.ReactNode }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
-    <div className="h-screen flex bg-gray-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Topbar />
-        <main className="flex-1 overflow-auto">
-          {children}
+    <div className="flex h-screen overflow-hidden bg-gray-100">
+      {/* Sidebar */}
+      <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+
+      {/* Area Konten Utama */}
+      <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden">
+        {/* Topbar */}
+        <Topbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+
+        {/* Konten Halaman */}
+        <main>
+          <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
+            {children}
+          </div>
         </main>
       </div>
     </div>
-  )
+  );
 }

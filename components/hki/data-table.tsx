@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useMemo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Table,
   TableBody,
@@ -10,9 +10,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Select,
   SelectContent,
@@ -20,6 +25,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,47 +37,64 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { 
   Search, 
   Plus, 
+  MoreHorizontal,
+  Trash2, 
   Eye, 
   Edit, 
-  Trash2, 
-  Filter,
   Download,
+  FolderOpen,
   X
 } from 'lucide-react'
-import { HKIEntry, JENIS_HKI_OPTIONS, STATUS_OPTIONS } from '@/lib/types'
+import { HKIEntry, JenisHKI, StatusHKI, FasilitasiTahun } from '@/lib/types'
 import { toast } from 'sonner'
+import { Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext } from '@/components/ui/pagination'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface DataTableProps {
   data: HKIEntry[]
   totalCount: number
   currentPage: number
   pageSize: number
+  formOptions: {
+    jenisOptions: JenisHKI[]
+    statusOptions: StatusHKI[]
+    tahunOptions: FasilitasiTahun[]
+  }
 }
 
-export function DataTable({ data, totalCount, currentPage, pageSize }: DataTableProps) {
+export function DataTable({ 
+  data, 
+  totalCount, 
+  currentPage, 
+  pageSize,
+  formOptions,
+}: DataTableProps) {
   const router = useRouter()
-  const [searchTerm, setSearchTerm] = useState('')
-  const [jenisFilter, setJenisFilter] = useState<string>('')
-  const [statusFilter, setStatusFilter] = useState<string>('')
-  const [yearFilter, setYearFilter] = useState<string>('')
-  const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '')
+  const [jenisFilter, setJenisFilter] = useState(searchParams.get('jenis') || '')
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '')
+  const [yearFilter, setYearFilter] = useState(searchParams.get('year') || '')
+  
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteAlertOpen, setDeleteAlertOpen] = useState(false)
+  const [entryToDelete, setEntryToDelete] = useState<HKIEntry | null>(null)
 
   const totalPages = Math.ceil(totalCount / pageSize)
 
-  const handleSearch = () => {
+  const handleApplyFilters = () => {
     const params = new URLSearchParams()
     if (searchTerm) params.set('search', searchTerm)
     if (jenisFilter) params.set('jenis', jenisFilter)
     if (statusFilter) params.set('status', statusFilter)
     if (yearFilter) params.set('year', yearFilter)
     params.set('page', '1')
-    
     router.push(`/hki?${params.toString()}`)
   }
 
@@ -81,315 +106,217 @@ export function DataTable({ data, totalCount, currentPage, pageSize }: DataTable
     router.push('/hki')
   }
 
-  const handleDelete = async (id: string) => {
-    setIsDeleting(id)
+  const handleDelete = async () => {
+    if (!entryToDelete) return;
+    setIsDeleting(true)
+    const toastId = toast.loading(`Menghapus "${entryToDelete.nama_hki}"...`)
     try {
-      const response = await fetch(`/api/hki/${id}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete entry')
-      }
-
-      toast.success('HKI entry deleted successfully')
+      const response = await fetch(`/api/hki/${entryToDelete.id}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error('Gagal menghapus entri')
+      toast.success('Entri HKI berhasil dihapus', { id: toastId })
+      setDeleteAlertOpen(false)
       router.refresh()
     } catch (error) {
-      toast.error('Failed to delete HKI entry')
+      toast.error('Gagal menghapus entri HKI', { id: toastId })
     } finally {
-      setIsDeleting(null)
+      setIsDeleting(false)
     }
   }
 
-  const handleDownloadPDF = async (id: string, namaHki: string) => {
+  const handleDownloadPDF = async (id: string) => {
+    const toastId = toast.loading("Membuat tautan unduhan...")
     try {
       const response = await fetch(`/api/hki/${id}/signed-url`)
       const data = await response.json()
-      
-      if (data.signedUrl) {
-        window.open(data.signedUrl, '_blank')
+      if (response.ok && data.signedUrl) {
+        if (typeof window !== 'undefined') {
+          window.open(data.signedUrl, '_blank')
+        }
+        toast.success("Tautan berhasil dibuat!", { id: toastId })
       } else {
-        toast.error('No certificate file available')
+        throw new Error(data.error || 'Sertifikat tidak tersedia.')
       }
-    } catch (error) {
-      toast.error('Failed to generate download link')
+    } catch (error: any) {
+      toast.error(error.message, { id: toastId })
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      'Diterima': 'bg-green-50 text-green-700 border-green-200',
-      'Didaftar': 'bg-blue-50 text-blue-700 border-blue-200',
-      'Ditolak': 'bg-red-50 text-red-700 border-red-200',
-      'Dalam Proses': 'bg-yellow-50 text-yellow-700 border-yellow-200'
-    }
-    return variants[status as keyof typeof variants] || 'bg-gray-50 text-gray-700 border-gray-200'
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('page', newPage.toString())
+    router.push(`/hki?${params.toString()}`)
   }
-
-  const getJenisBadge = (jenis: string) => {
-    const variants = {
-      'Merek': 'bg-purple-50 text-purple-700 border-purple-200',
-      'Hak Cipta': 'bg-indigo-50 text-indigo-700 border-indigo-200',
-      'Paten': 'bg-orange-50 text-orange-700 border-orange-200',
-      'Paten Sederhana': 'bg-amber-50 text-amber-700 border-amber-200',
-      'Indikasi Geografis': 'bg-teal-50 text-teal-700 border-teal-200'
+ 
+  const getStatusBadge = (statusName?: string) => {
+    const variants: Record<string, string> = {
+      'Diterima': 'bg-green-100 text-green-800 border-green-200',
+      'Didaftar': 'bg-blue-100 text-blue-800 border-blue-200',
+      'Ditolak': 'bg-red-100 text-red-800 border-red-200',
+      'Dalam Proses': 'bg-yellow-100 text-yellow-800 border-yellow-200',
     }
-    return variants[jenis as keyof typeof variants] || 'bg-gray-50 text-gray-700 border-gray-200'
+    return variants[statusName ?? ''] || 'bg-gray-100 text-gray-800 border-gray-200'
   }
-
-  // Get unique years from data for filter
-  const years = [...new Set(data.map(item => item.fasilitasi_tahun))].sort((a, b) => b - a)
 
   return (
-    <div className="space-y-6">
-      {/* Search and Filters */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Search & Filter
-            </CardTitle>
-            <Button onClick={() => router.push('/hki/create')} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add New HKI
-            </Button>
+    <div className="space-y-4">
+      {/* Filter Panel */}
+      <div className="p-4 bg-white rounded-lg border space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <Input
+            placeholder="Cari HKI, pemohon..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+            className="lg:col-span-2"
+          />
+          <Select value={jenisFilter} onValueChange={setJenisFilter}>
+            <SelectTrigger><SelectValue placeholder="Semua Jenis HKI" /></SelectTrigger>
+            <SelectContent>
+              {formOptions.jenisOptions.map(opt => <SelectItem key={opt.id} value={opt.nama}>{opt.nama}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger><SelectValue placeholder="Semua Status" /></SelectTrigger>
+            <SelectContent>
+              {formOptions.statusOptions.map(opt => <SelectItem key={opt.id} value={opt.nama}>{opt.nama}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={yearFilter} onValueChange={setYearFilter}>
+            <SelectTrigger><SelectValue placeholder="Semua Tahun" /></SelectTrigger>
+            <SelectContent>
+              {formOptions.tahunOptions.map(opt => <SelectItem key={opt.id} value={String(opt.tahun)}>{opt.tahun}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex gap-2">
+            <Button onClick={handleApplyFilters} className="gap-2"><Search className="h-4 w-4" /> Terapkan</Button>
+            <Button variant="ghost" onClick={clearFilters} className="gap-2"><X className="h-4 w-4" /> Bersihkan</Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="lg:col-span-2">
-              <Input
-                placeholder="Search by nama HKI or pemohon..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full"
-              />
-            </div>
-            
-            <Select value={jenisFilter} onValueChange={setJenisFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by jenis" />
-              </SelectTrigger>
-              <SelectContent>
-                {JENIS_HKI_OPTIONS.map((jenis) => (
-                  <SelectItem key={jenis} value={jenis}>
-                    {jenis}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={yearFilter} onValueChange={setYearFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by year" />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((year) => (
-                  <SelectItem key={year} value={year.toString()}>
-                    {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="flex gap-2 mt-4">
-            <Button onClick={handleSearch} className="gap-2">
-              <Search className="h-4 w-4" />
-              Search
-            </Button>
-            <Button variant="outline" onClick={clearFilters} className="gap-2">
-              <X className="h-4 w-4" />
-              Clear Filters
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
+          <Button className="gap-2" onClick={() => router.push('/hki/create')}><Plus className="h-4 w-4" /> Tambah</Button>
+        </div>
+      </div>
+     
       {/* Data Table */}
       <Card>
-        <CardHeader>
-          <CardTitle>HKI Entries ({totalCount} total)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {data.length > 0 ? (
-            <>
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nama HKI</TableHead>
-                      <TableHead>Jenis</TableHead>
-                      <TableHead>Pemohon</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Tahun</TableHead>
-                      <TableHead>Tanggal Permohonan</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50px]">No</TableHead>
+                  <TableHead>Nama Pemohon</TableHead>
+                  <TableHead>Alamat</TableHead>
+                  <TableHead>Nama HKI</TableHead>
+                  <TableHead>Jenis Produk</TableHead>
+                  <TableHead>Jenis HKI</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Tahun</TableHead>
+                  <TableHead>Sertifikat</TableHead>
+                  <TableHead>Pengusul</TableHead>
+                  <TableHead>Keterangan</TableHead>
+                  <TableHead className="text-right sticky right-0 bg-white shadow-sm z-10">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.length > 0 ? (
+                  data.map((entry, index) => (
+                    <TableRow key={entry.id}>
+                      <TableCell>{(currentPage - 1) * pageSize + index + 1}</TableCell>
+                      <TableCell className="font-medium">{entry.pemohon?.nama || '-'}</TableCell>
+                      <TableCell>
+                        <TooltipProvider><Tooltip>
+                          <TooltipTrigger asChild>
+                            <p className="max-w-[200px] truncate">{entry.pemohon?.alamat || '-'}</p>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs"><p>{entry.pemohon?.alamat}</p></TooltipContent>
+                        </Tooltip></TooltipProvider>
+                      </TableCell>
+                      <TableCell>{entry.nama_hki}</TableCell>
+                      <TableCell>{entry.jenis_produk || '-'}</TableCell>
+                      <TableCell>{entry.jenis_hki?.nama || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={getStatusBadge(entry.status_hki?.nama)}>{entry.status_hki?.nama || 'N/A'}</Badge>
+                      </TableCell>
+                      <TableCell>{entry.fasilitasi_tahun?.tahun || '-'}</TableCell>
+                      <TableCell>
+                        {entry.sertifikat_path ? (
+                          <Button variant="outline" size="sm" className="gap-1" onClick={() => handleDownloadPDF(entry.id)}>
+                            <Download className="h-3 w-3" /> Unduh
+                          </Button>
+                        ) : (<span className="text-xs text-muted-foreground">Tidak ada</span>)}
+                      </TableCell>
+                      <TableCell>{entry.pengusul?.nama || '-'}</TableCell>
+                      <TableCell>
+                        <TooltipProvider><Tooltip>
+                          <TooltipTrigger asChild>
+                            <p className="max-w-[200px] truncate">{entry.keterangan || '-'}</p>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs"><p>{entry.keterangan}</p></TooltipContent>
+                        </Tooltip></TooltipProvider>
+                      </TableCell>
+                      <TableCell className="text-right sticky right-0 bg-white shadow-sm z-10">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/hki/${entry.id}`)}><Eye className="mr-2 h-4 w-4" /> Detail</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => router.push(`/hki/${entry.id}/edit`)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => { setEntryToDelete(entry); setDeleteAlertOpen(true); }}>
+                              <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.map((entry) => (
-                      <TableRow key={entry.id} className="hover:bg-gray-50">
-                        <TableCell className="font-medium">
-                          {entry.nama_hki}
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant="outline" 
-                            className={getJenisBadge(entry.jenis_hki)}
-                          >
-                            {entry.jenis_hki}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{entry.nama_pemohon}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant="outline" 
-                            className={getStatusBadge(entry.status)}
-                          >
-                            {entry.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{entry.fasilitasi_tahun}</TableCell>
-                        <TableCell>
-                          {new Date(entry.tanggal_permohonan).toLocaleDateString('id-ID')}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center gap-2 justify-end">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => router.push(`/hki/${entry.id}/view`)}
-                              className="gap-1"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => router.push(`/hki/${entry.id}/edit`)}
-                              className="gap-1"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            {entry.sertifikat_path && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDownloadPDF(entry.id, entry.nama_hki)}
-                                className="gap-1"
-                              >
-                                <Download className="h-4 w-4" />
-                              </Button>
-                            )}
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete HKI Entry</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete "{entry.nama_hki}"? 
-                                    This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(entry.id)}
-                                    disabled={isDeleting === entry.id}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    {isDeleting === entry.id ? 'Deleting...' : 'Delete'}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-6">
-                  <p className="text-sm text-gray-600">
-                    Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, totalCount)} of {totalCount} entries
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage <= 1}
-                      onClick={() => {
-                        const params = new URLSearchParams(window.location.search)
-                        params.set('page', (currentPage - 1).toString())
-                        router.push(`/hki?${params.toString()}`)
-                      }}
-                    >
-                      Previous
-                    </Button>
-                    <span className="flex items-center px-3 text-sm">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={currentPage >= totalPages}
-                      onClick={() => {
-                        const params = new URLSearchParams(window.location.search)
-                        params.set('page', (currentPage + 1).toString())
-                        router.push(`/hki?${params.toString()}`)
-                      }}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-12">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                No HKI entries found
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Start by creating your first HKI entry
-              </p>
-              <Button onClick={() => router.push('/hki/create')}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add New HKI Entry
-              </Button>
-            </div>
-          )}
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={12} className="h-48 text-center">
+                      <FolderOpen className="mx-auto h-12 w-12 text-gray-400" />
+                      <p className="mt-4 font-semibold">Tidak Ada Data</p>
+                      <p className="text-sm text-muted-foreground">Coba ubah filter Anda atau buat entri baru.</p>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
+
+        {totalPages > 1 && (
+          <div className="p-4 border-t flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Halaman {currentPage} dari {totalPages}</p>
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem><PaginationPrevious onClick={() => handlePageChange(currentPage - 1)} aria-disabled={currentPage <= 1} className={currentPage <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"} /></PaginationItem>
+                <PaginationItem><span className="font-medium text-sm p-2">{currentPage}</span></PaginationItem>
+                <PaginationItem><PaginationNext onClick={() => handlePageChange(currentPage + 1)} aria-disabled={currentPage >= totalPages} className={currentPage >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"} /></PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
       </Card>
+      
+      <AlertDialog open={deleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
+            <AlertDialogDescription>
+              Anda yakin ingin menghapus entri HKI untuk <b>{entryToDelete?.nama_hki}</b> secara permanen? Aksi ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
+              {isDeleting ? 'Menghapus...' : 'Ya, Hapus Permanen'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

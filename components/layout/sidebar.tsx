@@ -1,96 +1,125 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase-browser'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { 
-  Home, 
-  FileText, 
+import React, { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import {
+  Home,
+  FileText,
+  Library,
+  ArrowLeft,
+  Settings,
   LogOut,
-  Shield
-} from 'lucide-react'
-import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-const navigation = [
-  {
-    name: 'Dashboard',
-    href: '/dashboard',
-    icon: Home,
-  },
-  {
-    name: 'Data HKI',
-    href: '/hki',
-    icon: FileText,
-  },
-]
+interface SidebarProps {
+  sidebarOpen: boolean;
+  setSidebarOpen: (arg: boolean) => void;
+}
 
-export function Sidebar() {
-  const pathname = usePathname()
-  const router = useRouter()
-  const supabase = createClient()
+export const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
+  const pathname = usePathname();
+  const trigger = useRef<any>(null);
+  const sidebar = useRef<any>(null);
 
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      toast.error('Error signing out')
-    } else {
-      toast.success('Signed out successfully')
-      router.push('/login')
-      router.refresh()
-    }
-  }
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const clickHandler = ({ target }: MouseEvent) => {
+      if (!sidebar.current || !trigger.current) return;
+      if (!sidebarOpen || sidebar.current.contains(target) || trigger.current.contains(target)) return;
+      setSidebarOpen(false);
+    };
+    document.addEventListener('click', clickHandler);
+    return () => document.removeEventListener('click', clickHandler);
+  });
+
+  const navigation = [
+    { name: 'Dasbor', href: '/dashboard', icon: Home },
+    { name: 'Data HKI', href: '/hki', icon: FileText },
+    { name: 'Pengaturan', href: '/settings', icon: Settings },
+  ];
 
   return (
-    <div className="flex h-full w-64 flex-col bg-white border-r border-gray-200">
-      {/* Logo/Header */}
-      <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-200">
-        <Shield className="h-8 w-8 text-blue-600" />
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">HKI Admin</h1>
-          <Badge variant="secondary" className="text-xs">
-            Admin Dashboard
-          </Badge>
-        </div>
-      </div>
+    <aside
+      ref={sidebar}
+      className={cn(
+        `flex h-screen flex-col bg-white shadow-lg duration-300 ease-in-out
+        lg:static lg:translate-x-0`,
+        sidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full w-72',
+        collapsed && 'lg:w-20'
+      )}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-5">
+        <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+          <Library className="h-7 w-7 text-blue-600" />
+          {!collapsed && <span className="text-xl">HKI Panel</span>}
+        </Link>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-2">
-        {navigation.map((item) => {
-          const Icon = item.icon
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-          
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              )}
-            >
-              <Icon className="h-5 w-5" />
-              {item.name}
-            </Link>
-          )
-        })}
-      </nav>
-
-      {/* Logout Button */}
-      <div className="p-4 border-t border-gray-200">
+        {/* Collapse button */}
         <Button
           variant="ghost"
-          className="w-full justify-start gap-3 text-red-600 hover:text-red-700 hover:bg-red-50"
-          onClick={handleLogout}
+          size="icon"
+          onClick={() => setCollapsed(!collapsed)}
+          className="hidden lg:flex"
         >
-          <LogOut className="h-5 w-5" />
-          Logout
+          {collapsed ? <ChevronRight /> : <ChevronLeft />}
         </Button>
       </div>
-    </div>
-  )
-}
+
+      {/* Menu */}
+      <div className="flex flex-col overflow-y-auto">
+        <nav className="mt-5 px-2 lg:px-4">
+          <h3
+            className={cn(
+              'mb-4 ml-2 text-sm font-semibold text-muted-foreground',
+              collapsed && 'hidden'
+            )}
+          >
+            MENU
+          </h3>
+          <ul className="mb-6 flex flex-col gap-1.5">
+            {navigation.map((item) => {
+              const isActive =
+                pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/dashboard');
+              return (
+                <li key={item.name}>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "group relative flex items-center gap-2.5 rounded-md px-4 py-2 font-medium text-gray-600 transition-colors hover:bg-gray-100",
+                      isActive && "bg-gray-100 text-primary"
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    {!collapsed && <span>{item.name}</span>}
+                    {isActive && (
+                      <span className="absolute left-0 top-0 h-full w-1 bg-primary rounded-r-md"></span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-auto border-t p-4">
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-2 text-gray-600 hover:bg-gray-100"
+        >
+          <LogOut className="h-5 w-5" />
+          {!collapsed && <span>Keluar</span>}
+        </Button>
+        {!collapsed && <p className="mt-2 text-xs text-muted-foreground">Versi 1.0.0</p>}
+      </div>
+    </aside>
+  );
+};
