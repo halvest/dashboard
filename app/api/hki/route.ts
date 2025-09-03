@@ -1,80 +1,82 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase-server'
 import { requireAdmin } from '@/lib/auth'
+import { HKIEntry, Pemohon } from '@/lib/types'
 
-// Fungsi GET dan DELETE tidak perlu diubah
-
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+// Handle POST request to create a new HKI entry
+export async function POST(request: NextRequest) {
   try {
     await requireAdmin()
     
     const supabase = createServiceClient()
     const formData = await request.formData()
-    
-    const { data: existingEntry, error: fetchError } = await supabase
-      .from('hki_entries')
-      .select('sertifikat_path')
-      .eq('id', params.id)
+
+    // 1. Handle Pemohon: Upsert (update or insert)
+    const namaPemohon = formData.get('nama_pemohon') as string
+    const alamatPemohon = (formData.get('alamat') as string) || null
+
+    const { data: pemohon, error: pemohonError } = await supabase
+      .from('pemohon')
+      .upsert({ nama: namaPemohon, alamat: alamatPemohon }, { onConflict: 'nama', ignoreDuplicates: false })
+      .select('id')
       .single()
 
-    if (fetchError) {
-      return NextResponse.json({ error: 'Entry not found' }, { status: 404 })
+    if (pemohonError || !pemohon) {
+      console.error('Pemohon error:', pemohonError)
+      return NextResponse.json({ error: 'Gagal memproses data pemohon.' }, { status: 400 })
     }
 
-    const data = {
-      nama_hki: formData.get('nama_hki') as string,
-      jenis_hki: formData.get('jenis_hki') as string,
-      nama_pemohon: formData.get('nama_pemohon') as string,
-      alamat: formData.get('alamat') as string || null,
-      jenis_produk: formData.get('jenis_produk') as string || null,
-      pengusul: formData.get('pengusul') as string || null,
-      nomor_permohonan: formData.get('nomor_permohonan') as string,
-      tanggal_permohonan: formData.get('tanggal_permohonan') as string,
-      status: formData.get('status') as string,
-      fasilitasi_tahun: parseInt(formData.get('fasilitasi_tahun') as string),
-      keterangan: formData.get('keterangan') as string || null,
-    }
-
-    let sertifikat_path = existingEntry.sertifikat_path
-
-    const file = formData.get('file') as File
+    // 2. Handle File Upload
+    let sertifikat_path: string | null = null
+    const file = formData.get('file') as File | null
     if (file && file.size > 0) {
-      if (existingEntry.sertifikat_path) {
-        await supabase.storage
-          .from('sertifikat')
-          .remove([existingEntry.sertifikat_path])
-      }
       const fileExt = file.name.split('.').pop()
       const fileName = `hki/${crypto.randomUUID()}.${fileExt}`
       const { error: uploadError } = await supabase.storage
         .from('sertifikat')
         .upload(fileName, file)
+      
       if (uploadError) {
-        return NextResponse.json({ error: 'File upload failed' }, { status: 500 })
+        console.error('Upload error:', uploadError)
+        return NextResponse.json({ error: 'Gagal mengunggah file.' }, { status: 500 })
       }
       sertifikat_path = fileName
     }
 
-    const { data: updatedEntry, error: updateError } = await supabase
+    // 3. Prepare HKI Entry Data
+    const hkiData = {
+      nama_hki: formData.get('nama_hki') as string,
+      pemohon_id: pemohon.id,
+      jenis_hki_id: parseInt(formData.get('jenis_hki_id') as string),
+      status_hki_id: parseInt(formData.get('status_hki_id') as string),
+      fasilitasi_tahun_id: parseInt(formData.get('fasilitasi_tahun_id') as string),
+      pengusul_id: formData.get('pengusul_id') ? parseInt(formData.get('pengusul_id') as string) : null,
+      nomor_permohonan: (formData.get('nomor_permohonan') as string) || null,
+      tanggal_permohonan: (formData.get('tanggal_permohonan') as string) || null,
+      jenis_produk: (formData.get('jenis_produk') as string) || null,
+      keterangan: (formData.get('keterangan') as string) || null,
+      sertifikat_path,
+    }
+
+    // 4. Insert HKI Entry
+    const { data: newEntry, error: insertError } = await supabase
       .from('hki_entries')
-      .update({ ...data, sertifikat_path })
-      .eq('id', params.id)
+      .insert(hkiData)
       .select()
       .single()
 
-    if (updateError) {
-      return NextResponse.json({ 
-        error: updateError.message.includes('duplicate key') 
-          ? 'Nama HKI sudah terdaftar' 
-          : updateError.message 
-      }, { status: 400 })
+    if (insertError) {
+       console.error('Insert error:', insertError)
+       return NextResponse.json({ 
+         error: insertError.message.includes('duplicate key') 
+           ? 'Nama HKI sudah terdaftar' 
+           : insertError.message 
+       }, { status: 400 })
     }
 
-    return NextResponse.json({ data: updatedEntry })
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ data: newEntry }, { status: 201 })
+  } catch (error: any) {
+    console.error('Server error:', error)
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 })
   }
 }

@@ -7,7 +7,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -19,20 +18,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { FileUploader } from '@/components/forms/file-uploader'
 import { HKIEntry, JenisHKI, StatusHKI, FasilitasiTahun, Pengusul } from '@/lib/types'
 import { toast } from 'sonner'
+import { Label } from '../ui/label'
 
 const hkiSchema = z.object({
   nama_hki: z.string().min(1, 'Nama HKI wajib diisi'),
   nama_pemohon: z.string().min(1, 'Nama pemohon wajib diisi'),
-  alamat: z.string().optional(),
-  jenis_produk: z.string().optional(),
-  nomor_permohonan: z.string().optional(),
-  tanggal_permohonan: z.string().optional(),
-  keterangan: z.string().optional(),
-
+  alamat: z.string().optional().nullable(),
+  jenis_produk: z.string().optional().nullable(),
+  nomor_permohonan: z.string().optional().nullable(),
+  tanggal_permohonan: z.string().optional().nullable(),
+  keterangan: z.string().optional().nullable(),
   jenis_hki_id: z.string({ required_error: 'Jenis HKI wajib dipilih' }),
-  status_id: z.string({ required_error: 'Status wajib dipilih' }),
+  status_hki_id: z.string({ required_error: 'Status wajib dipilih' }),
   fasilitasi_tahun_id: z.string({ required_error: 'Tahun fasilitasi wajib dipilih' }),
-  pengusul_id: z.string().optional(),
+  pengusul_id: z.string().optional().nullable(),
 })
 
 type HKIFormData = z.infer<typeof hkiSchema>
@@ -62,7 +61,7 @@ export function HKIForm({ initialData, mode, jenisOptions, statusOptions, tahunO
       tanggal_permohonan: initialData?.tanggal_permohonan?.split('T')[0] || '',
       keterangan: initialData?.keterangan || '',
       jenis_hki_id: initialData?.jenis_hki?.id?.toString(),
-      status_id: initialData?.status_hki?.id?.toString(),
+      status_hki_id: initialData?.status_hki?.id?.toString(),
       fasilitasi_tahun_id: initialData?.fasilitasi_tahun?.id?.toString(),
       pengusul_id: initialData?.pengusul?.id?.toString(),
     },
@@ -152,7 +151,7 @@ export function HKIForm({ initialData, mode, jenisOptions, statusOptions, tahunO
               )} />
 
               {/* Status */}
-              <FormField name="status_id" control={form.control} render={({ field }) => (
+              <FormField name="status_hki_id" control={form.control} render={({ field }) => (
                 <FormItem>
                   <FormLabel>Status *</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>

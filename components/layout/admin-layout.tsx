@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 import React, { useState } from 'react';
 import { Sidebar } from './sidebar';
@@ -8,17 +8,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-100">
-      {/* Sidebar */}
+    <div className="h-screen overflow-hidden bg-gray-100 dark:bg-gray-950">
+      {/* Komponen Sidebar ini sekarang mengelola animasinya sendiri */}
       <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-      {/* Area Konten Utama */}
-      <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden">
-        {/* Topbar */}
-        <Topbar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+      <div className="flex h-full flex-col">
+        <Topbar setSidebarOpen={setSidebarOpen} />
 
-        {/* Konten Halaman */}
-        <main>
+        <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
             {children}
           </div>
