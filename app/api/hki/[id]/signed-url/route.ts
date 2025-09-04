@@ -1,38 +1,41 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase-server'
-import { requireAdmin } from '@/lib/auth'
+// app/api/hki/[id]/signed-url/route.ts
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+// app/api/hki/[id]/signed-url/route.ts
+
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  const supabase = createRouteHandlerClient({ cookies });
+  const id = parseInt(params.id, 10);
+
+  if (isNaN(id)) return NextResponse.json({ error: 'ID tidak valid' }, { status: 400 });
+
   try {
-    await requireAdmin()
-    
-    const supabase = createServiceClient()
-    
-    // Get entry with certificate path
-    const { data: entry, error: fetchError } = await supabase
-      .from('hki_entries')
-      .select('sertifikat_path')
-      .eq('id', params.id)
-      .single()
+    const { data: hkiEntry, error: fetchError } = await supabase
+      .from('hki')
+      .select('sertifikat_pdf')
+      .eq('id_hki', id)
+      .single();
 
-    if (fetchError || !entry?.sertifikat_path) {
-      return NextResponse.json({ error: 'Certificate file not found' }, { status: 404 })
+    if (fetchError || !hkiEntry) {
+      return NextResponse.json({ error: 'Entri tidak ditemukan' }, { status: 404 });
+    }
+    if (!hkiEntry.sertifikat_pdf) {
+      return NextResponse.json({ error: 'Sertifikat tidak tersedia untuk entri ini' }, { status: 404 });
     }
 
-    // Generate signed URL (valid for 5 minutes)
-    const { data: signedUrlData, error: urlError } = await supabase.storage
-      .from('sertifikat')
-      .createSignedUrl(entry.sertifikat_path, 300) // 5 minutes
+    const { data, error: urlError } = await supabase.storage
+      .from('sertifikat-hki')
+      .createSignedUrl(hkiEntry.sertifikat_pdf, 60); // URL berlaku selama 60 detik
 
-    if (urlError) {
-      return NextResponse.json({ error: 'Failed to generate signed URL' }, { status: 500 })
-    }
+    if (urlError) throw urlError;
 
-    return NextResponse.json({ signedUrl: signedUrlData.signedUrl })
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ signedUrl: data.signedUrl });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

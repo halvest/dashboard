@@ -103,7 +103,7 @@ middleware.ts                 # Route protection
 ### profiles table
 - Extends Supabase auth.users with is_admin field
 
-### hki_entries table
+### hki table
 - Complete HKI entry management with all required fields
 - Unique constraint on nama_hki
 - Audit fields (created_at, updated_at)

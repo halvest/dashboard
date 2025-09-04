@@ -9,7 +9,7 @@
 */
 
 -- Sample HKI entries
-INSERT INTO hki_entries (
+INSERT INTO hki (
   nama_hki,
   jenis_hki,
   nama_pemohon,

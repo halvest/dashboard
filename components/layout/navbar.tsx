@@ -24,13 +24,15 @@ import { createClient } from '@/lib/supabase-browser';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
+import { User } from '@supabase/supabase-js';
 
 interface TopbarProps {
+  sidebarOpen: boolean;
   setSidebarOpen: (val: boolean) => void;
 }
 
-export const Topbar = ({ setSidebarOpen }: TopbarProps) => {
-  const [user, setUser] = useState<any>(null);
+export function Topbar({ sidebarOpen, setSidebarOpen }: TopbarProps) {
+  const [user, setUser] = useState<User | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
@@ -65,37 +67,35 @@ export const Topbar = ({ setSidebarOpen }: TopbarProps) => {
 
   const breadcrumbs = pathname
     .split('/')
-    .filter(Boolean)
-    .map((crumb) => crumb.replace(/-/g, ' '));
+    .filter(Boolean);
 
   return (
-    <header className="sticky top-0 z-20 w-full border-b bg-white/90 shadow-sm backdrop-blur-md transition-shadow dark:bg-gray-900/90">
-      <div className="flex items-center justify-between px-4 py-3 md:px-6 2xl:px-11">
+    <header className="sticky top-0 z-30 w-full border-b bg-white/80 shadow-sm backdrop-blur-md dark:bg-slate-900/80 dark:border-slate-800">
+      <div className="flex items-center justify-between px-4 py-3 md:px-6">
         {/* Left Section */}
         <div className="flex items-center gap-2 sm:gap-4">
-          {/* Tombol Menu (selalu terlihat) */}
           <Button
             variant="ghost"
             size="icon"
             aria-label="Toggle Sidebar"
-            onClick={() => setSidebarOpen(true)}
+            onClick={() => setSidebarOpen(!sidebarOpen)}
           >
             <Menu className="h-6 w-6" />
           </Button>
 
           {/* Breadcrumbs */}
-          <nav className="hidden items-center gap-1 text-sm text-muted-foreground md:flex">
+          <nav className="hidden items-center gap-1 text-sm font-medium text-muted-foreground md:flex">
             <Link
               href="/dashboard"
-              className="transition-colors hover:text-foreground"
+              className="capitalize transition-colors hover:text-foreground"
             >
-              Dasbor
+              {breadcrumbs[0] || 'Dasbor'}
             </Link>
             {breadcrumbs.slice(1).map((crumb, idx) => (
               <span key={idx} className="flex items-center gap-1">
                 <span className="text-gray-400">/</span>
                 <span className="capitalize text-gray-700 dark:text-gray-300">
-                  {crumb}
+                  {crumb.replace(/-/g, ' ')}
                 </span>
               </span>
             ))}
@@ -122,16 +122,16 @@ export const Topbar = ({ setSidebarOpen }: TopbarProps) => {
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Notifikasi">
-                <Bell className="h-6 w-6" />
+              <Button variant="ghost" size="icon" aria-label="Notifikasi" className="relative">
+                <Bell className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
               <DropdownMenuLabel>Notifikasi</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-default text-gray-500">
-                Tidak ada notifikasi
-              </DropdownMenuItem>
+              <div className="p-4 text-center text-sm text-gray-500">
+                Tidak ada notifikasi baru.
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -140,17 +140,19 @@ export const Topbar = ({ setSidebarOpen }: TopbarProps) => {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="flex h-auto items-center gap-3 p-2"
+                className="flex h-auto items-center gap-3 p-1 rounded-full"
                 aria-label="User Menu"
               >
                 {loadingUser ? (
-                  <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200" />
+                  <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200 dark:bg-slate-700" />
                 ) : (
-                  <CircleUser className="h-8 w-8 text-gray-600 dark:text-gray-300" />
+                  <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                    <CircleUser className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                  </div>
                 )}
                 <div className="hidden text-left lg:block">
                   <span className="block text-sm font-medium text-black dark:text-white">
-                    {user?.email || 'Guest'}
+                    {user?.email?.split('@')[0] || 'Admin'}
                   </span>
                   <span className="block text-xs text-muted-foreground">
                     Administrator
@@ -159,21 +161,24 @@ export const Topbar = ({ setSidebarOpen }: TopbarProps) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Akun Saya</DropdownMenuLabel>
+              <DropdownMenuLabel>
+                <p>Akun Saya</p>
+                <p className="text-xs font-normal text-muted-foreground truncate">{user?.email}</p>
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/settings">
                   <Settings className="mr-2 h-4 w-4" />
-                  Pengaturan
+                  <span>Pengaturan</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleLogout}
-                className="text-red-500 focus:text-red-500"
+                className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
               >
                 <LogOut className="mr-2 h-4 w-4" />
-                Keluar
+                <span>Keluar</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -1,59 +1,47 @@
+// lib/types.ts
+
 // Tipe dasar untuk tabel relasi
-// Ini akan digunakan untuk mengisi dropdown di formulir nanti.
+export interface Pemohon {
+  id_pemohon: number;
+  nama_pemohon: string;
+  alamat?: string | null;
+}
+
 export interface JenisHKI {
-  id: number;
-  nama: string;
+  id_jenis_hki: number;
+  nama_jenis_hki: string;
 }
 
 export interface StatusHKI {
-  id: number;
-  nama: string;
-}
-
-export interface FasilitasiTahun {
-  id: number;
-  tahun: number;
+  id_status: number;
+  nama_status: string;
 }
 
 export interface Pengusul {
-  id: number;
-  nama: string;
+  id_pengusul: number;
+  nama_opd: string;
 }
 
-export interface Pemohon {
-  id: string; // uuid
-  nama: string;
-  alamat: string | null;
-  kontak?: string | null; // tambahan dari schema terbaru
-}
-
-// Interface utama untuk HKIEntry yang sudah dinormalisasi
-// Perhatikan bagaimana kita menyusun data relasional di dalamnya.
-// Ini adalah cerminan dari cara Supabase akan mengembalikan data saat kita melakukan JOIN.
+// Tipe utama untuk entri HKI, mencerminkan hasil JOIN dari database
 export interface HKIEntry {
-  id: string; // uuid
+  id_hki: number;
   nama_hki: string;
   jenis_produk: string | null;
-  tanggal_permohonan: string | null; // bisa jadi date string
-  sertifikat_path: string | null;
+  tahun_fasilitasi: number | null;
+  sertifikat_pdf: string | null;
   keterangan: string | null;
   created_at: string;
   updated_at: string;
 
-  // Data dari tabel lain yang di-JOIN
-  pemohon: Pick<Pemohon, 'id' | 'nama' | 'alamat'> | null;
-  jenis_hki: Pick<JenisHKI, 'id' | 'nama'> | null;
-  status_hki: Pick<StatusHKI, 'id' | 'nama'> | null;
-  fasilitasi_tahun: Pick<FasilitasiTahun, 'id' | 'tahun'> | null;
-  pengusul: Pick<Pengusul, 'id' | 'nama'> | null;
-}
-
-// Tipe untuk profil pengguna
-export interface Profile {
-  id: string;
-  email: string;
-  role: string; // sesuai schema terbaru: 'user' | 'admin'
-  is_admin: boolean;
-  created_at: string;
-  updated_at: string;
+  // Foreign Keys
+  id_pemohon: number;
+  id_jenis_hki: number;
+  id_status: number;
+  id_pengusul: number;
+  
+  // Data relasional hasil JOIN (objek)
+  pemohon: Pemohon | null;
+  jenis_hki: JenisHKI | null;
+  status_hki: StatusHKI | null; 
+  pengusul: Pengusul | null;
 }
