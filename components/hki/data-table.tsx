@@ -26,11 +26,12 @@ import {
   Pagination, PaginationContent, PaginationItem, PaginationPrevious, PaginationNext,
 } from '@/components/ui/pagination'
 import {
-  Plus, MoreHorizontal, Trash2, Eye, Edit, Download, FolderOpen, X, ArrowUpDown, ArrowUp, ArrowDown, FileDown,
+  Plus, MoreHorizontal, Trash2, Eye, Edit, Download, FolderOpen, X, ArrowUpDown, ArrowUp, ArrowDown, Search,
 } from 'lucide-react'
 import { useDebounce } from '@/hooks/use-debounce'
 import { HKIEntry, JenisHKI, Pengusul, StatusHKI } from '@/lib/types'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 /* ======================== TYPES & CONSTANTS ======================== */
 const STATUS_BADGE: Record<string, string> = {
@@ -48,11 +49,9 @@ const DEFAULTS = {
   sortOrder: 'desc' as 'asc' | 'desc',
 }
 
-function clamp(num: number, min: number, max: number) {
-  return Math.max(min, Math.min(num, max))
-}
+const clamp = (num: number, min: number, max: number) => Math.max(min, Math.min(num, max));
 
-function buildPageItems(current: number, total: number) {
+const buildPageItems = (current: number, total: number) => {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
   if (current < 5) return [1, 2, 3, 4, '…', total]
   if (current > total - 4) return [1, '…', total - 3, total - 2, total - 1, total]
@@ -84,32 +83,29 @@ function useDataTable(totalCount: number) {
   useEffect(() => {
     const params = new URLSearchParams()
     
-    // Fungsi ini hanya menambahkan parameter ke URL jika nilainya ada
-    const addParam = (key: string, value: string | number) => {
-        if (value) params.set(key, String(value));
+    const updateParam = (key: string, value: string | number, defaultValue?: any) => {
+        if (value && value !== defaultValue) {
+            params.set(key, String(value));
+        }
     }
 
-    addParam('search', debouncedSearch)
-    addParam('jenisId', filters.jenisId)
-    addParam('statusId', filters.statusId)
-    addParam('year', filters.year)
+    updateParam('search', debouncedSearch, '')
+    updateParam('jenisId', filters.jenisId, '')
+    updateParam('statusId', filters.statusId, '')
+    updateParam('year', filters.year, '')
+    updateParam('page', pagination.page, DEFAULTS.page)
+    updateParam('pageSize', pagination.pageSize, DEFAULTS.pageSize)
+    updateParam('sortBy', sort.sortBy, DEFAULTS.sortBy)
+    updateParam('sortOrder', sort.sortOrder, DEFAULTS.sortOrder)
+
+    // Push new state to URL
+    router.push(`/hki?${params.toString()}`, { scroll: false })
     
-    // Hanya tambahkan parameter jika tidak sesuai default
-    if (pagination.page !== DEFAULTS.page) params.set('page', String(pagination.page))
-    if (pagination.pageSize !== DEFAULTS.pageSize) params.set('pageSize', String(pagination.pageSize))
-    if (sort.sortBy !== DEFAULTS.sortBy) params.set('sortBy', sort.sortBy)
-    if (sort.sortOrder !== DEFAULTS.sortOrder) params.set('sortOrder', sort.sortOrder)
-
-    // Cek apakah ada perubahan sebelum push router untuk menghindari render ulang yang tidak perlu
-    const currentQueryString = new URLSearchParams(Array.from(searchParams.entries())).toString();
-    const newQueryString = params.toString();
-
-    if (currentQueryString !== newQueryString) {
-        router.push(`/hki?${newQueryString}`, { scroll: false })
-    }
-  }, [debouncedSearch, filters, pagination, sort, router, searchParams])
+  }, [debouncedSearch, filters, pagination, sort, router])
   
   const handleSort = useCallback((columnId: string) => {
+    // Hanya izinkan sort by tahun_fasilitasi
+    if (columnId !== 'tahun_fasilitasi') return;
     setSort(currentSort => ({
       sortBy: columnId,
       sortOrder: currentSort.sortBy === columnId && currentSort.sortOrder === 'asc' ? 'desc' : 'asc',
@@ -192,26 +188,24 @@ export function DataTable({ data, totalCount, formOptions, onEdit, isLoading = f
     }
   }
 
-  const handleDeleteSingle = (entry: HKIEntry) => {
-    setDeleteAlert({ open: true, entry, isBulk: false })
-  }
+  const handleDeleteSingle = (entry: HKIEntry) => setDeleteAlert({ open: true, entry, isBulk: false })
+  const handleBulkDelete = () => setDeleteAlert({ open: true, isBulk: true })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <DataTableToolbar 
         tableState={tableState} 
-        formOptions={formOptions} 
-        data={data} 
-        onBulkDelete={() => setDeleteAlert({ open: true, isBulk: true })} 
+        formOptions={formOptions}
+        onBulkDelete={handleBulkDelete} 
       />
 
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-slate-50 dark:bg-slate-800/50">
+              <TableHeader className="bg-slate-50 dark:bg-slate-800/50 sticky top-0 z-10">
                 <TableRow>
-                  <TableHead className="w-12 sticky left-0 bg-slate-50 dark:bg-slate-900 z-10 px-4">
+                  <TableHead className="w-12 sticky left-0 bg-slate-50 dark:bg-slate-800/50 z-20 px-4">
                     <Checkbox
                       checked={!isLoading && data.length > 0 && tableState.selectedRows.size === data.length}
                       onCheckedChange={(checked) => {
@@ -224,25 +218,22 @@ export function DataTable({ data, totalCount, formOptions, onEdit, isLoading = f
                     />
                   </TableHead>
                   <TableHead className="w-[50px]">No</TableHead>
-                  <SortableHeader columnId="nama_pemohon" sort={tableState.sort} onSort={tableState.handleSort}>Nama Pemohon</SortableHeader>
-                  <TableHead className="min-w-[250px]">Alamat</TableHead>
-                  <SortableHeader columnId="nama_hki" sort={tableState.sort} onSort={tableState.handleSort}>Nama HKI</SortableHeader>
-                  <TableHead>Jenis Produk</TableHead>
-                  <SortableHeader columnId="nama_jenis_hki" sort={tableState.sort} onSort={tableState.handleSort}>Jenis HKI</SortableHeader>
-                  <SortableHeader columnId="nama_status" sort={tableState.sort} onSort={tableState.handleSort}>Status</SortableHeader>
+                  <TableHead className="min-w-[250px]">Nama HKI & Produk</TableHead>
+                  <TableHead className="min-w-[250px]">Pemohon</TableHead>
+                  <TableHead className="min-w-[150px]">Jenis HKI</TableHead>
+                  <TableHead className="min-w-[120px]">Status</TableHead>
                   <SortableHeader columnId="tahun_fasilitasi" sort={tableState.sort} onSort={tableState.handleSort}>Tahun</SortableHeader>
-                  <TableHead>Sertifikat</TableHead>
-                  <SortableHeader columnId="nama_opd" sort={tableState.sort} onSort={tableState.handleSort}>Pengusul</SortableHeader>
+                  <TableHead className="min-w-[150px]">Pengusul</TableHead>
                   <TableHead className="min-w-[250px]">Keterangan</TableHead>
-                  <TableHead className="text-right sticky right-0 bg-slate-50 dark:bg-slate-900 z-10 px-4">Aksi</TableHead>
+                  <TableHead className="text-right sticky right-0 bg-slate-50 dark:bg-slate-800/50 z-20 px-4">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  [...Array(tableState.pagination.pageSize)].map((_, i) => (
+                  Array.from({ length: tableState.pagination.pageSize }).map((_, i) => (
                     <TableRow key={`skeleton-${i}`}>
-                      {[...Array(13)].map((__, j) => (
-                        <TableCell key={j}><div className="h-4 w-full rounded bg-muted animate-pulse" /></TableCell>
+                      {Array.from({ length: 10 }).map((__, j) => (
+                        <TableCell key={j}><div className="h-5 w-full rounded bg-muted animate-pulse" /></TableCell>
                       ))}
                     </TableRow>
                   ))
@@ -265,10 +256,10 @@ export function DataTable({ data, totalCount, formOptions, onEdit, isLoading = f
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={13} className="h-48 text-center">
+                    <TableCell colSpan={10} className="h-48 text-center">
                       <FolderOpen className="mx-auto h-12 w-12 text-gray-400" />
                       <p className="mt-4 font-semibold">Tidak Ada Data Ditemukan</p>
-                      <p className="text-sm text-muted-foreground">Coba ubah filter pencarian Anda.</p>
+                      <p className="text-sm text-muted-foreground">Coba ubah filter pencarian Anda atau buat entri baru.</p>
                     </TableCell>
                   </TableRow>
                 )}
@@ -312,72 +303,61 @@ export function DataTable({ data, totalCount, formOptions, onEdit, isLoading = f
 }
 
 /* ======================== SUB-COMPONENTS ======================== */
-function DataTableToolbar({ tableState, formOptions, data, onBulkDelete }) {
+function DataTableToolbar({ tableState, formOptions, onBulkDelete }: { tableState: ReturnType<typeof useDataTable>, formOptions: DataTableProps['formOptions'], onBulkDelete: () => void }) {
   const router = useRouter()
   const { filters, selectedRows, handleFilterChange, clearFilters } = tableState
-  const activeFiltersCount = Object.values(filters).filter(f => f).length
-
-  const handleExportCSV = useCallback(() => {
-    // ... Logika export CSV ...
-  }, [data, tableState.pagination])
+  const activeFiltersCount = Object.values(filters).filter(f => f && f !== '').length;
 
   return (
     <Card className="p-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Input
-          placeholder="Cari HKI, pemohon..."
-          value={filters.search}
-          onChange={(e) => handleFilterChange('search', e.target.value)}
-          className="lg:col-span-2"
-        />
+       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari HKI atau pemohon..."
+            value={filters.search}
+            onChange={(e) => handleFilterChange('search', e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="flex w-full sm:w-auto items-center justify-end gap-2">
+            {activeFiltersCount > 0 && (
+              <Button variant="ghost" onClick={clearFilters} className="gap-2 text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" /> Bersihkan Filter
+              </Button>
+            )}
+            <Button className="gap-2 w-full sm:w-auto" onClick={() => router.push('/hki/create')}>
+                <Plus className="h-4 w-4" /> Tambah Baru
+            </Button>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
         <Select value={filters.jenisId || 'all'} onValueChange={(v) => handleFilterChange('jenisId', v === 'all' ? '' : v)}>
           <SelectTrigger><SelectValue placeholder="Semua Jenis HKI" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Semua Jenis HKI</SelectItem>
-            {formOptions.jenisOptions.map(opt => <SelectItem key={opt.id_jenis_hki} value={String(opt.id_jenis_hki)}>{opt.nama_jenis_hki}</SelectItem>)}
+            {formOptions.jenisOptions.map((opt) => <SelectItem key={opt.id_jenis_hki} value={String(opt.id_jenis_hki)}>{opt.nama_jenis_hki}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filters.statusId || 'all'} onValueChange={(v) => handleFilterChange('statusId', v === 'all' ? '' : v)}>
           <SelectTrigger><SelectValue placeholder="Semua Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Semua Status</SelectItem>
-            {formOptions.statusOptions.map(opt => <SelectItem key={opt.id_status} value={String(opt.id_status)}>{opt.nama_status}</SelectItem>)}
+            {formOptions.statusOptions.map((opt) => <SelectItem key={opt.id_status} value={String(opt.id_status)}>{opt.nama_status}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filters.year || 'all'} onValueChange={(v) => handleFilterChange('year', v === 'all' ? '' : v)}>
           <SelectTrigger><SelectValue placeholder="Semua Tahun" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Semua Tahun</SelectItem>
-            {formOptions.tahunOptions.map(opt => <SelectItem key={opt.tahun} value={String(opt.tahun)}>{String(opt.tahun)}</SelectItem>)}
+            {formOptions.tahunOptions.map((opt) => <SelectItem key={opt.tahun} value={String(opt.tahun)}>{String(opt.tahun)}</SelectItem>)}
           </SelectContent>
         </Select>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t dark:border-slate-800 pt-4 mt-4">
-        <div className="flex items-center gap-2">
-          {selectedRows.size > 0 ? (
-            <>
-              <span className="text-sm text-muted-foreground">{selectedRows.size} baris dipilih</span>
-              <Button variant="destructive" size="sm" className="gap-2" onClick={onBulkDelete}>
-                <Trash2 className="h-4 w-4" /> Hapus
-              </Button>
-            </>
-          ) : (
-            activeFiltersCount > 0 && (
-                <Button variant="ghost" onClick={clearFilters} className="gap-2 text-muted-foreground hover:text-foreground">
-                  <X className="h-4 w-4" /> Bersihkan Filter ({activeFiltersCount})
-                </Button>
-            )
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2" onClick={handleExportCSV} disabled={data.length === 0}>
-            <FileDown className="h-4 w-4" /> Ekspor
-          </Button>
-          <Button className="gap-2" onClick={() => router.push('/hki/create')}>
-            <Plus className="h-4 w-4" /> Tambah Baru
-          </Button>
-        </div>
+        {selectedRows.size > 0 && (
+            <Button variant="outline" size="sm" className="gap-2 h-10" onClick={onBulkDelete}>
+              <Trash2 className="h-4 w-4" /> Hapus ({selectedRows.size})
+            </Button>
+        )}
       </div>
     </Card>
   )
@@ -386,9 +366,22 @@ function DataTableToolbar({ tableState, formOptions, data, onBulkDelete }) {
 function DataTableRow({ entry, index, pagination, isSelected, onSelectRow, onEdit, onDelete }: { entry: HKIEntry, index: number, pagination: { page: number, pageSize: number }, isSelected: boolean, onSelectRow: (id: number, checked: boolean) => void, onEdit: (id: number) => void, onDelete: (entry: HKIEntry) => void }) {
   const router = useRouter()
 
-  const handleDownloadPDF = useCallback(async (id: number) => {
-    // ... Logika download PDF ...
-  }, [])
+  const handleDownloadPDF = useCallback(async (sertifikat_pdf: string | null) => {
+    if (!sertifikat_pdf) {
+      toast.error('File sertifikat tidak tersedia.');
+      return;
+    }
+    const toastId = toast.loading('Mempersiapkan unduhan...');
+    try {
+        const response = await fetch(`/api/hki/${entry.id_hki}/signed-url`);
+        if (!response.ok) throw new Error('Gagal mendapatkan URL unduhan.');
+        const { signedUrl } = await response.json();
+        window.open(signedUrl, '_blank');
+        toast.success('Unduhan dimulai.', { id: toastId });
+    } catch (error) {
+        toast.error('Gagal mengunduh file.', { id: toastId });
+    }
+  }, [entry.id_hki]);
 
   return (
     <TableRow data-state={isSelected ? 'selected' : ''} className="dark:border-slate-800">
@@ -399,41 +392,42 @@ function DataTableRow({ entry, index, pagination, isSelected, onSelectRow, onEdi
           aria-label={`Pilih baris untuk ${entry.nama_hki}`}
         />
       </TableCell>
-      <TableCell>{(pagination.page - 1) * pagination.pageSize + index + 1}</TableCell>
-      <TableCell className="font-medium">{entry.pemohon?.nama_pemohon || '-'}</TableCell>
+      <TableCell className="text-muted-foreground">{(pagination.page - 1) * pagination.pageSize + index + 1}</TableCell>
       <TableCell>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild><p className="max-w-[250px] truncate">{entry.pemohon?.alamat || '-'}</p></TooltipTrigger>
-            <TooltipContent className="max-w-xs"><p>{entry.pemohon?.alamat}</p></TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="flex flex-col">
+            <span className="font-semibold text-foreground">{entry.nama_hki}</span>
+            <span className="text-xs text-muted-foreground">{entry.jenis_produk || 'Tidak ada jenis produk'}</span>
+        </div>
       </TableCell>
-      <TableCell className="font-medium">{entry.nama_hki}</TableCell>
-      <TableCell>{entry.jenis_produk || '-'}</TableCell>
-      <TableCell>{entry.jenis_hki?.nama_jenis_hki || '-'}</TableCell>
       <TableCell>
-        <Badge variant="outline" className={getStatusBadge(entry.status_hki?.nama_status)}>
+        <div className="flex flex-col">
+            <span className="font-medium text-foreground">{entry.pemohon?.nama_pemohon || '-'}</span>
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <span className="text-xs text-muted-foreground truncate max-w-[200px]">{entry.pemohon?.alamat || ''}</span>
+                    </TooltipTrigger>
+                    {entry.pemohon?.alamat && <TooltipContent><p>{entry.pemohon.alamat}</p></TooltipContent>}
+                </Tooltip>
+            </TooltipProvider>
+        </div>
+      </TableCell>
+      <TableCell className="text-muted-foreground">{entry.jenis_hki?.nama_jenis_hki || '-'}</TableCell>
+      <TableCell>
+        <Badge variant="outline" className={cn("font-normal", getStatusBadge(entry.status_hki?.nama_status))}>
           {entry.status_hki?.nama_status || 'N/A'}
         </Badge>
       </TableCell>
-      <TableCell>{entry.tahun_fasilitasi || '-'}</TableCell>
-      <TableCell>
-        {entry.sertifikat_pdf ? (
-          <Button variant="outline" size="sm" className="gap-1" onClick={() => handleDownloadPDF(entry.id_hki)}>
-            <Download className="h-3 w-3" /> Unduh
-          </Button>
-        ) : (
-          <span className="text-xs text-muted-foreground">Tidak ada</span>
-        )}
-      </TableCell>
-      <TableCell>{entry.pengusul?.nama_opd || '-'}</TableCell>
+      <TableCell className="text-muted-foreground">{entry.tahun_fasilitasi || '-'}</TableCell>
+      <TableCell className="text-muted-foreground">{entry.pengusul?.nama_opd || '-'}</TableCell>
       <TableCell>
         <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild><p className="max-w-[250px] truncate">{entry.keterangan || '-'}</p></TooltipTrigger>
-            <TooltipContent className="max-w-xs"><p>{entry.keterangan}</p></TooltipContent>
-          </Tooltip>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <p className="max-w-[250px] truncate text-muted-foreground">{entry.keterangan || '-'}</p>
+                </TooltipTrigger>
+                {entry.keterangan && <TooltipContent className="max-w-xs"><p>{entry.keterangan}</p></TooltipContent>}
+            </Tooltip>
         </TooltipProvider>
       </TableCell>
       <TableCell className="text-right sticky right-0 bg-white dark:bg-slate-900 z-10 px-4">
@@ -447,6 +441,11 @@ function DataTableRow({ entry, index, pagination, isSelected, onSelectRow, onEdi
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => router.push(`/hki/${entry.id_hki}`)}><Eye className="mr-2 h-4 w-4" /> Detail</DropdownMenuItem>
             <DropdownMenuItem onClick={() => onEdit(entry.id_hki)}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+            {entry.sertifikat_pdf && (
+              <DropdownMenuItem onClick={() => handleDownloadPDF(entry.sertifikat_pdf)}>
+                  <Download className="mr-2 h-4 w-4" /> Unduh Sertifikat
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20" onClick={() => onDelete(entry)}><Trash2 className="mr-2 h-4 w-4" /> Hapus</DropdownMenuItem>
           </DropdownMenuContent>
@@ -456,7 +455,7 @@ function DataTableRow({ entry, index, pagination, isSelected, onSelectRow, onEdi
   )
 }
 
-function DataTablePagination({ totalCount, pagination, totalPages, setPagination }) {
+function DataTablePagination({ totalCount, pagination, totalPages, setPagination }: any) {
   const pages = useMemo(() => buildPageItems(pagination.page, totalPages), [pagination.page, totalPages])
   
   const setPage = (page: number) => setPagination((p: any) => ({ ...p, page: clamp(page, 1, totalPages) }))
@@ -464,7 +463,7 @@ function DataTablePagination({ totalCount, pagination, totalPages, setPagination
   return (
     <CardFooter className="p-4 flex items-center justify-between flex-wrap gap-4">
       <div className="text-sm text-muted-foreground">
-        Menampilkan halaman <strong>{pagination.page}</strong> dari <strong>{totalPages}</strong> ({totalCount} total entri)
+        <strong>{totalCount}</strong> total entri
       </div>
       <Pagination>
         <PaginationContent>
@@ -476,17 +475,17 @@ function DataTablePagination({ totalCount, pagination, totalPages, setPagination
               disabled={pagination.page <= 1}
             >
               <PaginationPrevious className="h-4 w-4" />
-              <span className="ml-2 hidden sm:inline">Sebelumnya</span>
             </Button>
           </PaginationItem>
           {pages.map((p, idx) => (
             <PaginationItem key={`${p}-${idx}`} className="hidden md:flex">
               {p === '…' ? (
-                <span className="px-4 py-2">…</span>
+                <span className="px-4 py-2 text-sm">…</span>
               ) : (
                 <Button
                   variant={p === pagination.page ? 'default' : 'ghost'}
-                  size="sm"
+                  size="icon"
+                  className="h-9 w-9 text-sm"
                   onClick={() => setPage(Number(p))}
                 >
                   {p}
@@ -501,12 +500,14 @@ function DataTablePagination({ totalCount, pagination, totalPages, setPagination
               onClick={() => setPage(pagination.page + 1)}
               disabled={pagination.page >= totalPages}
             >
-              <span className="mr-2 hidden sm:inline">Berikutnya</span>
               <PaginationNext className="h-4 w-4" />
             </Button>
           </PaginationItem>
         </PaginationContent>
       </Pagination>
+       <div className="text-sm text-muted-foreground">
+        Halaman <strong>{pagination.page}</strong> dari <strong>{totalPages}</strong>
+      </div>
     </CardFooter>
   )
 }

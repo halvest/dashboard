@@ -1,11 +1,13 @@
 // app/page.tsx
+import { redirect } from 'next/navigation'
+import { getCurrentUser } from '@/lib/auth' 
 
-import { redirect } from 'next/navigation';
+export default async function RootPage() {
+  const user = await getCurrentUser()
 
-/**
- * Halaman root ini tidak menampilkan UI.
- * Tugas utamanya adalah mengarahkan pengguna ke halaman dashboard utama.
- */
-export default function RootPage() {
-  redirect('/dashboard');
+  if (!user) {
+    redirect('/login')
+  }
+
+  redirect('/dashboard')
 }

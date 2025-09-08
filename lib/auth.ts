@@ -22,17 +22,24 @@ export async function getUser() {
  */
 export async function getUserProfile() {
   const supabase = createClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
+  const user = await getUser() // Menggunakan fungsi getUser() agar tidak duplikasi kode
   
-  if (error || !user) {
+  if (!user) {
     return null
   }
   
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single()
+    
+  if (error) {
+      // Jika RLS memblokir, profil tidak akan ditemukan tapi tidak error.
+      // Error di sini bisa jadi masalah koneksi, dll.
+      console.error("Error fetching user profile:", error)
+      return null
+  }
     
   return profile
 }
@@ -52,14 +59,18 @@ export async function requireAuth() {
 
 /**
  * Pelindung Halaman Admin: Memastikan pengguna yang login adalah admin.
- * Memeriksa kolom 'is_admin' di profil pengguna.
- * Jika bukan admin, akan dialihkan ke halaman '/login'.
+ * Memeriksa kolom 'role' di profil pengguna.
+ * Jika bukan admin, akan dialihkan ke halaman utama '/'.
  * @returns {Promise<object>} Objek profil admin jika berhasil.
  */
 export async function requireAdmin() {
   const profile = await getUserProfile()
-  if (!profile || !profile.is_admin) {
-    redirect('/login')
+  
+  // PERBAIKAN: Memeriksa 'profile.role' bukan 'profile.is_admin'
+  if (!profile || profile.role !== 'admin') {
+    // PERBAIKAN: Redirect ke halaman utama, bukan /login
+    redirect('/') 
   }
+  
   return profile
 }

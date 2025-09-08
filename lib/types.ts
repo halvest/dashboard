@@ -1,6 +1,6 @@
 // lib/types.ts
 
-// Tipe dasar untuk tabel relasi
+// Tipe dasar untuk tabel relasi (ini sudah bagus)
 export interface Pemohon {
   id_pemohon: number;
   nama_pemohon: string;
@@ -22,8 +22,10 @@ export interface Pengusul {
   nama_opd: string;
 }
 
-// Tipe utama untuk entri HKI, mencerminkan hasil JOIN dari database
-export interface HKIEntry {
+
+// PERBAIKAN 1: Buat tipe dasar untuk tabel 'hki'
+// Ini merepresentasikan satu baris data mentah dari tabel hki tanpa join.
+export interface HKIBase {
   id_hki: number;
   nama_hki: string;
   jenis_produk: string | null;
@@ -31,17 +33,22 @@ export interface HKIEntry {
   sertifikat_pdf: string | null;
   keterangan: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at: string | null; // Bisa null saat baru dibuat
+  user_id: string | null; // uuid adalah string
 
-  // Foreign Keys
+  // Kunci Asing (Foreign Keys)
   id_pemohon: number;
   id_jenis_hki: number;
   id_status: number;
   id_pengusul: number;
-  
-  // Data relasional hasil JOIN (objek)
+}
+
+
+// PERBAIKAN 2: Buat tipe gabungan untuk data HKI beserta relasinya
+// Tipe ini lebih akurat, menghilangkan redundansi foreign key di level atas.
+export type HKIEntry = Omit<HKIBase, 'id_pemohon' | 'id_jenis_hki' | 'id_status' | 'id_pengusul'> & {
   pemohon: Pemohon | null;
   jenis_hki: JenisHKI | null;
   status_hki: StatusHKI | null; 
   pengusul: Pengusul | null;
-}
+};

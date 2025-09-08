@@ -1,32 +1,35 @@
-// app/api/hki/route.ts
-
-// app/api/hki/route.ts
-
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createRouteHandlerClient, SupabaseClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 
 export const dynamic = 'force-dynamic';
 
-// --- GET: Mengambil daftar HKI ---
+const HKI_TABLE = 'hki';
+const PEMOHON_TABLE = 'pemohon';
+const HKI_BUCKET = 'sertifikat-hki';
+
+const ALLOWED_SORT_FIELDS = ['created_at', 'nama_hki', 'tahun_fasilitasi'];
+
+// --- GET: Fetch HKI list ---
 export async function GET(request: NextRequest) {
   const supabase = createRouteHandlerClient({ cookies });
   const { searchParams } = new URL(request.url);
 
-  const page = parseInt(searchParams.get('page') || '1', 10);
-  const pageSize = parseInt(searchParams.get('pageSize') || '10', 10);
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+  const pageSize = Math.max(1, parseInt(searchParams.get('pageSize') || '10', 10));
   const search = searchParams.get('search')?.trim() || '';
-  const sortBy = searchParams.get('sortBy') || 'created_at';
-  const sortOrder = searchParams.get('sortOrder') || 'desc';
+  const sortBy = ALLOWED_SORT_FIELDS.includes(searchParams.get('sortBy') || '')
+    ? searchParams.get('sortBy')!
+    : 'created_at';
+  const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
 
-  // Filter tambahan
   const jenisId = searchParams.get('jenisId');
   const statusId = searchParams.get('statusId');
   const year = searchParams.get('year');
 
-  const query = supabase
-    .from('hki')
+  let query = supabase
+    .from(HKI_TABLE)
     .select(`
       id_hki, nama_hki, jenis_produk, tahun_fasilitasi, sertifikat_pdf, keterangan, created_at,
       pemohon ( id_pemohon, nama_pemohon, alamat ),
@@ -36,65 +39,86 @@ export async function GET(request: NextRequest) {
     `, { count: 'exact' });
 
   if (search) {
-    query.or(`nama_hki.ilike.%${search}%,pemohon.nama_pemohon.ilike.%${search}%`);
+    query = query.or(`nama_hki.ilike.%${search}%`);
   }
-  if (jenisId) query.eq('id_jenis_hki', jenisId);
-  if (statusId) query.eq('id_status', statusId);
-  if (year) query.eq('tahun_fasilitasi', year);
+  if (jenisId) query = query.eq('id_jenis_hki', jenisId);
+  if (statusId) query = query.eq('id_status', statusId);
+  if (year) query = query.eq('tahun_fasilitasi', year);
 
-  query.order(sortBy, { ascending: sortOrder === 'asc' });
-  query.range((page - 1) * pageSize, page * pageSize - 1);
+  query = query
+    .order(sortBy, { ascending: sortOrder === 'asc' })
+    .range((page - 1) * pageSize, page * pageSize - 1);
 
   const { data, error, count } = await query;
 
   if (error) {
     console.error('Error fetching HKI list:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Gagal mengambil data HKI.' }, { status: 500 });
   }
 
-  return NextResponse.json({ data, count });
+  return NextResponse.json({ success: true, data, count });
 }
 
+// --- Helper: Get or create pemohon ---
+async function getOrCreatePemohon(supabase: SupabaseClient, nama_pemohon: string, alamat: string | null) {
+  const { data, error } = await supabase
+    .from(PEMOHON_TABLE)
+    .upsert({ nama_pemohon, alamat }, { onConflict: 'nama_pemohon' })
+    .select('id_pemohon')
+    .single();
 
-// --- POST: Membuat entri HKI baru ---
-async function getOrCreatePemohon(supabase, nama_pemohon, alamat) {
-  let { data: existing } = await supabase.from('pemohon').select('id_pemohon').eq('nama_pemohon', nama_pemohon).single();
-  if (existing) return existing.id_pemohon;
-  const { data: newData, error } = await supabase.from('pemohon').insert({ nama_pemohon, alamat }).select('id_pemohon').single();
-  if (error) throw new Error(`Gagal membuat pemohon: ${error.message}`);
-  return newData.id_pemohon;
+  if (error || !data) {
+    throw new Error(`Gagal membuat/mendapatkan pemohon: ${error?.message || 'Tidak ditemukan'}`);
+  }
+  return data.id_pemohon;
 }
 
+// --- POST: Create new HKI entry ---
 export async function POST(request: NextRequest) {
   const supabase = createRouteHandlerClient({ cookies });
-  const formData = await request.formData();
-  
-  const hkiData: Record<string, any> = {};
-  formData.forEach((value, key) => {
-    if (!['file', 'nama_pemohon', 'alamat'].includes(key)) {
-      hkiData[key] = value;
-    }
-  });
 
   try {
+    const formData = await request.formData();
+    const hkiData: Record<string, any> = {};
+
+    formData.forEach((value, key) => {
+      if (!['file', 'nama_pemohon', 'alamat'].includes(key)) {
+        hkiData[key] = value;
+      }
+    });
+
     const namaPemohon = formData.get('nama_pemohon') as string;
     const alamatPemohon = formData.get('alamat') as string | null;
     const file = formData.get('file') as File | null;
 
+    if (!namaPemohon) throw new Error('Nama pemohon wajib diisi.');
+
     hkiData.id_pemohon = await getOrCreatePemohon(supabase, namaPemohon, alamatPemohon);
-    
+
     if (file) {
-      const fileName = `${uuidv4()}.${file.name.split('.').pop()}`;
-      const { error: uploadError } = await supabase.storage.from('sertifikat-hki').upload(fileName, file);
+      const fileExtension = file.name.split('.').pop();
+      if (!fileExtension) throw new Error('File tidak memiliki ekstensi.');
+
+      const fileName = `${uuidv4()}.${fileExtension}`;
+      const buffer = Buffer.from(await file.arrayBuffer());
+
+      const { error: uploadError } = await supabase.storage
+        .from(HKI_BUCKET)
+        .upload(fileName, buffer, {
+          contentType: file.type,
+          upsert: false,
+        });
+
       if (uploadError) throw new Error(`Gagal upload file: ${uploadError.message}`);
       hkiData.sertifikat_pdf = fileName;
     }
 
-    const { data, error } = await supabase.from('hki').insert(hkiData).select().single();
+    const { data, error } = await supabase.from(HKI_TABLE).insert(hkiData).select().single();
     if (error) throw new Error(`Gagal menyimpan data HKI: ${error.message}`);
-    
-    return NextResponse.json(data);
+
+    return NextResponse.json({ success: true, data });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Error creating HKI:', error);
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
 }

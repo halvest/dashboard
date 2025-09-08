@@ -1,37 +1,25 @@
 // app/layout.tsx
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css"; 
 
-import './globals.css'
-import type { Metadata } from 'next'
-import { Inter as FontSans } from 'next/font/google'
-import { Toaster } from '@/components/ui/sonner'
-import { cn } from '@/lib/utils'
-
-const fontSans = FontSans({
-  subsets: ['latin'],
-  variable: '--font-sans',
-})
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'HKI Admin Dashboard',
-  description: 'Admin dashboard for managing Intellectual Property Rights (HKI) entries',
-}
+  title: "Data Pengajuan HKI | Dashboard",
+  description: "Sistem manajemen data pengajuan HKI - Bappeda Sleman",
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
-    <html lang="id" suppressHydrationWarning>
-      <body
-        className={cn(
-          "min-h-screen bg-background font-sans antialiased",
-          fontSans.variable
-        )}
-      >
+    <html lang="en">
+      <body className={inter.className + " bg-background text-foreground"}>
         {children}
-        <Toaster position="top-center" richColors />
       </body>
     </html>
-  )
+  );
 }
