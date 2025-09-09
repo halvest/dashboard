@@ -1,9 +1,11 @@
+// app/dashboard/page.tsx
 export const dynamic = "force-dynamic";
 
 import Link from 'next/link';
+import { cookies } from 'next/headers'; // <-- Impor cookies
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'; // <-- Impor helper yang benar
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { createClient } from '@/lib/supabase-server';
 import { HKIEntry } from '@/lib/types';
 import { ArrowUpRight, CheckCircle, Clock, FileText, Plus, Users, type LucideIcon } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -11,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { HkiChart } from '@/components/dashboard/hki-chart';
 
-// Komponen Kartu Statistik yang Telah Ditingkatkan
+// Komponen Kartu Statistik (tidak ada perubahan)
 const StatCard = ({ title, value, description, Icon, iconBgColor }: { title: string, value: string | number, description: string, Icon: LucideIcon, iconBgColor: string }) => (
   <Card>
     <CardHeader>
@@ -31,43 +33,45 @@ const StatCard = ({ title, value, description, Icon, iconBgColor }: { title: str
   </Card>
 );
 
-export default async function DashboardPage() {
-  const supabase = createClient();
+// Helper untuk inisial nama (tidak ada perubahan)
+const getInitials = (name?: string | null) => {
+  if (!name) return '?';
+  return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+};
 
-  // Ambil semua data secara paralel
-  const [
-    stats,
-    recentEntriesResult,
-    chartDataResult
-  ] = await Promise.all([
-    // Ambil semua hitungan dalam satu query agregat untuk efisiensi
-    supabase.rpc('get_hki_stats'),
-    // Ambil aktivitas terbaru
+
+export default async function DashboardPage() {
+  // 1. Inisialisasi Supabase Client dengan cara yang benar untuk Server Component
+  const cookieStore = cookies();
+  const supabase = createServerComponentClient({ cookies: () => cookieStore });
+
+  // 2. Mengambil data dengan penanganan error yang lebih baik
+  const [statsResult, recentEntriesResult, chartDataResult] = await Promise.all([
+    supabase.rpc('get_hki_stats').single(), // .single() untuk hasil yang lebih bersih
     supabase
       .from('hki')
       .select(`id_hki, nama_hki, created_at, pemohon(nama_pemohon), status_hki(nama_status)`)
       .order('created_at', { ascending: false })
       .limit(5),
-    // Ambil data untuk grafik
     supabase.rpc('get_hki_yearly_count')
   ]);
 
-  // Ekstrak data statistik dari hasil RPC
-  const { total_hki, diterima, dalam_proses } = stats.data?.[0] || { total_hki: 0, diterima: 0, dalam_proses: 0 };
-  if(stats.error) console.error("Gagal mengambil statistik HKI:", stats.error.message);
+  // Cek error setelah semua data diambil
+  if (statsResult.error || recentEntriesResult.error || chartDataResult.error) {
+    console.error("Gagal mengambil data dasbor:", { 
+      statsError: statsResult.error?.message, 
+      recentEntriesError: recentEntriesResult.error?.message, 
+      chartDataError: chartDataResult.error?.message 
+    });
+    // Anda bisa menampilkan komponen UI error di sini jika mau
+  }
 
-  const recentEntries = recentEntriesResult.data;
-  if (recentEntriesResult.error) console.error("Gagal mengambil entri terbaru:", recentEntriesResult.error.message);
-
+  // Ekstrak data dengan aman
+  const { total_hki = 0, diterima = 0, dalam_proses = 0 } = statsResult.data || {};
+  const recentEntries = (recentEntriesResult.data || []) as HKIEntry[];
   const chartData = (chartDataResult.data as { year: number; count: number }[] || []).sort((a, b) => a.year - b.year);
-  if (chartDataResult.error) console.error("Gagal mengambil data grafik:", chartDataResult.error.message);
   
-  const uniqueApplicants = recentEntries ? new Set(recentEntries.map(e => e.pemohon?.nama_pemohon).filter(Boolean)).size : 0;
-  
-  const getInitials = (name?: string | null) => {
-    if (!name) return '?';
-    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
-  };
+  const uniqueApplicants = new Set(recentEntries.map(e => e.pemohon?.nama_pemohon).filter(Boolean)).size;
 
   return (
     <div className="flex flex-col gap-8">
@@ -84,7 +88,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-        {/* Kolom Kiri untuk Statistik & Aktivitas */}
+        {/* Kolom Kiri untuk Statistik & Grafik */}
         <div className="lg:col-span-2 flex flex-col gap-6">
             <div className="grid gap-6 sm:grid-cols-2">
                 <StatCard title="Total HKI" value={total_hki} description="Total entri terdaftar" Icon={FileText} iconBgColor="bg-blue-500" />
@@ -116,9 +120,9 @@ export default async function DashboardPage() {
               </Button>
             </CardHeader>
             <CardContent>
-              {recentEntries && recentEntries.length > 0 ? (
+              {recentEntries.length > 0 ? (
                 <div className="space-y-4">
-                  {(recentEntries as unknown as HKIEntry[]).map((entry) => (
+                  {recentEntries.map((entry) => (
                     <div key={entry.id_hki} className="flex items-center gap-4">
                       <Avatar className="h-10 w-10 border">
                         <AvatarFallback>{getInitials(entry.pemohon?.nama_pemohon)}</AvatarFallback>
@@ -143,4 +147,3 @@ export default async function DashboardPage() {
     </div>
   )
 }
-

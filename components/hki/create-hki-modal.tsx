@@ -1,11 +1,21 @@
-// app/components/forms/hki-form.tsx
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
+// ❌ import { useRouter } from 'next/navigation' // Dihapus untuk mengatasi error
+import { toast } from 'sonner'
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -15,9 +25,11 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-// import { FileUploader } from '@/components/forms/file-uploader' // Diasumsikan komponen ini masih error, kita ganti
-import { HKIEntry, JenisHKI, StatusHKI, Pengusul } from '@/lib/types' 
-import { toast } from 'sonner'
+import { HKIEntry, JenisHKI, StatusHKI, Pengusul } from '@/lib/types'
+
+//================================================================//
+// BAGIAN 1: DEFINISI KOMPONEN FORM (HKIForm)                     //
+//================================================================//
 
 const hkiSchema = z.object({
   nama_hki: z.string().min(3, 'Nama HKI harus memiliki minimal 3 karakter.'),
@@ -29,62 +41,57 @@ const hkiSchema = z.object({
     .min(2000, 'Tahun tidak valid.')
     .max(new Date().getFullYear() + 1, 'Tahun tidak valid.'),
   keterangan: z.string().optional().nullable(),
-  id_jenis: z.string({ required_error: 'Jenis HKI wajib dipilih.' }), 
+  id_jenis: z.string({ required_error: 'Jenis HKI wajib dipilih.' }),
   id_status: z.string({ required_error: 'Status wajib dipilih.' }),
   id_pengusul: z.string({ required_error: 'Pengusul wajib dipilih.' }),
 })
 
 type HKIFormData = z.infer<typeof hkiSchema>
 
-// ✅ LANGKAH 1: Tambahkan 'isSubmitting' ke dalam props
 interface HKIFormProps {
-  id: string // Kita butuh ID agar tombol eksternal modal bisa submit form ini
-  initialData?: HKIEntry
+  id: string
   mode: 'create' | 'edit'
   jenisOptions: JenisHKI[]
   statusOptions: StatusHKI[]
   pengusulOptions: Pengusul[]
-  isSubmitting: boolean // <-- TAMBAHKAN INI
+  onSubmitting: () => void
   onSuccess?: (newData: HKIEntry) => void
   onError?: (message: string) => void
 }
 
-export function HKIForm({
-  id, // <-- Terima ID
-  initialData, 
-  mode, 
-  jenisOptions, 
-  statusOptions, 
-  pengusulOptions, 
-  isSubmitting, // <-- Terima prop 'isSubmitting'
-  onSuccess, 
+function HKIForm({
+  id,
+  mode,
+  jenisOptions,
+  statusOptions,
+  pengusulOptions,
+  onSubmitting,
+  onSuccess,
   onError
 }: HKIFormProps) {
-  
-  const router = useRouter()
-  // ❌ LANGKAH 2: Hapus state 'isLoading' internal. Kita akan pakai 'isSubmitting' dari parent.
-  // const [isLoading, setIsLoading] = useState(false) 
-  
+  // ❌ const router = useRouter() // Dihapus
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   const form = useForm<HKIFormData>({
     resolver: zodResolver(hkiSchema),
     defaultValues: {
-      nama_hki: initialData?.nama_hki || '',
-      nama_pemohon: initialData?.pemohon?.nama_pemohon || '',
-      alamat: initialData?.pemohon?.alamat || '',
-      jenis_produk: initialData?.jenis_produk || '',
-      tahun_fasilitasi: initialData?.tahun_fasilitasi || new Date().getFullYear(),
-      keterangan: initialData?.keterangan || '',
-      id_jenis: initialData?.jenis?.id_jenis.toString() || undefined, // Gunakan undefined jika null
-      id_status: initialData?.status_hki?.id_status.toString() || undefined,
-      id_pengusul: initialData?.pengusul?.id_pengusul.toString() || undefined,
+      nama_hki: '',
+      nama_pemohon: '',
+      alamat: '',
+      jenis_produk: '',
+      tahun_fasilitasi: new Date().getFullYear(),
+      keterangan: '',
+      id_jenis: undefined,
+      id_status: undefined,
+      id_pengusul: undefined,
     },
   })
+  
+  const { isSubmitting } = form.formState;
 
-  // ✅ LANGKAH 3: Sederhanakan fungsi onSubmit
   const onSubmit = async (data: HKIFormData) => {
-    // ❌ Tidak perlu 'setIsLoading(true)' lagi, karena parent sudah set 'isSubmitting'
+    onSubmitting();
+    
     const toastId = toast.loading('Menyimpan data...')
 
     try {
@@ -92,7 +99,7 @@ export function HKIForm({
       
       Object.entries(data).forEach(([key, value]) => {
         if (value !== null && value !== undefined) {
-          const apiKey = key === 'id_jenis' ? 'id_jenis_hki' : key; 
+          const apiKey = key === 'id_jenis' ? 'id_jenis_hki' : key;
           formData.append(apiKey, String(value))
         }
       })
@@ -101,45 +108,39 @@ export function HKIForm({
         formData.append('file', selectedFile)
       }
 
-      const url = mode === 'create' ? '/api/hki' : `/api/hki/${initialData?.id_hki}`
+      const url = mode === 'create' ? '/api/hki' : `/api/hki/some-id`
       const method = mode === 'create' ? 'POST' : 'PATCH'
 
       const response = await fetch(url, { method, body: formData })
       const result = await response.json()
-      if (!response.ok) throw new Error(result.error || 'Gagal menyimpan data')
-
-      toast.success(`Entri HKI berhasil ${mode === 'create' ? 'dibuat' : 'diperbarui'}!`, { id: toastId })
-
-      // Panggil onSuccess. Parent (Modal) akan menerima ini dan mengubah isSubmitting jadi false
-      if (onSuccess) {
-        onSuccess(result.data) 
-      } else {
-        router.push('/hki') 
-        router.refresh()
+      
+      if (!response.ok) {
+        throw new Error(result.message || result.error || 'Gagal menyimpan data')
       }
+
+      toast.success(`Entri HKI berhasil dibuat!`, { id: toastId })
+
+      // ✅ Logika disederhanakan, hanya memanggil onSuccess
+      if (onSuccess) {
+        onSuccess(result.data)
+      }
+      // ❌ Blok 'else' yang menggunakan router dihapus
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan'
       toast.error(errorMessage, { id: toastId })
       
-      // Panggil onError. Parent (Modal) akan menerima ini dan mengubah isSubmitting jadi false
       if (onError) onError(errorMessage)
-    } 
-    // ❌ LANGKAH 4: Hapus blok 'finally'. Parent yang akan mengurus state.
-    // finally {
-    //   setIsLoading(false)
-    // }
+    }
   }
 
   return (
     <Form {...form}>
       <form
-        id={id} // <-- Gunakan ID dari props
+        id={id}
         onSubmit={form.handleSubmit(onSubmit)}
         className="space-y-6 max-h-[75vh] overflow-y-auto p-1"
       >
-        {/* ✅ LANGKAH 5: Bungkus semua field dengan fieldset */}
         <fieldset disabled={isSubmitting} className="space-y-6">
-          {/* ... semua card dan form field Anda ... */}
           <Card className="rounded-xl border shadow-none">
             <CardHeader>
               <CardTitle className="text-lg font-semibold">Informasi Utama HKI</CardTitle>
@@ -245,7 +246,7 @@ export function HKIForm({
                   <FormItem>
                     <FormLabel>Tahun Fasilitasi *</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder={`Contoh: ${new Date().getFullYear()}`} {...field} />
+                      <Input type="number" placeholder={`${new Date().getFullYear()}`} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -281,7 +282,6 @@ export function HKIForm({
                 </FormItem>
               )} />
               
-              {/* ✅ LANGKAH 6: Ganti FileUploader dengan input standar */}
               <FormItem>
                 <FormLabel>Sertifikat PDF (Opsional)</FormLabel>
                 <FormControl>
@@ -298,11 +298,6 @@ export function HKIForm({
                       }}
                     />
                 </FormControl>
-                 {initialData?.sertifikat_pdf && !selectedFile && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                        File saat ini: <a href={initialData.sertifikat_pdf} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{initialData.sertifikat_pdf.split('/').pop()}</a>
-                    </p>
-                )}
               </FormItem>
             </CardContent>
           </Card>
@@ -311,3 +306,83 @@ export function HKIForm({
     </Form>
   )
 }
+
+//================================================================//
+// BAGIAN 2: KOMPONEN UTAMA MODAL                                 //
+//================================================================//
+
+interface CreateHKIModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onSuccess?: () => void
+  onError?: (message: string) => void
+  formOptions: {
+    jenisOptions: JenisHKI[]
+    statusOptions: StatusHKI[]
+    pengusulOptions: Pengusul[]
+  }
+}
+
+export function CreateHKIModal({
+  isOpen,
+  onClose,
+  onSuccess: onParentSuccess,
+  onError: onParentError,
+  formOptions,
+}: CreateHKIModalProps) {
+  
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSuccess = (newData: HKIEntry) => {
+    setIsSubmitting(false)
+    onParentSuccess?.()
+    onClose()
+  }
+
+  const handleError = (message: string) => {
+    setIsSubmitting(false)
+    onParentError?.(message)
+  }
+  
+  const handleFormSubmitting = () => {
+    setIsSubmitting(true);
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>Buat Entri HKI Baru</DialogTitle>
+          <DialogDescription>
+            Isi semua informasi yang diperlukan untuk membuat catatan HKI baru.
+          </DialogDescription>
+        </DialogHeader>
+
+        <HKIForm
+          id="hki-create-form" 
+          mode="create"
+          jenisOptions={formOptions.jenisOptions}
+          statusOptions={formOptions.statusOptions}
+          pengusulOptions={formOptions.pengusulOptions}
+          onSubmitting={handleFormSubmitting}
+          onSuccess={handleSuccess} 
+          onError={handleError}
+        />
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
+            Batal
+          </Button>
+          <Button
+            type="submit"
+            form="hki-create-form" 
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Menyimpan...' : 'Simpan'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+

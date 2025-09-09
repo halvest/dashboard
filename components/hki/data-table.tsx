@@ -34,6 +34,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 /* ======================== TYPES & CONSTANTS ======================== */
+// (Kode ini sudah benar)
 const STATUS_BADGE: Record<string, string> = {
   'Diterima': 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-500/20',
   'Didaftar': 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-500/20',
@@ -59,6 +60,7 @@ const buildPageItems = (current: number, total: number) => {
 }
 
 /* ======================== CUSTOM HOOK FOR DATA TABLE LOGIC ======================== */
+// (Hook ini sudah benar)
 function useDataTable(totalCount: number) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -68,6 +70,7 @@ function useDataTable(totalCount: number) {
     jenisId: searchParams.get('jenisId') || '',
     statusId: searchParams.get('statusId') || '',
     year: searchParams.get('year') || '',
+    pengusulId: searchParams.get('pengusulId') || '',
   })
   const [pagination, setPagination] = useState({
     page: Number(searchParams.get('page')) || DEFAULTS.page,
@@ -93,18 +96,17 @@ function useDataTable(totalCount: number) {
     updateParam('jenisId', filters.jenisId, '')
     updateParam('statusId', filters.statusId, '')
     updateParam('year', filters.year, '')
+    updateParam('pengusulId', filters.pengusulId, '')
     updateParam('page', pagination.page, DEFAULTS.page)
     updateParam('pageSize', pagination.pageSize, DEFAULTS.pageSize)
     updateParam('sortBy', sort.sortBy, DEFAULTS.sortBy)
     updateParam('sortOrder', sort.sortOrder, DEFAULTS.sortOrder)
 
-    // Push new state to URL
     router.push(`/hki?${params.toString()}`, { scroll: false })
     
   }, [debouncedSearch, filters, pagination, sort, router])
   
   const handleSort = useCallback((columnId: string) => {
-    // Hanya izinkan sort by tahun_fasilitasi
     if (columnId !== 'tahun_fasilitasi') return;
     setSort(currentSort => ({
       sortBy: columnId,
@@ -119,7 +121,7 @@ function useDataTable(totalCount: number) {
   }, [])
   
   const clearFilters = useCallback(() => {
-    setFilters({ search: '', jenisId: '', statusId: '', year: '' })
+    setFilters({ search: '', jenisId: '', statusId: '', year: '', pengusulId: '' })
     setPagination(p => ({ ...p, page: 1 }))
   }, [])
 
@@ -143,17 +145,27 @@ interface DataTableProps {
     pengusulOptions: Pengusul[];
   };
   onEdit: (id: number) => void;
+  onOpenCreateModal: () => void; // ✅ PERBAIKAN MODAL 1: Tambahkan prop baru
   isLoading?: boolean;
 }
 
 /* ======================== MAIN COMPONENT ======================== */
-export function DataTable({ data, totalCount, formOptions, onEdit, isLoading = false }: DataTableProps) {
+export function DataTable({ 
+  data, 
+  totalCount, 
+  formOptions, 
+  onEdit, 
+  isLoading = false,
+  onOpenCreateModal // ✅ PERBAIKAN MODAL 2: Terima prop baru
+}: DataTableProps) {
+  
   const router = useRouter()
   const tableState = useDataTable(totalCount)
 
   const [deleteAlert, setDeleteAlert] = useState<{ open: boolean; entry?: HKIEntry; isBulk?: boolean }>({ open: false })
   const [isDeleting, setIsDeleting] = useState(false)
 
+  // Logika Delete (Sudah benar)
   const handleDelete = async () => {
     setIsDeleting(true)
     const itemsToDelete = deleteAlert.isBulk
@@ -180,7 +192,7 @@ export function DataTable({ data, totalCount, formOptions, onEdit, isLoading = f
       toast.success('Entri berhasil dihapus.', { id: toastId })
       setDeleteAlert({ open: false })
       tableState.setSelectedRows(new Set())
-      router.refresh()
+      router.refresh() 
     } catch (error: any) {
       toast.error(error.message || 'Gagal menghapus entri.', { id: toastId })
     } finally {
@@ -196,7 +208,8 @@ export function DataTable({ data, totalCount, formOptions, onEdit, isLoading = f
       <DataTableToolbar 
         tableState={tableState} 
         formOptions={formOptions}
-        onBulkDelete={handleBulkDelete} 
+        onBulkDelete={handleBulkDelete}
+        onOpenCreateModal={onOpenCreateModal} // ✅ PERBAIKAN MODAL 2.1: Teruskan prop ke Toolbar
       />
 
       <Card>
@@ -278,6 +291,7 @@ export function DataTable({ data, totalCount, formOptions, onEdit, isLoading = f
         )}
       </Card>
       
+      {/* Dialog Konfirmasi Hapus (Sudah benar) */}
       <AlertDialog open={deleteAlert.open} onOpenChange={(isOpen) => !isOpen && setDeleteAlert({ open: false })}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -303,66 +317,90 @@ export function DataTable({ data, totalCount, formOptions, onEdit, isLoading = f
 }
 
 /* ======================== SUB-COMPONENTS ======================== */
-function DataTableToolbar({ tableState, formOptions, onBulkDelete }: { tableState: ReturnType<typeof useDataTable>, formOptions: DataTableProps['formOptions'], onBulkDelete: () => void }) {
-  const router = useRouter()
+// ✅ PERBAIKAN MODAL 3: Update fungsi Toolbar untuk menerima prop baru
+function DataTableToolbar({ 
+  tableState, 
+  formOptions, 
+  onBulkDelete,
+  onOpenCreateModal
+}: { 
+  tableState: ReturnType<typeof useDataTable>, 
+  formOptions: DataTableProps['formOptions'], 
+  onBulkDelete: () => void,
+  onOpenCreateModal: () => void // <-- Tambahkan tipe prop di sini
+}) {
+  // const router = useRouter() // Tidak perlu lagi untuk tombol Create
   const { filters, selectedRows, handleFilterChange, clearFilters } = tableState
   const activeFiltersCount = Object.values(filters).filter(f => f && f !== '').length;
 
   return (
     <Card className="p-4">
        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari HKI atau pemohon..."
-            value={filters.search}
-            onChange={(e) => handleFilterChange('search', e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <div className="flex w-full sm:w-auto items-center justify-end gap-2">
+         <div className="relative w-full sm:max-w-xs">
+           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+           <Input
+             placeholder="Cari HKI, produk, atau pemohon..."
+             value={filters.search}
+             onChange={(e) => handleFilterChange('search', e.target.value)}
+             className="pl-9"
+           />
+         </div>
+         <div className="flex w-full sm:w-auto items-center justify-end gap-2">
             {activeFiltersCount > 0 && (
               <Button variant="ghost" onClick={clearFilters} className="gap-2 text-muted-foreground hover:text-foreground">
                 <X className="h-4 w-4" /> Bersihkan Filter
               </Button>
             )}
-            <Button className="gap-2 w-full sm:w-auto" onClick={() => router.push('/hki/create')}>
+            {/* ✅ PERBAIKAN MODAL 3.1: Ubah onClick untuk membuka modal */}
+            <Button className="gap-2 w-full sm:w-auto" onClick={onOpenCreateModal}>
                 <Plus className="h-4 w-4" /> Tambah Baru
             </Button>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-        <Select value={filters.jenisId || 'all'} onValueChange={(v) => handleFilterChange('jenisId', v === 'all' ? '' : v)}>
-          <SelectTrigger><SelectValue placeholder="Semua Jenis HKI" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Jenis HKI</SelectItem>
-            {formOptions.jenisOptions.map((opt) => <SelectItem key={opt.id_jenis_hki} value={String(opt.id_jenis_hki)}>{opt.nama_jenis_hki}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filters.statusId || 'all'} onValueChange={(v) => handleFilterChange('statusId', v === 'all' ? '' : v)}>
-          <SelectTrigger><SelectValue placeholder="Semua Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Status</SelectItem>
-            {formOptions.statusOptions.map((opt) => <SelectItem key={opt.id_status} value={String(opt.id_status)}>{opt.nama_status}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filters.year || 'all'} onValueChange={(v) => handleFilterChange('year', v === 'all' ? '' : v)}>
-          <SelectTrigger><SelectValue placeholder="Semua Tahun" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Tahun</SelectItem>
-            {formOptions.tahunOptions.map((opt) => <SelectItem key={opt.tahun} value={String(opt.tahun)}>{String(opt.tahun)}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        {selectedRows.size > 0 && (
-            <Button variant="outline" size="sm" className="gap-2 h-10" onClick={onBulkDelete}>
-              <Trash2 className="h-4 w-4" /> Hapus ({selectedRows.size})
-            </Button>
-        )}
-      </div>
+         </div>
+       </div>
+       
+       {/* Filter Grid (Kode ini sudah benar semua) */}
+       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+         <Select value={filters.jenisId || 'all'} onValueChange={(v) => handleFilterChange('jenisId', v === 'all' ? '' : v)}>
+           <SelectTrigger><SelectValue placeholder="Semua Jenis HKI" /></SelectTrigger>
+           <SelectContent>
+             <SelectItem value="all">Semua Jenis HKI</SelectItem>
+             {formOptions.jenisOptions.map((opt) => <SelectItem key={opt.id_jenis} value={String(opt.id_jenis)}>{opt.nama_jenis}</SelectItem>)}
+           </SelectContent>
+         </Select>
+         <Select value={filters.statusId || 'all'} onValueChange={(v) => handleFilterChange('statusId', v === 'all' ? '' : v)}>
+           <SelectTrigger><SelectValue placeholder="Semua Status" /></SelectTrigger>
+           <SelectContent>
+             <SelectItem value="all">Semua Status</SelectItem>
+             {formOptions.statusOptions.map((opt) => <SelectItem key={opt.id_status} value={String(opt.id_status)}>{opt.nama_status}</SelectItem>)}
+           </SelectContent>
+         </Select>
+         <Select value={filters.year || 'all'} onValueChange={(v) => handleFilterChange('year', v === 'all' ? '' : v)}>
+           <SelectTrigger><SelectValue placeholder="Semua Tahun" /></SelectTrigger>
+           <SelectContent>
+             <SelectItem value="all">Semua Tahun</SelectItem>
+             {formOptions.tahunOptions.map((opt) => <SelectItem key={opt.tahun} value={String(opt.tahun)}>{String(opt.tahun)}</SelectItem>)}
+           </SelectContent>
+         </Select>
+         <Select value={filters.pengusulId || 'all'} onValueChange={(v) => handleFilterChange('pengusulId', v === 'all' ? '' : v)}>
+           <SelectTrigger><SelectValue placeholder="Semua Pengusul (OPD)" /></SelectTrigger>
+           <SelectContent>
+             <SelectItem value="all">Semua Pengusul (OPD)</SelectItem>
+             {formOptions.pengusulOptions.map((opt) => <SelectItem key={opt.id_pengusul} value={String(opt.id_pengusul)}>{opt.nama_pengusul}</SelectItem>)}
+           </SelectContent>
+         </Select>
+       </div>
+       {selectedRows.size > 0 && (
+           <div className="mt-4">
+             <Button variant="outline" size="sm" className="gap-2" onClick={onBulkDelete}>
+               <Trash2 className="h-4 w-4" /> Hapus ({selectedRows.size}) Entri Terpilih
+             </Button>
+           </div>
+       )}
     </Card>
   )
 }
 
+// DataTableRow (Kode ini sudah benar semua)
 function DataTableRow({ entry, index, pagination, isSelected, onSelectRow, onEdit, onDelete }: { entry: HKIEntry, index: number, pagination: { page: number, pageSize: number }, isSelected: boolean, onSelectRow: (id: number, checked: boolean) => void, onEdit: (id: number) => void, onDelete: (entry: HKIEntry) => void }) {
   const router = useRouter()
 
@@ -412,14 +450,14 @@ function DataTableRow({ entry, index, pagination, isSelected, onSelectRow, onEdi
             </TooltipProvider>
         </div>
       </TableCell>
-      <TableCell className="text-muted-foreground">{entry.jenis_hki?.nama_jenis_hki || '-'}</TableCell>
+      <TableCell className="text-muted-foreground">{entry.jenis?.nama_jenis || '-'}</TableCell>
       <TableCell>
         <Badge variant="outline" className={cn("font-normal", getStatusBadge(entry.status_hki?.nama_status))}>
           {entry.status_hki?.nama_status || 'N/A'}
         </Badge>
       </TableCell>
       <TableCell className="text-muted-foreground">{entry.tahun_fasilitasi || '-'}</TableCell>
-      <TableCell className="text-muted-foreground">{entry.pengusul?.nama_opd || '-'}</TableCell>
+      <TableCell className="text-muted-foreground">{entry.pengusul?.nama_pengusul || '-'}</TableCell>
       <TableCell>
         <TooltipProvider>
             <Tooltip>
@@ -455,6 +493,7 @@ function DataTableRow({ entry, index, pagination, isSelected, onSelectRow, onEdi
   )
 }
 
+// DataTablePagination (Kode ini sudah benar)
 function DataTablePagination({ totalCount, pagination, totalPages, setPagination }: any) {
   const pages = useMemo(() => buildPageItems(pagination.page, totalPages), [pagination.page, totalPages])
   
@@ -512,6 +551,7 @@ function DataTablePagination({ totalCount, pagination, totalPages, setPagination
   )
 }
 
+// SortableHeader (Kode ini sudah benar)
 function SortableHeader({ columnId, children, sort, onSort }: { columnId: string, children: React.ReactNode, sort: { sortBy: string, sortOrder: 'asc' | 'desc' }, onSort: (columnId: string) => void }) {
   const isSorted = sort.sortBy === columnId;
   const SortIcon = isSorted ? (sort.sortOrder === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;

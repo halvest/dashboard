@@ -1,3 +1,4 @@
+// app/login/page.tsx
 'use client'
 
 import { useState } from 'react'
@@ -31,14 +32,14 @@ export default function LoginPage() {
         return
       }
 
-      // Check if user is admin
+      // Check user role (align with lib/auth.ts)
       const { data: profile } = await supabase
         .from('profiles')
-        .select('is_admin')
+        .select('role') // <-- PERBAIKAN: Membaca kolom 'role', bukan 'is_admin'
         .eq('id', data.user.id)
         .single()
 
-      if (!profile?.is_admin) {
+      if (profile?.role !== 'admin') { // <-- PERBAIKAN: Memeriksa apakah role adalah 'admin'
         await supabase.auth.signOut()
         toast.error('Access denied. Admin privileges required.')
         return
