@@ -13,16 +13,28 @@ export function useHKIEntry(hkiId: number | null, isOpen: boolean) {
 
     setIsLoading(true);
     setError(null);
-    setData(null);
+    setData(null); // Kosongkan data lama saat memuat yang baru
 
     try {
       const response = await fetch(`/api/hki/${hkiId}`);
+      
+      // Coba parse JSON bahkan jika response.ok = false, karena API kita mengirim pesan error di body
+      const result = await response.json(); 
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Gagal mengambil data dari server');
+        // Gunakan pesan error dari body JSON jika ada
+        throw new Error(result.message || result.error || 'Gagal mengambil data dari server'); 
       }
-      const result: HKIEntry = await response.json();
-      setData(result);
+      
+      // API GET kita mengembalikan { success: true, data: {...} }
+      // jadi kita harus mengambil 'data' dari result
+      if (result.success && result.data) {
+        setData(result.data);
+      } else {
+        // Jika format tidak terduga tapi response OK
+         setData(result); // Fallback jika API hanya mengembalikan data
+      }
+
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Terjadi kesalahan tak terduga';
       setError(message);
@@ -33,8 +45,14 @@ export function useHKIEntry(hkiId: number | null, isOpen: boolean) {
   }, [hkiId]);
 
   useEffect(() => {
+    // Hanya fetch jika modal terbuka DAN ada ID
     if (isOpen && hkiId) {
       fetchEntryData();
+    }
+    // Reset data jika modal ditutup (opsional, tapi bersih)
+    if (!isOpen) {
+      setData(null);
+      setError(null);
     }
   }, [isOpen, hkiId, fetchEntryData]);
   

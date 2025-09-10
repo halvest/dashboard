@@ -1,14 +1,15 @@
-// app/hki/hki-client.tsx
 'use client'
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { DataTable } from '@/components/hki/data-table'
 import { EditHKIModal } from '@/components/hki/edit-hki-modal'
-// ✅ 1. Impor Modal Baru
 import { CreateHKIModal } from '@/components/hki/create-hki-modal' 
-import { HKIEntry, JenisHKI, StatusHKI, Pengusul } from '@/lib/types'
+import { ViewHKIModal } from '@/components/hki/view-hki-modal' 
+import { HKIEntry, JenisHKI, StatusHKI, Pengusul, KelasHKI } from '@/lib/types'
 import { toast } from 'sonner'
+
+type ComboboxOption = { value: string; label: string };
 
 interface HKIClientPageProps {
   initialData: HKIEntry[]
@@ -17,52 +18,38 @@ interface HKIClientPageProps {
     jenisOptions: JenisHKI[]
     statusOptions: StatusHKI[]
     tahunOptions: { tahun: number }[]
-    pengusulOptions: Pengusul[]
+    pengusulOptions: ComboboxOption[] 
+    kelasOptions: ComboboxOption[]    
   }>
 }
 
 export function HKIClientPage({ initialData, totalCount, formOptions }: HKIClientPageProps) {
   const router = useRouter()
   
-  // State untuk Edit Modal (Sudah ada)
   const [editingHkiId, setEditingHkiId] = useState<number | null>(null)
-  
-  // ✅ 2. Tambahkan State untuk Create Modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [viewingEntry, setViewingEntry] = useState<HKIEntry | null>(null)
   
-  const [data, setData] = useState<HKIEntry[]>(initialData)
-
-  useEffect(() => {
-    setData(initialData)
-  }, [initialData])
-
   const handleEdit = (id: number) => {
     setEditingHkiId(id)
   }
+  
+  const handleViewDetails = (entry: HKIEntry) => {
+    setViewingEntry(entry)
+  }
 
-  const handleCloseModal = () => {
+  const handleCloseEditModal = () => {
     setEditingHkiId(null)
   }
   
-  // ✅ 3. Handler Sukses Edit (Sudah ada, sedikit modifikasi)
   const handleEditSuccess = (updatedItem: HKIEntry) => {
     setEditingHkiId(null)
-
-    // Optimistic update
-    setData((prev) =>
-      prev.map((item) => (item.id_hki === updatedItem.id_hki ? updatedItem : item))
-    )
-
-    // Tidak perlu refresh manual jika kita optimis, tapi kita refresh saja agar konsisten
     router.refresh() 
-    toast.success('Data berhasil diperbarui!')
   }
 
-  // ✅ 4. Handler Sukses Create (BARU)
   const handleCreateSuccess = () => {
-    setIsCreateModalOpen(false) // Tutup modal create
-    router.refresh() // Ambil data baru dari server (termasuk entri baru)
-    toast.success('Data berhasil dibuat!')
+    setIsCreateModalOpen(false) 
+    router.refresh() 
   }
 
   const handleError = (message = 'Terjadi kesalahan') => {
@@ -81,31 +68,37 @@ export function HKIClientPage({ initialData, totalCount, formOptions }: HKIClien
       </div>
 
       <DataTable
-        data={data}
+        data={initialData}
         totalCount={totalCount}
         formOptions={formOptions}
         onEdit={handleEdit}
-        // ✅ 5. Kirim prop baru untuk membuka modal create
         onOpenCreateModal={() => setIsCreateModalOpen(true)}
+        onViewDetails={handleViewDetails} // 
       />
 
-      {/* Edit Modal (Sudah Ada) */}
+      {/* Edit Modal */}
       <EditHKIModal
         isOpen={!!editingHkiId}
         hkiId={editingHkiId}
-        onClose={handleCloseModal}
-        onSuccess={handleEditSuccess} // Gunakan handler edit
+        onClose={handleCloseEditModal}
+        onSuccess={handleEditSuccess}
         onError={handleError}
         formOptions={formOptions}
       />
       
-      {/* ✅ 6. Tambahkan Create Modal baru ke dalam DOM */}
+      {/* Create Modal */}
       <CreateHKIModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={handleCreateSuccess} // Gunakan handler create
+        onSuccess={handleCreateSuccess} 
         onError={handleError}
-        formOptions={formOptions}
+        formOptions={formOptions} 
+      />
+
+      <ViewHKIModal
+        isOpen={!!viewingEntry}
+        onClose={() => setViewingEntry(null)}
+        entry={viewingEntry}
       />
     </div>
   )

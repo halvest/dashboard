@@ -44,18 +44,13 @@ export function Topbar({ sidebarOpen, setSidebarOpen }: TopbarProps) {
       try {
         const { data, error } = await supabase.auth.getUser();
 
-        // ✅ PERBAIKAN:
-        // Hanya lempar error jika itu error NYATA (bukan hanya "tidak ada sesi")
         if (error && error.name !== 'AuthSessionMissingError') {
           throw error;
         }
         
-        // Jika tidak ada error, ATAU error-nya hanya "session missing",
-        // set user. Jika tidak ada sesi, data.user akan menjadi null, dan itu sudah benar.
         setUser(data.user);
 
       } catch (err) {
-        // Blok catch ini sekarang hanya akan menangkap error tak terduga (misal: network)
         console.error('Error fetching user (real error):', err);
         setUser(null);
       } finally {
@@ -63,7 +58,7 @@ export function Topbar({ sidebarOpen, setSidebarOpen }: TopbarProps) {
       }
     };
     fetchUser();
-  }, [supabase]); // Dependensi [supabase] sudah benar
+  }, [supabase]); 
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -96,7 +91,7 @@ export function Topbar({ sidebarOpen, setSidebarOpen }: TopbarProps) {
           {/* Breadcrumbs */}
           <nav className="hidden items-center gap-1 text-sm font-medium text-muted-foreground md:flex">
             <Link
-              href="/dashboard" // Sebaiknya arahkan ke /dashboard atau /
+              href="/dashboard" 
               className="capitalize transition-colors hover:text-foreground"
             >
               {/* Jika breadcrumb[0] ada, gunakan itu, jika tidak, gunakan 'Dasbor' */}
@@ -191,7 +186,6 @@ export function Topbar({ sidebarOpen, setSidebarOpen }: TopbarProps) {
               <DropdownMenuItem
                 onClick={handleLogout}
                 className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
-                // Nonaktifkan tombol logout jika tidak ada user
                 disabled={loadingUser || !user} 
               >
                 <LogOut className="mr-2 h-4 w-4" />

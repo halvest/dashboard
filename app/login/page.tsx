@@ -32,14 +32,13 @@ export default function LoginPage() {
         return
       }
 
-      // Check user role (align with lib/auth.ts)
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role') // <-- PERBAIKAN: Membaca kolom 'role', bukan 'is_admin'
+        .select('role') 
         .eq('id', data.user.id)
         .single()
 
-      if (profile?.role !== 'admin') { // <-- PERBAIKAN: Memeriksa apakah role adalah 'admin'
+      if (profile?.role !== 'admin') { 
         await supabase.auth.signOut()
         toast.error('Access denied. Admin privileges required.')
         return
@@ -59,9 +58,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">HKI Admin</CardTitle>
+          <CardTitle className="text-2xl font-bold">Dashboard Data HKI Admin</CardTitle>
           <CardDescription>
-            Sign in to access the admin dashboard
+            Masuk untuk akses admin dashboard
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -78,7 +77,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Kata Sandi</Label>
               <Input
                 id="password"
                 type="password"

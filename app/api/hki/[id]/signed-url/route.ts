@@ -1,5 +1,5 @@
 // app/api/hki/[id]/signed-url/route.ts
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server'; 
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 const HKI_BUCKET = 'sertifikat-hki';
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  const supabase = createRouteHandlerClient({ cookies });
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore); 
   const id = parseInt(params.id, 10);
 
   if (!id || Number.isNaN(id)) {
@@ -16,6 +17,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+    }
+
     const { data: hkiEntry, error: fetchError } = await supabase
       .from('hki')
       .select('sertifikat_pdf')

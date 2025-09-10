@@ -2,12 +2,13 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image'; // ✅ 1. Impor komponen Image dari Next.js
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home,
   FileText,
-  Library,
+  // Library, // ❌ 2. Library tidak lagi digunakan (kecuali Anda menggunakannya di tempat lain)
   LogOut,
   Settings,
   BarChart3,
@@ -32,6 +33,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner'; // Pastikan toast diimpor jika belum ada (dari refaktor sebelumnya)
 
 // --- Tipe Data & Konstanta ---
 interface NavItem {
@@ -41,8 +43,8 @@ interface NavItem {
 }
 
 const mainNavigation: NavItem[] = [
-  { name: 'Dasbor', href: '/dashboard', icon: Home },
-  { name: 'Data HKI', href: '/hki', icon: FileText },
+  { name: 'Beranda', href: '/beranda', icon: Home },
+  { name: 'Data Pengajuan Fasilitasi', href: '/data-pengajuan-fasilitasi', icon: FileText },
 ];
 
 const managementNavigation: NavItem[] = [
@@ -99,6 +101,7 @@ const SidebarContent = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    toast.success('Berhasil keluar!'); // Notifikasi dari langkah sebelumnya
     router.push('/login');
     router.refresh();
   };
@@ -116,12 +119,19 @@ const SidebarContent = () => {
           href="/dashboard"
           className="flex items-center gap-2 font-semibold"
         >
-          <Library className="h-7 w-7 shrink-0 text-blue-500" />
-          <span className="text-xl text-white">HKI Panel</span>
+          <Image
+            src="/logo_sleman.png" 
+            alt="Logo Sleman"
+            width={50}  
+            height={50} 
+            className="shrink-0" 
+            priority 
+          />
+          <span className="text-xl text-white">Panel Dashboard</span>
         </Link>
       </div>
 
-      {/* Menu Navigasi */}
+      {/* Menu Navigasi (Tidak berubah) */}
       <nav className="flex-1 overflow-y-auto p-4 space-y-6">
         <ul className="flex flex-col gap-1.5">
           {mainNavigation.map((item) => (
@@ -140,7 +150,7 @@ const SidebarContent = () => {
         </div>
       </nav>
 
-      {/* Footer Sidebar (Profil & Logout) */}
+      {/* Footer Sidebar (Profil & Logout) (Tidak berubah) */}
       <div className="mt-auto border-t border-slate-700/50 p-4">
         {isLoading ? (
           <div className="flex items-center gap-3">

@@ -1,5 +1,5 @@
 // app/api/hki/bulk-delete/route.ts
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/utils/supabase/server'; 
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -9,16 +9,22 @@ const HKI_TABLE = 'hki';
 const HKI_BUCKET = 'sertifikat-hki';
 
 export async function POST(request: NextRequest) {
-  const supabase = createRouteHandlerClient({ cookies });
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore); 
 
   try {
+    // Validasi Sesi
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+    }
+
     const { ids } = await request.json();
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json({ error: 'Daftar ID tidak valid' }, { status: 400 });
     }
 
-    // Ambil file path sebelum delete
     const { data: entriesToDelete, error: fetchError } = await supabase
       .from(HKI_TABLE)
       .select('sertifikat_pdf')
@@ -29,20 +35,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Gagal mengambil data HKI untuk dihapus' }, { status: 500 });
     }
 
-    // Hapus data dari DB
     const { error: deleteError } = await supabase.from(HKI_TABLE).delete().in('id_hki', ids);
     if (deleteError) {
       console.error('Supabase delete error:', deleteError);
       return NextResponse.json({ error: 'Gagal menghapus entri HKI' }, { status: 500 });
     }
 
-    // Hapus file dari storage (jika ada)
     if (entriesToDelete && entriesToDelete.length > 0) {
       const filePaths = entriesToDelete.map(e => e.sertifikat_pdf).filter(Boolean) as string[];
       if (filePaths.length > 0) {
         const { error: storageError } = await supabase.storage.from(HKI_BUCKET).remove(filePaths);
         if (storageError) {
-          // Tidak fatal, log aja
           console.error('Gagal menghapus file dari storage:', storageError);
         }
       }

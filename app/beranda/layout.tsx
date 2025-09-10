@@ -1,7 +1,6 @@
 // app/dashboard/layout.tsx
 import { requireAdmin } from '@/lib/auth'
 import { AdminLayout } from '@/components/layout/admin-layout'
-import { Toaster } from '@/components/ui/sonner'
 import { redirect } from 'next/navigation'
 
 export default async function DashboardLayout({
@@ -18,7 +17,6 @@ export default async function DashboardLayout({
   return (
     <AdminLayout>
       {children}
-      <Toaster position="top-center" richColors closeButton />
     </AdminLayout>
   )
 }
