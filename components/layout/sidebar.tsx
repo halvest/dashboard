@@ -1,14 +1,14 @@
+// app/components/layout/sidebar.tsx
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image'; // ✅ 1. Impor komponen Image dari Next.js
+import Image from 'next/image'; 
 import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home,
   FileText,
-  // Library, // ❌ 2. Library tidak lagi digunakan (kecuali Anda menggunakannya di tempat lain)
   LogOut,
   Settings,
   BarChart3,
@@ -33,8 +33,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from 'sonner'; // Pastikan toast diimpor jika belum ada (dari refaktor sebelumnya)
-
+import { toast } from 'sonner'; 
 // --- Tipe Data & Konstanta ---
 interface NavItem {
   name: string;
@@ -43,15 +42,15 @@ interface NavItem {
 }
 
 const mainNavigation: NavItem[] = [
-  { name: 'Beranda', href: '/beranda', icon: Home },
-  { name: 'Data Pengajuan Fasilitasi', href: '/data-pengajuan-fasilitasi', icon: FileText },
+  { name: 'Beranda', href: '/dashboard', icon: Home },
+  { name: 'Data Pengajuan Fasilitasi', href: '/dashboard/data-pengajuan-fasilitasi', icon: FileText },
 ];
 
 const managementNavigation: NavItem[] = [
-    { name: 'Laporan', href: '/laporan', icon: BarChart3 },
-    { name: 'Data Master', href: '/master', icon: Database },
-    { name: 'Manajemen Pengguna', href: '/users', icon: Users },
-    { name: 'Pengaturan', href: '/settings', icon: Settings },
+    { name: 'Laporan', href: '/dashboard/laporan', icon: BarChart3 },
+    { name: 'Data Master', href: '/dashboard/data-master', icon: Database },
+    { name: 'Manajemen Pengguna', href: '/dashboard/users', icon: Users },
+    { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings },
 ];
 
 // --- Komponen Anak ---

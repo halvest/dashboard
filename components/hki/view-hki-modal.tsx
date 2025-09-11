@@ -1,23 +1,6 @@
 // components/hki/view-hki-modal.tsx
 'use client'
 
-/* =================================================================================================
-* KOMPONEN MODAL LIHAT DETAIL HKI (VERSI OPTIMAL)
-* =================================================================================================
-* Tujuan: Menampilkan detail lengkap entri HKI dalam modal read-only yang bersih dan stabil.
-*
-* Fitur & Optimalisasi Utama:
-* 1. Layout Flexbox Stabil: Menggunakan flex-col untuk header, content (scrollable), dan footer.
-* Ini mencegah 'layout shift' dan menciptakan UI modal yang kokoh dan modern.
-* 2. UX Unduhan Superior: Menggunakan 'toast.promise()' untuk memberikan umpan balik
-* 'loading', 'success', dan 'error' yang jelas saat pengguna mengunduh sertifikat.
-* 3. Performa Optimal: Helper component 'DetailItem' di-memoized dengan React.memo,
-* dan handler unduhan di-memoized dengan useCallback.
-* 4. Desain Visual Bersih: Menggunakan helper 'getStatusStyle' untuk konsistensi badge status
-* dan tata letak dua kolom yang responsif agar mudah dipindai (scannable).
-* =================================================================================================*/
-
-/* ======================== IMPORTS: REACT & LIBS ======================== */
 import React, { useCallback, memo } from 'react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -27,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { HKIEntry } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Download, Eye, Paperclip } from 'lucide-react'
-import { getStatusStyle } from './data-table' // Impor helper style
+import { getStatusStyle } from './data-table';
 import { toast } from 'sonner' // Impor toast untuk feedback
 
 /* ======================== HELPER COMPONENT (MEMOIZED) ======================== */

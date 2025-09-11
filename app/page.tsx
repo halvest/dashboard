@@ -12,5 +12,5 @@ export default async function RootPage() {
     redirect('/login')
   }
 
-  redirect('/beranda')
+  redirect('/dashboard/beranda')
 }
