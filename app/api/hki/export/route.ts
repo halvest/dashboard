@@ -2,15 +2,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import ExcelJS from 'exceljs';
-import { createClient } from '@/utils/supabase/server'; // Sesuaikan path jika perlu
+import { createClient } from '@/utils/supabase/server';
 
-// Fungsi helper untuk membersihkan nilai sel CSV
 function escapeCsvValue(value: any): string {
   if (value === null || value === undefined) return '';
   const stringValue = String(value);
-  // Jika nilai mengandung koma, kutip, atau baris baru, bungkus dengan kutip ganda
   if (/[",\n]/.test(stringValue)) {
-    // Ganti setiap kutip ganda di dalam string dengan dua kutip ganda
     return `"${stringValue.replace(/"/g, '""')}"`;
   }
   return stringValue;
@@ -53,13 +50,14 @@ export async function GET(request: NextRequest) {
       .select(`
         id_hki, nama_hki, jenis_produk, tahun_fasilitasi, keterangan,
         pemohon ( nama_pemohon, alamat ),
-        jenis ( nama_jenis ),
+        jenis_hki ( nama_jenis_hki ), 
         status_hki ( nama_status ),
-        pengusul ( nama_pengusul ),
-        kelas ( id_kelas, nama_kelas, tipe )
+        pengusul ( nama_opd ),
+        kelas_hki ( id_kelas, nama_kelas, tipe )
       `);
 
     // Terapkan filter berdasarkan parameter
+    // PERBAIKAN FINAL: Gunakan nama kolom foreign key yang benar dari skema `hki`
     if (filter === 'year') {
       query = query.eq('tahun_fasilitasi', Number(value));
     } else if (filter === 'pengusul') {
@@ -68,7 +66,7 @@ export async function GET(request: NextRequest) {
       query = query.eq('id_status', Number(value));
     }
 
-    // Eksekusi kueri untuk mengambil semua data yang cocok (tanpa paginasi)
+    // Eksekusi kueri
     const { data: hkiData, error } = await query.order('created_at', { ascending: true });
 
     if (error) {
@@ -80,7 +78,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Tidak ada data yang cocok dengan filter yang Anda pilih.' }, { status: 404 });
     }
     
-    // Batas aman untuk ekspor sinkron
     if (hkiData.length > 10000) {
         return NextResponse.json({ error: 'Data terlalu besar (>10.000 baris) untuk diekspor secara langsung. Harap persempit filter Anda.'}, { status: 413 });
     }
@@ -91,7 +88,7 @@ export async function GET(request: NextRequest) {
       { key: 'jenis_produk', label: 'Jenis Produk' },
       { key: 'nama_pemohon', label: 'Nama Pemohon' },
       { key: 'alamat_pemohon', label: 'Alamat Pemohon' },
-      { key: 'nama_jenis', label: 'Jenis HKI' },
+      { key: 'nama_jenis_hki', label: 'Jenis HKI' },
       { key: 'kelas_info', label: 'Kelas HKI' },
       { key: 'nama_pengusul', label: 'Pengusul (OPD)' },
       { key: 'tahun_fasilitasi', label: 'Tahun Fasilitasi' },
@@ -99,15 +96,15 @@ export async function GET(request: NextRequest) {
       { key: 'keterangan', label: 'Keterangan' },
     ];
     
-    // Ubah data relasional menjadi data datar (flat) yang siap diekspor
+    // PERBAIKAN FINAL: Sesuaikan dengan nama kolom yang benar dari skema
     const normalizedData = hkiData.map((row: any) => ({
       nama_hki: row.nama_hki,
       jenis_produk: row.jenis_produk,
       nama_pemohon: row.pemohon?.nama_pemohon,
       alamat_pemohon: row.pemohon?.alamat,
-      nama_jenis: row.jenis?.nama_jenis,
-      kelas_info: row.kelas ? `Kelas ${row.kelas.id_kelas}: ${row.kelas.nama_kelas}` : '-',
-      nama_pengusul: row.pengusul?.nama_pengusul,
+      nama_jenis_hki: row.jenis_hki?.nama_jenis_hki, 
+      kelas_info: row.kelas_hki ? `Kelas ${row.kelas_hki.id_kelas}: ${row.kelas_hki.nama_kelas}` : '-',
+      nama_pengusul: row.pengusul?.nama_opd,
       tahun_fasilitasi: row.tahun_fasilitasi,
       nama_status: row.status_hki?.nama_status,
       keterangan: row.keterangan,
@@ -136,24 +133,37 @@ export async function GET(request: NextRequest) {
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Data HKI');
       
-      // Tambah Header
       worksheet.columns = columns.map(col => ({ header: col.label, key: col.key, width: 25 }));
       worksheet.getRow(1).font = { bold: true };
       
-      // Tambah Data
+      // PERBAIKAN FINAL: Ganti key di `columns` agar cocok dengan `normalizedData`
+      const excelColumns = [
+          { header: 'Nama HKI', key: 'nama_hki' },
+          { header: 'Jenis Produk', key: 'jenis_produk' },
+          { header: 'Nama Pemohon', key: 'nama_pemohon' },
+          { header: 'Alamat Pemohon', key: 'alamat_pemohon' },
+          { header: 'Jenis HKI', key: 'nama_jenis_hki' },
+          { header: 'Kelas HKI', key: 'kelas_info' },
+          { header: 'Pengusul (OPD)', key: 'nama_pengusul' },
+          { header: 'Tahun Fasilitasi', key: 'tahun_fasilitasi' },
+          { header: 'Status', key: 'nama_status' },
+          { header: 'Keterangan', key: 'keterangan' },
+      ];
+      worksheet.columns = excelColumns;
       worksheet.addRows(normalizedData);
-
-      // Atur lebar kolom otomatis
+      
       worksheet.columns.forEach(column => {
           let maxLength = 0;
           column.eachCell!({ includeEmpty: true }, cell => {
               let cellLength = cell.value ? cell.value.toString().length : 10;
+              if(cellLength > 100) cellLength = 100; // Batasi lebar maks
               if (cellLength > maxLength) {
                   maxLength = cellLength;
               }
           });
-          column.width = maxLength < 10 ? 10 : maxLength + 2;
+          column.width = maxLength < 12 ? 12 : maxLength + 2;
       });
+      worksheet.getRow(1).font = { bold: true };
 
       const buffer = await workbook.xlsx.writeBuffer();
       return new Response(buffer, {
@@ -165,7 +175,6 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    // Fallback jika format tidak didukung (seharusnya sudah tertangani oleh validasi di atas)
     return NextResponse.json({ error: 'Format tidak didukung' }, { status: 400 });
 
   } catch (error: any) {
