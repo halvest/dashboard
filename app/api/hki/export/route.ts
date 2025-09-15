@@ -3,11 +3,14 @@ import { cookies } from 'next/headers';
 import ExcelJS from 'exceljs';
 import { createClient } from '@/utils/supabase/server';
 
+// BARU: Memaksa route untuk berjalan di lingkungan Node.js
+// Ini akan menghilangkan peringatan terkait Edge Runtime.
+export const runtime = 'nodejs';
+
 /**
  * Membersihkan nilai untuk sel CSV, menangani koma, kutipan, dan baris baru.
  */
 function escapeCsvValue(value: any): string {
-  // PERBAIKAN: Gunakan nullish coalescing operator (??) yang lebih ringkas
   const stringValue = String(value ?? '');
   if (/[",\n]/.test(stringValue)) {
     return `"${stringValue.replace(/"/g, '""')}"`;
@@ -59,7 +62,6 @@ export async function GET(request: NextRequest) {
 
         // Terapkan filter jika ada
         if (search) query = query.ilike('nama_hki', `%${search}%`);
-        // PERBAIKAN: Gunakan nama kolom yang benar untuk filter
         if (jenisId) query = query.eq('id_jenis', Number(jenisId));
         if (statusId) query = query.eq('id_status', Number(statusId));
         if (year) query = query.eq('tahun_fasilitasi', Number(year));
@@ -92,9 +94,9 @@ export async function GET(request: NextRequest) {
           { key: 'jenis_produk', label: 'Jenis Produk' },
           { key: 'nama_pemohon', label: 'Nama Pemohon' },
           { key: 'alamat_pemohon', label: 'Alamat Pemohon' },
-          { key: 'nama_jenis', label: 'Jenis HKI' }, // PERBAIKAN: key disesuaikan
+          { key: 'nama_jenis', label: 'Jenis HKI' },
           { key: 'kelas_info', label: 'Kelas HKI' },
-          { key: 'nama_pengusul', label: 'Pengusul (OPD)' }, // PERBAIKAN: key disesuaikan
+          { key: 'nama_pengusul', label: 'Pengusul (OPD)' },
           { key: 'tahun_fasilitasi', label: 'Tahun Fasilitasi' },
           { key: 'nama_status', label: 'Status' },
           { key: 'keterangan', label: 'Keterangan' },
@@ -105,10 +107,8 @@ export async function GET(request: NextRequest) {
           jenis_produk: row.jenis_produk,
           nama_pemohon: row.pemohon?.nama_pemohon,
           alamat_pemohon: row.pemohon?.alamat,
-          // PERBAIKAN: Akses properti yang benar
           nama_jenis: row.jenis?.nama_jenis,
           kelas_info: row.kelas ? `Kelas ${row.kelas.id_kelas}: ${row.kelas.nama_kelas}` : '-',
-          // PERBAIKAN: Akses properti yang benar
           nama_pengusul: row.pengusul?.nama_pengusul,
           tahun_fasilitasi: row.tahun_fasilitasi,
           nama_status: row.status_hki?.nama_status,
@@ -151,7 +151,6 @@ export async function GET(request: NextRequest) {
           worksheet.columns.forEach(column => {
               if (!column.key) return;
               let maxLength = column.header?.length ?? 10;
-              // PERBAIKAN: Gunakan pengecekan yang lebih aman daripada non-null assertion (!)
               if (column.eachCell) {
                 column.eachCell({ includeEmpty: true }, cell => {
                     let cellLength = cell.value ? String(cell.value).length : 10;
@@ -173,6 +172,10 @@ export async function GET(request: NextRequest) {
             },
           });
         }
+        
+        // PERBAIKAN: Tambahkan fallback response jika format tidak valid
+        // Ini memastikan fungsi tidak akan pernah mengembalikan `undefined`
+        return NextResponse.json({ error: `Format file tidak valid: ${format}` }, { status: 400 });
         
     } catch (error: any) {
         console.error('Kesalahan pada API Ekspor:', error);
