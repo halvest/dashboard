@@ -80,7 +80,14 @@ const FormItem = React.forwardRef<
 
   return (
     <FormItemContext.Provider value={{ id }}>
-      <div ref={ref} className={cn("space-y-2", className)} {...props} />
+      <div
+        ref={ref}
+        className={cn(
+          "flex flex-col gap-1.5 p-2 rounded-xl border border-transparent focus-within:border-primary/40 focus-within:bg-muted/30 transition-colors",
+          className
+        )}
+        {...props}
+      />
     </FormItemContext.Provider>
   )
 })
@@ -95,7 +102,11 @@ const FormLabel = React.forwardRef<
   return (
     <Label
       ref={ref}
-      className={cn(error && "text-destructive", className)}
+      className={cn(
+        "text-sm font-semibold",
+        error && "text-destructive",
+        className
+      )}
       htmlFor={formItemId}
       {...props}
     />
@@ -106,13 +117,18 @@ FormLabel.displayName = "FormLabel"
 const FormControl = React.forwardRef<
   React.ElementRef<typeof Slot>,
   React.ComponentPropsWithoutRef<typeof Slot>
->(({ ...props }, ref) => {
+>(({ className, ...props }, ref) => {
   const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
 
   return (
     <Slot
       ref={ref}
       id={formItemId}
+      className={cn(
+        "w-full rounded-lg border px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-50",
+        error ? "border-destructive focus:ring-destructive/60" : "border-input",
+        className
+      )}
       aria-describedby={
         !error
           ? `${formDescriptionId}`
@@ -135,7 +151,7 @@ const FormDescription = React.forwardRef<
     <p
       ref={ref}
       id={formDescriptionId}
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-xs text-muted-foreground italic", className)}
       {...props}
     />
   )
@@ -157,7 +173,7 @@ const FormMessage = React.forwardRef<
     <p
       ref={ref}
       id={formMessageId}
-      className={cn("text-sm font-medium text-destructive", className)}
+      className={cn("text-xs font-medium text-destructive mt-0.5", className)}
       {...props}
     >
       {body}
