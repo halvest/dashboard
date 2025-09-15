@@ -3,7 +3,6 @@
 
 import React, { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-// Penambahan: Impor 'FieldErrors' untuk type-checking pada fungsi onInvalid
 import { useForm, useWatch, FieldErrors } from 'react-hook-form' 
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -19,7 +18,7 @@ import { HKIEntry, JenisHKI, StatusHKI } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { FileText, X } from 'lucide-react'
 
-// --- Konstanta dan Skema Zod (Tidak ada perubahan) ---
+// Skema Zod, Tipe, dan Props
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const ACCEPTED_FILE_TYPES = ["application/pdf"];
@@ -38,17 +37,12 @@ const hkiSchema = z.object({
   id_status: z.string({ required_error: 'Status wajib dipilih.' }).min(1, 'Status wajib dipilih.'),
   id_pengusul: z.string({ required_error: 'Pengusul wajib dipilih.' }).min(1, 'Pengusul wajib dipilih.'),
   id_kelas: z.preprocess((val) => val === '' ? null : val, z.string().optional().nullable()),
-  sertifikat_pdf: z.any()
-    .optional()
-    .refine((files: FileList | undefined) => !files || files.length === 0 || files[0].size <= MAX_FILE_SIZE_BYTES,
-      `Ukuran file maksimal adalah ${MAX_FILE_SIZE_MB}MB.`
-    )
-    .refine((files: FileList | undefined) => !files || files.length === 0 || ACCEPTED_FILE_TYPES.includes(files[0].type),
-      'Hanya file format .pdf yang diterima.'
-    ),
+  sertifikat_pdf: z.any().optional()
+    .refine((files: FileList | undefined) => !files || files.length === 0 || files[0].size <= MAX_FILE_SIZE_BYTES, `Ukuran file maks. ${MAX_FILE_SIZE_MB}MB.`)
+    .refine((files: FileList | undefined) => !files || files.length === 0 || ACCEPTED_FILE_TYPES.includes(files[0].type), 'Hanya file format .pdf.'),
 });
 
-type HKIFormData = z.infer<typeof hkiSchema>
+type HKIFormData = z.infer<typeof hkiSchema>;
 type ComboboxOption = { value: string; label: string };
 
 interface HKIFormProps {
@@ -68,16 +62,14 @@ const ACCORDION_ITEMS = {
   mainInfo: 'item-hki-info',
   applicantInfo: 'item-applicant-info',
   adminInfo: 'item-admin-info',
-}
+};
 
-/* ======================== MAIN COMPONENT ======================== */
 export function HKIForm({
   id, initialData, mode, jenisOptions, statusOptions, pengusulOptions, kelasOptions,
   onSubmittingChange, onSuccess, onError
 }: HKIFormProps) {
 
-  const router = useRouter()
-
+  const router = useRouter();
   const form = useForm<HKIFormData>({
     resolver: zodResolver(hkiSchema),
     defaultValues: {
@@ -92,7 +84,7 @@ export function HKIForm({
       id_pengusul: initialData?.pengusul?.id_pengusul.toString() || undefined,
       id_kelas: initialData?.kelas?.id_kelas.toString() || undefined,
     },
-  })
+  });
 
   const selectedFile = useWatch({ control: form.control, name: 'sertifikat_pdf' });
   const { formState: { isSubmitting } } = form;
@@ -110,42 +102,39 @@ export function HKIForm({
     return years;
   }, []);
   
-  // ✨ PENAMBAHAN: Fungsi untuk menangani validasi yang gagal (invalid submit)
   const onInvalid = (errors: FieldErrors<HKIFormData>) => {
-    // Dapatkan nama field pertama yang memiliki error
-    const firstErrorField = Object.keys(errors)[0] as keyof HKIFormData;
+    const firstErrorKey = Object.keys(errors)[0];
+    const firstErrorMessage = errors[firstErrorKey as keyof HKIFormData]?.message;
+    const fieldNameMap: Record<string, string> = {
+        nama_hki: "Nama HKI",
+        nama_pemohon: "Nama Pemohon",
+        id_jenis: "Jenis HKI",
+        id_status: "Status HKI",
+        id_pengusul: "Pengusul (OPD)",
+        tahun_fasilitasi: "Tahun Fasilitasi",
+    };
     
-    // Cari elemen di dalam DOM yang sesuai dengan nama field tersebut
-    const element = document.querySelector(`[name="${firstErrorField}"]`);
-    
+    const toastMessage = `Validasi Gagal: ${fieldNameMap[firstErrorKey] || 'Sebuah isian'} - ${firstErrorMessage}`;
+    toast.error(toastMessage);
+
+    const element = document.querySelector(`[name="${firstErrorKey}"]`);
     if (element) {
-      // Perintahkan browser untuk scroll ke elemen tersebut
-      element.scrollIntoView({
-        behavior: 'smooth', // Animasi scroll yang halus
-        block: 'center',     // Posisikan elemen di tengah viewport
-      });
-      // Beri feedback tambahan kepada pengguna
-      toast.error("Harap periksa kembali isian Anda, ada data yang belum valid.");
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
 
   const onSubmit = async (data: HKIFormData) => {
-    const toastId = toast.loading('Menyimpan data...');
+    const actionText = mode === 'create' ? 'membuat' : 'memperbarui';
+    const toastId = toast.loading(`Sedang ${actionText} entri HKI...`);
+    
     try {
       const formData = new FormData();
-      
       const file = data.sertifikat_pdf?.[0];
-      if (file instanceof File) {
-        formData.append('file', file);
-      }
+      if (file instanceof File) formData.append('file', file);
+      if (mode === 'edit' && initialData?.sertifikat_pdf && !file) formData.append('sertifikat_pdf', 'null');
       
-      if (mode === 'edit' && initialData?.sertifikat_pdf && !file) {
-        formData.append('sertifikat_pdf', 'null');
-      }
-
       const dataToSend = { ...data };
       delete dataToSend.sertifikat_pdf;
-
       Object.entries(dataToSend).forEach(([key, value]) => {
         if (value !== null && value !== undefined) {
           const apiKey = key === 'id_jenis' ? 'id_jenis_hki' : key;
@@ -155,12 +144,17 @@ export function HKIForm({
 
       const url = mode === 'create' ? '/api/hki' : `/api/hki/${initialData?.id_hki}`;
       const method = mode === 'create' ? 'POST' : 'PATCH';
-
       const response = await fetch(url, { method, body: formData });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Gagal menyimpan data');
 
-      toast.success(`Entri HKI berhasil ${mode === 'create' ? 'dibuat' : 'diperbarui'}!`, { id: toastId });
+      if (!response.ok) {
+        throw new Error(result.error || `Gagal ${actionText} data.`);
+      }
+
+      toast.success(`Data HKI berhasil di${actionText}!`, {
+        id: toastId,
+        description: `Entri untuk "${data.nama_hki}" telah disimpan.`,
+      });
 
       if (onSuccess) {
         onSuccess(result.data);
@@ -168,24 +162,32 @@ export function HKIForm({
         router.refresh();
       }
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Terjadi kesalahan tidak diketahui.';
-      toast.error(errorMessage, { id: toastId });
+      let errorMessage = `Terjadi kesalahan saat ${actionText} data.`;
+      if (err instanceof Error) {
+        if (err.message.includes('duplicate key value violates unique constraint')) {
+          errorMessage = `Gagal menyimpan: Nama HKI "${data.nama_hki}" sudah ada.`;
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      toast.error(errorMessage, {
+        id: toastId,
+        description: "Silakan periksa kembali isian Anda atau coba beberapa saat lagi.",
+      });
       if (onError) onError(errorMessage);
     }
   }
 
   return (
     <Form {...form}>
-      {/* ✨ PERBAIKAN: Tambahkan handler 'onInvalid' di sini */}
       <form
         id={id}
         onSubmit={form.handleSubmit(onSubmit, onInvalid)}
-        // ✨ PERBAIKAN: Sesuaikan max-height untuk UX yang lebih baik di modal
         className="max-h-[70vh] overflow-y-auto" 
       >
         <div className="pr-6 space-y-4">
           <fieldset disabled={isSubmitting} className="space-y-4">
-            {/* ... Isi Form (Accordion, Card, FormField, dll) tidak ada perubahan ... */}
             <Accordion type="multiple" defaultValue={Object.values(ACCORDION_ITEMS)} className="w-full">
               
               <AccordionItem value={ACCORDION_ITEMS.mainInfo}>

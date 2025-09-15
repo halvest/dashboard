@@ -21,20 +21,27 @@ import { Card, CardContent, CardHeader, CardFooter, CardTitle } from '@/componen
 import { Checkbox } from '@/components/ui/checkbox'
 import { Combobox } from '@/components/ui/combobox'
 import {
+  Dialog, DialogContent, DialogDescription, DialogFooter as SimpleDialogFooter, DialogHeader as SimpleDialogHeader, DialogTitle as SimpleDialogTitle
+} from "@/components/ui/dialog"
+import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Pagination, PaginationContent, PaginationItem } from '@/components/ui/pagination'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDebounce } from '@/hooks/use-debounce'
 import { HKIEntry, JenisHKI, StatusHKI } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { ExportModal } from './export-modal'
+import { downloadFilteredExport } from '@/app/services/hki-service'
 
-
+// =================================================================
+// UTILITIES & CONSTANTS
+// =================================================================
 type KnownStatus = 'Diterima' | 'Didaftar' | 'Ditolak' | 'Dalam Proses';
 const STATUS_STYLES: Record<KnownStatus | 'Default', { className: string; icon: LucideIcon }> = {
   'Diterima': { className: 'border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300', icon: CheckCircle },
@@ -44,51 +51,30 @@ const STATUS_STYLES: Record<KnownStatus | 'Default', { className: string; icon: 
   'Default': { className: 'border-gray-300 bg-gray-50 text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300', icon: Clock }
 };
 export const getStatusStyle = (statusName?: string) => STATUS_STYLES[statusName as KnownStatus] || STATUS_STYLES['Default'];
-
 const DEFAULTS = { page: 1, pageSize: 10, sortBy: 'created_at', sortOrder: 'desc' as 'asc' | 'desc' };
 const clamp = (num: number, min: number, max: number) => Math.max(min, Math.min(num, max));
-
 const buildPageItems = (current: number, total: number) => {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   if (current < 5) return [1, 2, 3, 4, '…', total];
   if (current > total - 4) return [1, '…', total - 3, total - 2, total - 1, total];
   return [1, '…', current - 1, current, current + 1, '…', total];
 };
+interface HKIFilters { search: string; jenisId: string; statusId: string; year: string; pengusulId: string; }
 
-interface HKIFilters {
-  search: string;
-  jenisId: string;
-  statusId: string;
-  year: string;
-  pengusulId: string;
-}
-
+// =================================================================
+// CUSTOM HOOK useDataTable
+// =================================================================
 function useDataTable(totalCount: number) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
-  const [filters, setFilters] = useState<HKIFilters>({ 
-    search: searchParams.get('search') || '', 
-    jenisId: searchParams.get('jenisId') || '', 
-    statusId: searchParams.get('statusId') || '', 
-    year: searchParams.get('year') || '', 
-    pengusulId: searchParams.get('pengusulId') || '' 
-  });
+  const [filters, setFilters] = useState<HKIFilters>({ search: searchParams.get('search') || '', jenisId: searchParams.get('jenisId') || '', statusId: searchParams.get('statusId') || '', year: searchParams.get('year') || '', pengusulId: searchParams.get('pengusulId') || '' });
   const [pagination, setPagination] = useState({ page: Number(searchParams.get('page')) || DEFAULTS.page, pageSize: Number(searchParams.get('pageSize')) || DEFAULTS.pageSize });
   const [sort, setSort] = useState({ sortBy: searchParams.get('sortBy') || DEFAULTS.sortBy, sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc') || DEFAULTS.sortOrder });
   const [selectedRows, setSelectedRows] = useState(new Set<number>());
   const debouncedSearch = useDebounce(filters.search, 500);
-
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
-    const updateParam = (key: string, value: any, defaultValue: any) => {
-      if (value && String(value).length > 0 && String(value) !== String(defaultValue)) {
-        params.set(key, String(value));
-      } else {
-        params.delete(key);
-      }
-    };
-
+    const updateParam = (key: string, value: any, defaultValue: any) => { if (value && String(value).length > 0 && String(value) !== String(defaultValue)) { params.set(key, String(value)); } else { params.delete(key); } };
     updateParam('search', debouncedSearch, '');
     updateParam('jenisId', filters.jenisId, '');
     updateParam('statusId', filters.statusId, '');
@@ -98,21 +84,113 @@ function useDataTable(totalCount: number) {
     updateParam('pageSize', pagination.pageSize, DEFAULTS.pageSize);
     updateParam('sortBy', sort.sortBy, DEFAULTS.sortBy);
     updateParam('sortOrder', sort.sortOrder, DEFAULTS.sortOrder);
-    
     router.push(`?${params.toString()}`, { scroll: false });
   }, [debouncedSearch, filters, pagination, sort, router, searchParams]);
-
   const handleSort = useCallback((columnId: string) => { if (!['created_at', 'nama_hki', 'tahun_fasilitasi'].includes(columnId)) return; setSort(s => ({ sortBy: columnId, sortOrder: s.sortBy === columnId && s.sortOrder === 'asc' ? 'desc' : 'asc' })); setPagination(p => ({ ...p, page: 1 })); }, []);
   const handleFilterChange = useCallback((filterName: keyof HKIFilters, value: string) => { setFilters(f => ({ ...f, [filterName]: value })); setPagination(p => ({ ...p, page: 1 })); }, []);
   const clearFilters = useCallback(() => { setFilters({ search: '', jenisId: '', statusId: '', year: '', pengusulId: '' }); setPagination(p => ({ ...p, page: 1 })); setSort({ sortBy: DEFAULTS.sortBy, sortOrder: DEFAULTS.sortOrder }); }, []);
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / pagination.pageSize)), [totalCount, pagination.pageSize]);
-  
   const stableSetSelectedRows = useCallback(setSelectedRows, []);
-  
   return { filters, pagination, sort, selectedRows, totalPages, setPagination, setSelectedRows: stableSetSelectedRows, handleSort, handleFilterChange, clearFilters };
 }
 type UseDataTableReturn = ReturnType<typeof useDataTable>;
 
+// =================================================================
+// MODAL EKSPOR BARU YANG INTERAKTIF
+// =================================================================
+const InteractiveExportModal = ({ isOpen, onClose, filters, formOptions }: {
+    isOpen: boolean,
+    onClose: () => void,
+    filters: HKIFilters,
+    formOptions: any
+}) => {
+    const [format, setFormat] = useState<'xlsx' | 'csv'>('xlsx');
+    const [isExporting, setIsExporting] = useState(false);
+
+    const activeFiltersSummary = useMemo(() => {
+        const summary: string[] = [];
+        if (filters.search) summary.push(`Pencarian: "${filters.search}"`);
+        if (filters.year) summary.push(`Tahun: ${filters.year}`);
+        if (filters.statusId) {
+            const status = formOptions.statusOptions.find((s: any) => s.id_status.toString() === filters.statusId);
+            if (status) summary.push(`Status: ${status.nama_status}`);
+        }
+        if (filters.pengusulId) {
+            const pengusul = formOptions.pengusulOptions.find((p: any) => p.value === filters.pengusulId);
+            if (pengusul) summary.push(`Pengusul: ${pengusul.label}`);
+        }
+        if (filters.jenisId) {
+            const jenis = formOptions.jenisOptions.find((j: any) => j.id_jenis.toString() === filters.jenisId);
+            if (jenis) summary.push(`Jenis HKI: ${jenis.nama_jenis}`);
+        }
+        return summary;
+    }, [filters, formOptions]);
+
+    const handleExport = () => {
+        setIsExporting(true);
+        const exportPromise = downloadFilteredExport({ format, filters });
+
+        toast.promise(exportPromise, {
+            loading: 'Membuat file ekspor, mohon tunggu...',
+            success: 'Ekspor berhasil! Unduhan akan segera dimulai.',
+            error: (err) => err.message || 'Terjadi kesalahan saat mengekspor.',
+        });
+
+        exportPromise.finally(() => {
+            setIsExporting(false);
+            onClose();
+        });
+    };
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-md">
+                <SimpleDialogHeader>
+                    <SimpleDialogTitle>Konfirmasi Ekspor Data</SimpleDialogTitle>
+                    <DialogDescription>
+                        Anda akan mengunduh semua data yang cocok dengan filter yang sedang aktif di tabel.
+                    </DialogDescription>
+                </SimpleDialogHeader>
+                <div className="py-4 space-y-4">
+                    {activeFiltersSummary.length > 0 ? (
+                        <div className="space-y-2">
+                            <Label className="font-semibold">Filter Aktif:</Label>
+                            <div className="text-sm text-muted-foreground bg-muted p-3 rounded-md space-y-1">
+                                {activeFiltersSummary.map(s => <p key={s}>- {s}</p>)}
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">Tidak ada filter aktif. Semua data akan diekspor.</p>
+                    )}
+                    <div className="space-y-3">
+                        <Label className="font-semibold">Pilih Format File</Label>
+                        <RadioGroup value={format} onValueChange={(v) => setFormat(v as 'xlsx' | 'csv')} className="flex items-center space-x-4">
+                           <div className="flex items-center space-x-2">
+                             <RadioGroupItem value="xlsx" id="xlsx" />
+                             <Label htmlFor="xlsx" className="cursor-pointer">Excel (.xlsx)</Label>
+                           </div>
+                           <div className="flex items-center space-x-2">
+                             <RadioGroupItem value="csv" id="csv" />
+                             <Label htmlFor="csv" className="cursor-pointer">CSV (.csv)</Label>
+                           </div>
+                        </RadioGroup>
+                    </div>
+                </div>
+                <SimpleDialogFooter>
+                    <Button variant="outline" onClick={onClose} disabled={isExporting}>Batal</Button>
+                    <Button onClick={handleExport} disabled={isExporting}>
+                        {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4" />}
+                        {isExporting ? 'Memproses...' : 'Ekspor Sekarang'}
+                    </Button>
+                </SimpleDialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+};
+
+// =================================================================
+// CHILD COMPONENTS
+// =================================================================
 const FilterTrigger = memo(({ icon: Icon, label, placeholder }: { icon: LucideIcon, label?: string, placeholder: string }) => (
   <div className='flex items-center gap-2 text-sm font-normal'>
     <Icon className="h-4 w-4 text-muted-foreground"/>
@@ -157,7 +235,10 @@ const DataTableToolbar = memo(({ tableState, formOptions, onBulkDelete, onOpenCr
                 <span className="font-medium text-base md:text-sm">{selectionModeActive ? "Batal" : "Pilih Data"}</span>
               </Button>
             )}
-            <Button variant="outline" className="gap-2 w-full sm:w-auto h-10" onClick={onOpenExportModal}><Upload className="h-4 w-4" /><span className="font-medium text-base md:text-sm">Ekspor</span></Button>
+            <Button variant="outline" className="gap-2 w-full sm:w-auto h-10" onClick={onOpenExportModal}>
+                <Upload className="h-4 w-4" />
+                <span className="font-medium text-base md:text-sm">Ekspor Data</span>
+            </Button>
             <Button variant="primary" className="gap-2 w-full sm:w-auto shadow-sm h-10" onClick={onOpenCreateModal}><Plus className="h-5 w-5" /><span className="font-semibold text-base md:text-sm">Tambah Data</span></Button>
           </div>
         </div>
@@ -214,10 +295,6 @@ const DataTableToolbar = memo(({ tableState, formOptions, onBulkDelete, onOpenCr
 });
 DataTableToolbar.displayName = 'DataTableToolbar';
 
-
-//--------------------------------
-// Table Row / Mobile Card Component
-//--------------------------------
 const DataTableRow = memo(({ entry, index, pagination, isSelected, onSelectRow, onEdit, onDelete, onViewDetails, statusOptions, onStatusUpdate, showCheckboxColumn, flashingRowId }: {
   entry: HKIEntry,
   index: number,
@@ -289,7 +366,6 @@ const DataTableRow = memo(({ entry, index, pagination, isSelected, onSelectRow, 
 
   return (
     <>
-      {/* --- DESKTOP TABLE ROW --- */}
       <TableRow data-state={isSelected ? 'selected' : ''} className={cn("dark:border-slate-800 transition-colors duration-1000 ease-out", "hidden md:table-row", isFlashing && "bg-emerald-50 dark:bg-emerald-900/30", isSelected && "bg-primary/5 dark:bg-primary/10")}>
         {showCheckboxColumn && <TableCell className="sticky left-0 bg-inherit z-10 px-4 py-2 border-r dark:border-slate-800 align-top"><Checkbox checked={isSelected} onCheckedChange={(c) => onSelectRow(entry.id_hki, !!c)} /></TableCell>}
         <TableCell className="text-center font-mono text-sm text-muted-foreground py-2 px-4 align-top">{(pagination.page - 1) * pagination.pageSize + index + 1}</TableCell>
@@ -302,8 +378,6 @@ const DataTableRow = memo(({ entry, index, pagination, isSelected, onSelectRow, 
         <TableCell className='py-2 px-4 align-top'><StatusDropdown /></TableCell>
         <TableCell className="text-right sticky right-0 bg-inherit z-10 px-4 py-2 border-l dark:border-slate-800 align-top"><ActionsMenu /></TableCell>
       </TableRow>
-      
-      {/* --- MOBILE CARD VIEW --- */}
       <tr className="md:hidden">
         <td colSpan={10} className="p-0">
           <Card className={cn("m-2 border-l-4 rounded-lg", statusStyle.className.replace(/border-(?!l)/g, 'border-'), isFlashing && "bg-emerald-50 dark:bg-emerald-900/30", isSelected && "ring-2 ring-primary/50 dark:ring-primary")}>
@@ -328,10 +402,6 @@ const DataTableRow = memo(({ entry, index, pagination, isSelected, onSelectRow, 
 });
 DataTableRow.displayName = 'DataTableRow';
 
-
-//--------------------------------
-// Pagination Component
-//--------------------------------
 const DataTablePagination = memo(({ totalCount, pagination, totalPages, setPagination, selectedCount, showSelectionCount }: {
   totalCount: number,
   pagination: { page: number },
@@ -367,10 +437,6 @@ const DataTablePagination = memo(({ totalCount, pagination, totalPages, setPagin
 });
 DataTablePagination.displayName = 'DataTablePagination';
 
-
-//--------------------------------
-// Sortable Header Component
-//--------------------------------
 const SortableHeader = memo(({ columnId, children, sort, onSort, className }: {
   columnId: string,
   children: React.ReactNode,
@@ -388,10 +454,9 @@ const SortableHeader = memo(({ columnId, children, sort, onSort, className }: {
 });
 SortableHeader.displayName = 'SortableHeader';
 
-
-//================================================================
-// 4. MAIN COMPONENT
-//================================================================
+// =================================================================
+// KOMPONEN UTAMA
+// =================================================================
 type ComboboxOption = { value: string; label: string };
 interface DataTableProps {
   data: HKIEntry[];
@@ -498,10 +563,10 @@ export function DataTable({
         formOptions={formOptions}
         onBulkDelete={handleBulkDelete}
         onOpenCreateModal={onOpenCreateModal}
-        onOpenExportModal={() => setIsExportModalOpen(true)}
         enableBulkActions={enableBulkActions}
         selectionModeActive={selectionModeActive}
         toggleSelectionMode={toggleSelectionMode}
+        onOpenExportModal={() => setIsExportModalOpen(true)}
       />
 
       <div className="rounded-lg border dark:border-slate-800 bg-white dark:bg-slate-950">
@@ -598,15 +663,12 @@ export function DataTable({
         </AlertDialogContent>
       </AlertDialog>
 
-      <ExportModal 
-  isOpen={isExportModalOpen} 
-  onClose={() => setIsExportModalOpen(false)} 
-  formOptions={{
-    tahunOptions: formOptions.tahunOptions,
-    pengusulOptions: formOptions.pengusulOptions,
-    statusOptions: formOptions.statusOptions,
-  }}
-/>
+      <InteractiveExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        filters={tableState.filters}
+        formOptions={formOptions}
+      />
     </div>
   );
 }

@@ -25,25 +25,25 @@ interface CreateHKIModalProps {
   }
 }
 
+// Konstanta untuk ID form, memastikan tombol footer terhubung dengan benar.
 const CREATE_FORM_ID = 'hki-create-form';
 
 export function CreateHKIModal({
   isOpen,
   onClose,
-  onSuccess: onParentSuccess,
-  onError: onParentError,
+  onSuccess, // Menggunakan nama prop yang konsisten
+  onError,
   formOptions,
 }: CreateHKIModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // PERBAIKAN: Modal akan otomatis ditutup saat sukses.
   const handleSuccess = useCallback((newData: HKIEntry) => {
-    onParentSuccess?.(newData);
-  }, [onParentSuccess]);
+    onSuccess?.(newData);
+    onClose(); // Tutup modal setelah sukses
+  }, [onSuccess, onClose]);
 
-  const handleError = useCallback((message: string) => {
-    onParentError?.(message)
-  }, [onParentError])
-
+  // handleClose sekarang hanya digunakan untuk tombol batal dan klik di luar modal.
   const handleClose = useCallback(() => {
     if (!isSubmitting) {
       onClose();
@@ -52,10 +52,9 @@ export function CreateHKIModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      {/* PERBAIKAN: Menghapus kelas `h-full` untuk memperbaiki double scrollbar */}
-      <DialogContent className="sm:max-w-4xl p-0 flex flex-col max-h-[90vh] md:h-auto md:max-h-[800px]">
-        <DialogHeader className="flex flex-row items-center gap-4 px-6 py-4 border-b">
-          <div className="bg-primary/10 p-2.5 rounded-lg">
+      <DialogContent className="sm:max-w-4xl p-0 flex flex-col max-h-[90vh]">
+        <DialogHeader className="flex flex-row items-start gap-4 px-6 py-4 border-b">
+          <div className="bg-primary/10 p-2.5 rounded-lg flex-shrink-0">
             <PlusSquare className="h-6 w-6 text-primary" />
           </div>
           <div>
@@ -68,6 +67,7 @@ export function CreateHKIModal({
           </div>
         </DialogHeader>
 
+        {/* Kontainer ini membuat konten form bisa di-scroll secara independen */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           <HKIForm
             id={CREATE_FORM_ID}
@@ -78,7 +78,7 @@ export function CreateHKIModal({
             kelasOptions={formOptions.kelasOptions}
             onSubmittingChange={setIsSubmitting}
             onSuccess={handleSuccess}
-            onError={handleError}
+            onError={onError} // Langsung teruskan prop onError
           />
         </div>
 
