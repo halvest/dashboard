@@ -1,45 +1,48 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import * as z from 'zod'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+// BARU: Impor komponen yang diperlukan untuk Tooltip
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Loader2, MoreHorizontal, Pen, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AnyMasterItem, MasterDataType, masterConfig } from './master-data-client'
 import { cn } from '@/lib/utils'
-import { useForm, Controller } from 'react-hook-form'
 
 type Config = typeof masterConfig[MasterDataType];
 
-interface MasterCrudTableProps {
+interface MasterCrudTableProps<T extends AnyMasterItem> {
   dataType: MasterDataType
-  data: AnyMasterItem[]
+  data: T[]
   config: Config
 }
 
-export function MasterCrudTable({ dataType, data, config }: MasterCrudTableProps) {
-  const [modalState, setModalState] = useState<{ isOpen: boolean; item?: AnyMasterItem }>({ isOpen: false })
-  const [deleteAlert, setDeleteAlert] = useState<{ isOpen: boolean; item?: AnyMasterItem }>({ isOpen: false })
+export function MasterCrudTable<T extends AnyMasterItem>({ dataType, data, config }: MasterCrudTableProps<T>) {
+  const [modalState, setModalState] = useState<{ isOpen: boolean; item?: T }>({ isOpen: false })
+  const [deleteAlert, setDeleteAlert] = useState<{ isOpen: boolean; item?: T }>({ isOpen: false })
   const router = useRouter()
 
-  const openModal = (item?: AnyMasterItem) => setModalState({ isOpen: true, item })
+  const openModal = (item?: T) => setModalState({ isOpen: true, item })
   const closeModal = () => setModalState({ isOpen: false })
   
-  const openDeleteAlert = (item: AnyMasterItem) => setDeleteAlert({ isOpen: true, item })
+  const openDeleteAlert = (item: T) => setDeleteAlert({ isOpen: true, item })
   const closeDeleteAlert = () => setDeleteAlert({ isOpen: false })
 
   const handleDelete = async () => {
     if (!deleteAlert.item) return
-
-    const id = (deleteAlert.item as any)[config.idKey]
+    const id = deleteAlert.item[config.idKey as keyof T]
     const toastId = toast.loading(`Menghapus data ${config.title}...`)
 
     try {
@@ -61,6 +64,9 @@ export function MasterCrudTable({ dataType, data, config }: MasterCrudTableProps
     router.refresh()
   }
 
+  // BARU: Variabel untuk menentukan apakah tombol 'Tambah' boleh aktif
+  const canAddNew = dataType === 'pengusul';
+
   return (
     <Card className="shadow-sm">
       <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -71,24 +77,43 @@ export function MasterCrudTable({ dataType, data, config }: MasterCrudTableProps
           </CardTitle>
           <CardDescription className="mt-1">{config.description} Total {data.length} item.</CardDescription>
         </div>
-        <Button onClick={() => openModal()} className="gap-2 w-full md:w-auto">
-          <Plus className="h-4 w-4" /> Tambah Baru
-        </Button>
+        {/* MODIFIKASI: Logika untuk tombol 'Tambah Baru' */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {/* Wrapper <span> diperlukan agar tooltip bisa muncul pada tombol yang disabled */}
+              <span tabIndex={0}>
+                <Button 
+                  onClick={() => openModal()} 
+                  className="gap-2 w-full md:w-auto"
+                  disabled={!canAddNew}
+                >
+                  <Plus className="h-4 w-4" /> Tambah Baru
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {!canAddNew && (
+              <TooltipContent>
+                <p>Data ini dikelola oleh sistem dan tidak dapat ditambah.</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </CardHeader>
       <CardContent>
         <div className="border rounded-md">
           <Table>
             <TableHeader>
               <TableRow>
-                {config.columns.map((col: any) => <TableHead key={col.key} className={col.key.startsWith('id_') ? 'w-24' : ''}>{col.label}</TableHead>)}
+                {config.columns.map(col => <TableHead key={col.key} className={col.key.startsWith('id_') ? 'w-24' : ''}>{col.label}</TableHead>)}
                 <TableHead className="text-right w-24">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {data.length > 0 ? data.map(item => (
-                <TableRow key={(item as any)[config.idKey]}>
-                  {config.columns.map((col: any) => (
-                    <TableCell key={col.key} className="font-medium">{(item as any)[col.key]}</TableCell>
+                <TableRow key={item[config.idKey as keyof T] as React.Key}>
+                  {config.columns.map(col => (
+                    <TableCell key={col.key} className="font-medium">{String(item[col.key as keyof T] ?? '-')}</TableCell>
                   ))}
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -114,25 +139,23 @@ export function MasterCrudTable({ dataType, data, config }: MasterCrudTableProps
         </div>
       </CardContent>
 
-      {/* Modal untuk Create/Edit */}
       {modalState.isOpen && (
          <MasterDataModal
-            isOpen={modalState.isOpen}
-            onClose={closeModal}
-            item={modalState.item}
-            dataType={dataType}
-            config={config}
-            onSuccess={onFormSubmitSuccess}
-         />
+           isOpen={modalState.isOpen}
+           onClose={closeModal}
+           item={modalState.item}
+           dataType={dataType}
+           config={config}
+           onSuccess={onFormSubmitSuccess}
+        />
       )}
 
-      {/* Alert untuk Delete */}
       <AlertDialog open={deleteAlert.isOpen} onOpenChange={closeDeleteAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Anda yakin?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus data <span className="font-semibold">&quot;{(deleteAlert.item as any)?.[config.nameKey]}&quot;</span> secara permanen.
+              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus data <span className="font-semibold">&quot;{deleteAlert.item?.[config.nameKey as keyof T]}&quot;</span> secara permanen.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -147,136 +170,166 @@ export function MasterCrudTable({ dataType, data, config }: MasterCrudTableProps
   )
 }
 
-
 /**
- * Modal dinamis untuk Create/Edit Data Master
+ * =================================================================================
+ * Modal Dinamis untuk Create/Edit Data Master
+ * =================================================================================
  */
-interface MasterDataModalProps {
+
+// Fungsi untuk menghasilkan skema Zod secara dinamis
+const generateSchema = (dataType: MasterDataType, isEditMode: boolean) => {
+  switch (dataType) {
+    case 'jenis_hki':
+      return z.object({
+        nama_jenis: z.string().min(3, 'Nama jenis harus memiliki minimal 3 karakter.'),
+      });
+    case 'kelas_hki':
+      return z.object({
+        id_kelas: z.coerce.number().int().min(1, 'ID harus antara 1-45').max(45, 'ID harus antara 1-45'),
+        nama_kelas: z.string().min(3, 'Nama kelas harus memiliki minimal 3 karakter.'),
+        tipe: z.enum(['Barang', 'Jasa'], { required_error: 'Tipe harus dipilih.' }),
+      });
+    case 'pengusul':
+      return z.object({
+        nama_pengusul: z.string().min(3, 'Nama pengusul harus memiliki minimal 3 karakter.'),
+      });
+    default:
+      throw new Error('Tipe data master tidak valid');
+  }
+};
+
+interface MasterDataModalProps<T extends AnyMasterItem> {
   isOpen: boolean
   onClose: () => void
-  item?: AnyMasterItem
+  item?: T
   dataType: MasterDataType
   config: Config
   onSuccess: () => void
 }
 
-function MasterDataModal({ isOpen, onClose, item, dataType, config, onSuccess }: MasterDataModalProps) {
-  const isEditMode = !!item
+function MasterDataModal<T extends AnyMasterItem>({ isOpen, onClose, item, dataType, config, onSuccess }: MasterDataModalProps<T>) {
+  const isEditMode = !!item;
+
+  const formSchema = useMemo(() => generateSchema(dataType, isEditMode), [dataType, isEditMode]);
   
-  // Siapkan default values berdasarkan tipe data
-  const getDefaultValues = () => {
-    if (isEditMode) return item;
-    switch (dataType) {
-      case 'kelas_hki': return { id_kelas: undefined, nama_kelas: '', tipe: 'Barang' };
-      case 'jenis_hki': return { nama_jenis_hki: '' };
-      case 'pengusul': return { nama_opd: '' };
-      default: return {};
-    }
-  }
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: useMemo(() => {
+      if (isEditMode && item) return item;
+      switch (dataType) {
+        case 'jenis_hki': return { nama_jenis: '' };
+        case 'kelas_hki': return { id_kelas: undefined, nama_kelas: '', tipe: 'Barang' };
+        case 'pengusul': return { nama_pengusul: '' };
+        default: return {};
+      }
+    }, [item, isEditMode, dataType]),
+  });
 
-  const { register, handleSubmit, control, formState: { errors, isSubmitting } } = useForm({
-    defaultValues: getDefaultValues()
-  })
+  const { isSubmitting } = form.formState;
 
-  const onSubmit = async (formData: any) => {
-    const toastId = toast.loading(isEditMode ? 'Memperbarui data...' : 'Menyimpan data...')
-    const id = isEditMode ? (item as any)[config.idKey] : ''
-    const url = isEditMode ? `/api/master/${dataType}/${id}` : `/api/master/${dataType}`
-    const method = isEditMode ? 'PATCH' : 'POST'
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const toastId = toast.loading(isEditMode ? 'Memperbarui data...' : 'Menyimpan data...');
+    const id = isEditMode && item ? item[config.idKey as keyof T] : '';
+    const url = isEditMode ? `/api/master/${dataType}/${id}` : `/api/master/${dataType}`;
+    const method = isEditMode ? 'PATCH' : 'POST';
 
     try {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
+        body: JSON.stringify(values),
+      });
 
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.message || 'Terjadi kesalahan')
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || 'Terjadi kesalahan');
 
-      toast.success(result.message, { id: toastId })
-      onSuccess()
+      toast.success(result.message, { id: toastId });
+      onSuccess();
     } catch (error: any) {
-      toast.error(error.message, { id: toastId })
+      toast.error(error.message, { id: toastId });
     }
-  }
+  };
 
+  // Fungsi untuk merender form fields secara dinamis
   const renderFormFields = () => {
     switch (dataType) {
       case 'jenis_hki':
         return (
-          <div className="space-y-2">
-            <Label htmlFor="nama_jenis_hki">Nama Jenis HKI</Label>
-            <Input id="nama_jenis_hki" {...register('nama_jenis_hki', { required: 'Nama wajib diisi' })} />
-            {errors.nama_jenis_hki && <p className="text-sm text-red-600">{(errors.nama_jenis_hki as any).message}</p>}
-          </div>
-        )
+          <FormField control={form.control} name="nama_jenis" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nama Jenis HKI</FormLabel>
+              <FormControl><Input placeholder="Contoh: Merek" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        );
       case 'kelas_hki':
         return (
           <div className="space-y-4">
-             <div className="space-y-2">
-              <Label htmlFor="id_kelas">ID Kelas (1-45)</Label>
-              <Input id="id_kelas" type="number" {...register('id_kelas', { required: 'ID wajib diisi', valueAsNumber: true, min: 1, max: 45 })} disabled={isEditMode} />
-              {errors.id_kelas && <p className="text-sm text-red-600">{(errors.id_kelas as any).message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="nama_kelas">Nama Kelas</Label>
-              <Input id="nama_kelas" {...register('nama_kelas', { required: 'Nama wajib diisi' })} />
-              {errors.nama_kelas && <p className="text-sm text-red-600">{(errors.nama_kelas as any).message}</p>}
-            </div>
-            <Controller
-              name="tipe"
-              control={control}
-              render={({ field }) => (
-                <div className="space-y-2">
-                  <Label>Tipe</Label>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih tipe" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Barang">Barang</SelectItem>
-                      <SelectItem value="Jasa">Jasa</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            />
+            <FormField control={form.control} name="id_kelas" render={({ field }) => (
+              <FormItem>
+                <FormLabel>ID Kelas (1-45)</FormLabel>
+                <FormControl><Input type="number" placeholder="Contoh: 35" {...field} disabled={isEditMode} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="nama_kelas" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nama Kelas</FormLabel>
+                <FormControl><Input placeholder="Contoh: Periklanan, manajemen usaha..." {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="tipe" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tipe</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Pilih tipe" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="Barang">Barang</SelectItem>
+                    <SelectItem value="Jasa">Jasa</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
           </div>
-        )
+        );
       case 'pengusul':
         return (
-           <div className="space-y-2">
-            <Label htmlFor="nama_opd">Nama Pengusul (OPD)</Label>
-            <Input id="nama_opd" {...register('nama_opd', { required: 'Nama wajib diisi' })} />
-            {errors.nama_opd && <p className="text-sm text-red-600">{(errors.nama_opd as any).message}</p>}
-          </div>
-        )
+          <FormField control={form.control} name="nama_pengusul" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nama Pengusul (OPD)</FormLabel>
+              <FormControl><Input placeholder="Contoh: Dinas Koperasi, Usaha Kecil dan Menengah" {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )} />
+        );
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEditMode ? 'Edit' : 'Tambah'} {config.title}</DialogTitle>
-          <DialogDescription>
-            Isi detail di bawah ini untuk melanjutkan.
-          </DialogDescription>
+          <DialogDescription>Isi detail di bawah ini untuk melanjutkan.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 py-4">
-          {renderFormFields()}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Batal</Button>
-            <Button type="submit" disabled={isSubmitting} className="gap-2">
-              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isSubmitting ? 'Menyimpan...' : 'Simpan'}
-            </Button>
-          </DialogFooter>
-        </form>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
+            {renderFormFields()}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Batal</Button>
+              <Button type="submit" disabled={isSubmitting} className="gap-2">
+                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isSubmitting ? 'Menyimpan...' : 'Simpan'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

@@ -11,16 +11,13 @@ import { HKIEntry } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Download, Eye, Paperclip } from 'lucide-react'
 import { getStatusStyle } from './data-table';
-import { toast } from 'sonner' // Impor toast untuk feedback
+import { toast } from 'sonner'
 
 /* ======================== HELPER COMPONENT (MEMOIZED) ======================== */
-/**
- * Helper Component untuk menampilkan baris detail, kini di-memoized untuk performa.
- */
 const DetailItem = memo(({ label, value, children }: { label: string; value?: string | number | null; children?: React.ReactNode }) => {
   const displayValue = value === null || value === undefined || value === '' ? '-' : value
   return (
-    <div className="flex flex-col gap-1 break-inside-avoid-column">
+    <div className="flex flex-col gap-1">
       <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
       <dd className="text-base text-foreground break-words">
         {children ? children : displayValue}
@@ -39,32 +36,34 @@ interface ViewHKIModalProps {
 
 export function ViewHKIModal({ isOpen, onClose, entry }: ViewHKIModalProps) {
   
-  // Fungsi Download yang dioptimalkan dengan useCallback dan toast.promise
   const handleDownload = useCallback(() => {
     if (!entry || !entry.sertifikat_pdf) {
       toast.error('File tidak tersedia.');
       return;
     }
 
-    // Buat promise untuk fetch signed URL
     const downloadPromise = () => new Promise(async (resolve, reject) => {
-      const res = await fetch(`/api/hki/${entry.id_hki}/signed-url`);
-      if (!res.ok) {
-        throw new Error('Gagal mendapatkan URL unduhan.');
+      try {
+        const res = await fetch(`/api/hki/${entry.id_hki}/signed-url`);
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ error: 'Gagal mendapatkan URL unduhan.' }));
+          throw new Error(errorData.error);
+        }
+        const data = await res.json();
+        window.open(data.signedUrl, '_blank');
+        resolve(data);
+      } catch (error) {
+        reject(error);
       }
-      const data = await res.json();
-      window.open(data.signedUrl, '_blank');
-      return data;
     });
 
-    // Gunakan toast.promise untuk UX feedback otomatis
     toast.promise(downloadPromise(), {
       loading: 'Mempersiapkan file unduhan...',
       success: 'Unduhan dimulai di tab baru.',
-      error: (err) => err.message || 'Gagal mengunduh file.',
+      error: (err: Error) => err.message || 'Gagal mengunduh file.',
     });
 
-  }, [entry]); // Dependensi: entry
+  }, [entry]);
 
   if (!entry) return null;
 
@@ -73,7 +72,6 @@ export function ViewHKIModal({ isOpen, onClose, entry }: ViewHKIModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      {/* ✅ OPTIMASI: Terapkan layout flexbox yang kokoh & stabil */}
       <DialogContent className="sm:max-w-3xl p-0 flex flex-col max-h-[90vh]">
         {/* HEADER MODAL */}
         <DialogHeader className="flex flex-row items-start gap-4 px-6 py-4 border-b">
