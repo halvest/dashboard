@@ -5,18 +5,14 @@ import { createClient } from '@/utils/supabase/server';
 
 /**
  * Membersihkan nilai untuk sel CSV, menangani koma, kutipan, dan baris baru.
- * @param value Nilai sel yang akan dibersihkan.
- * @returns Nilai yang aman untuk CSV.
  */
 function escapeCsvValue(value: any): string {
-    if (value === null || value === undefined) return '';
-    const stringValue = String(value);
-    // Jika nilai mengandung koma, kutip, atau baris baru, bungkus dengan kutip ganda
-    if (/[",\n]/.test(stringValue)) {
-        // Ganti setiap kutip ganda di dalam string dengan dua kutip ganda
-        return `"${stringValue.replace(/"/g, '""')}"`;
-    }
-    return stringValue;
+  // PERBAIKAN: Gunakan nullish coalescing operator (??) yang lebih ringkas
+  const stringValue = String(value ?? '');
+  if (/[",\n]/.test(stringValue)) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+  return stringValue;
 }
 
 export async function GET(request: NextRequest) {
@@ -45,7 +41,7 @@ export async function GET(request: NextRequest) {
         const year = searchParams.get('year');
         const pengusulId = searchParams.get('pengusulId');
 
-        // Pagination (opsional, untuk ekspor halaman saat ini)
+        // Pagination
         const page = searchParams.get('page');
         const pageSize = searchParams.get('pageSize');
         
@@ -55,20 +51,20 @@ export async function GET(request: NextRequest) {
             .select(`
                 id_hki, nama_hki, jenis_produk, tahun_fasilitasi, keterangan,
                 pemohon ( nama_pemohon, alamat ),
-                jenis_hki ( nama_jenis_hki ), 
+                jenis ( nama_jenis ), 
                 status_hki ( nama_status ),
-                pengusul ( nama_opd ),
-                kelas_hki ( id_kelas, nama_kelas, tipe )
+                pengusul ( nama_pengusul ),
+                kelas ( id_kelas, nama_kelas, tipe )
             `, { count: 'exact' });
 
         // Terapkan filter jika ada
         if (search) query = query.ilike('nama_hki', `%${search}%`);
-        if (jenisId) query = query.eq('id_jenis_hki', Number(jenisId));
+        // PERBAIKAN: Gunakan nama kolom yang benar untuk filter
+        if (jenisId) query = query.eq('id_jenis', Number(jenisId));
         if (statusId) query = query.eq('id_status', Number(statusId));
         if (year) query = query.eq('tahun_fasilitasi', Number(year));
         if (pengusulId) query = query.eq('id_pengusul', Number(pengusulId));
         
-        // Terapkan paginasi JIKA diminta (untuk fitur "Ekspor Halaman Ini")
         if (page && pageSize) {
             const pageNum = parseInt(page, 10);
             const sizeNum = parseInt(pageSize, 10);
@@ -77,7 +73,6 @@ export async function GET(request: NextRequest) {
             query = query.range(from, to);
         }
 
-        // Eksekusi kueri
         const { data: hkiData, error, count } = await query.order('created_at', { ascending: true });
         
         if (error) {
@@ -87,7 +82,6 @@ export async function GET(request: NextRequest) {
         if (!hkiData || hkiData.length === 0) {
             return NextResponse.json({ error: 'Tidak ada data yang cocok dengan filter yang Anda pilih.' }, { status: 404 });
         }
-        // Batasi ekspor semua data (jika paginasi tidak aktif)
         if (!page && count && count > 10000) {
             return NextResponse.json({ error: `Data terlalu besar (${count} baris) untuk diekspor sekaligus. Silakan persempit filter Anda.` }, { status: 413 });
         }
@@ -98,9 +92,9 @@ export async function GET(request: NextRequest) {
           { key: 'jenis_produk', label: 'Jenis Produk' },
           { key: 'nama_pemohon', label: 'Nama Pemohon' },
           { key: 'alamat_pemohon', label: 'Alamat Pemohon' },
-          { key: 'nama_jenis_hki', label: 'Jenis HKI' },
+          { key: 'nama_jenis', label: 'Jenis HKI' }, // PERBAIKAN: key disesuaikan
           { key: 'kelas_info', label: 'Kelas HKI' },
-          { key: 'nama_pengusul', label: 'Pengusul (OPD)' },
+          { key: 'nama_pengusul', label: 'Pengusul (OPD)' }, // PERBAIKAN: key disesuaikan
           { key: 'tahun_fasilitasi', label: 'Tahun Fasilitasi' },
           { key: 'nama_status', label: 'Status' },
           { key: 'keterangan', label: 'Keterangan' },
@@ -111,9 +105,11 @@ export async function GET(request: NextRequest) {
           jenis_produk: row.jenis_produk,
           nama_pemohon: row.pemohon?.nama_pemohon,
           alamat_pemohon: row.pemohon?.alamat,
-          nama_jenis_hki: row.jenis_hki?.nama_jenis_hki, 
-          kelas_info: row.kelas_hki ? `Kelas ${row.kelas_hki.id_kelas}: ${row.kelas_hki.nama_kelas}` : '-',
-          nama_pengusul: row.pengusul?.nama_opd,
+          // PERBAIKAN: Akses properti yang benar
+          nama_jenis: row.jenis?.nama_jenis,
+          kelas_info: row.kelas ? `Kelas ${row.kelas.id_kelas}: ${row.kelas.nama_kelas}` : '-',
+          // PERBAIKAN: Akses properti yang benar
+          nama_pengusul: row.pengusul?.nama_pengusul,
           tahun_fasilitasi: row.tahun_fasilitasi,
           nama_status: row.status_hki?.nama_status,
           keterangan: row.keterangan,
@@ -129,7 +125,7 @@ export async function GET(request: NextRequest) {
             columns.map(col => escapeCsvValue((row as any)[col.key])).join(',')
           );
           const csvContent = `${headers}\n${csvRows.join('\n')}`;
-    
+  
           return new Response(csvContent, {
             status: 200,
             headers: {
@@ -146,23 +142,25 @@ export async function GET(request: NextRequest) {
           worksheet.columns = columns.map(col => ({
               header: col.label,
               key: col.key,
-              width: 25 // Lebar awal
+              width: 25 
           }));
 
           worksheet.getRow(1).font = { bold: true };
           worksheet.addRows(normalizedData);
 
-          // Atur lebar kolom otomatis berdasarkan konten
           worksheet.columns.forEach(column => {
               if (!column.key) return;
-              let maxLength = column.header?.length || 10;
-              column.eachCell!({ includeEmpty: true }, cell => {
-                  let cellLength = cell.value ? cell.value.toString().length : 10;
-                  if (cellLength > 100) cellLength = 100; // Batasi lebar maks agar file tidak terlalu besar
-                  if (cellLength > maxLength) {
-                      maxLength = cellLength;
-                  }
-              });
+              let maxLength = column.header?.length ?? 10;
+              // PERBAIKAN: Gunakan pengecekan yang lebih aman daripada non-null assertion (!)
+              if (column.eachCell) {
+                column.eachCell({ includeEmpty: true }, cell => {
+                    let cellLength = cell.value ? String(cell.value).length : 10;
+                    if (cellLength > 100) cellLength = 100;
+                    if (cellLength > maxLength) {
+                        maxLength = cellLength;
+                    }
+                });
+              }
               column.width = maxLength < 12 ? 12 : maxLength + 2;
           });
 
