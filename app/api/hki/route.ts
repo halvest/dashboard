@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-import { Database } from '@/lib/database.types';
+
 
 export const dynamic = 'force-dynamic';
 
