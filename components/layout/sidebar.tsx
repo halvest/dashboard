@@ -49,7 +49,7 @@ const mainNavigation: NavItem[] = [
 const managementNavigation: NavItem[] = [
     { name: 'Laporan', href: '/dashboard/laporan', icon: BarChart3 },
     { name: 'Data Master', href: '/dashboard/data-master', icon: Database },
-    { name: 'Manajemen Pengguna', href: '/dashboard/users', icon: Users },
+    { name: 'Manajemen Pengguna', href: '/dashboard/manajemen-pengguna', icon: Users },
     { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings },
 ];
 
