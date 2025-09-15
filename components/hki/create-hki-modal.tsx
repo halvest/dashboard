@@ -31,13 +31,13 @@ const CREATE_FORM_ID = 'hki-create-form';
 export function CreateHKIModal({
   isOpen,
   onClose,
-  onSuccess, // Menggunakan nama prop yang konsisten
+  onSuccess,
   onError,
   formOptions,
 }: CreateHKIModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // PERBAIKAN: Modal akan otomatis ditutup saat sukses.
+  // Modal akan otomatis ditutup saat sukses.
   const handleSuccess = useCallback((newData: HKIEntry) => {
     onSuccess?.(newData);
     onClose(); // Tutup modal setelah sukses
@@ -78,7 +78,7 @@ export function CreateHKIModal({
             kelasOptions={formOptions.kelasOptions}
             onSubmittingChange={setIsSubmitting}
             onSuccess={handleSuccess}
-            onError={onError} // Langsung teruskan prop onError
+            onError={onError}
           />
         </div>
 

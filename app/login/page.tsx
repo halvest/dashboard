@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+// Impor ikon untuk tampilan yang lebih baik
+import { Loader2, ShieldCheck } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -20,6 +22,7 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    const toastId = toast.loading('Mencoba masuk...')
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -28,10 +31,12 @@ export default function LoginPage() {
       })
 
       if (error) {
-        toast.error('Login failed: ' + error.message)
+        // Pesan error yang lebih ramah
+        toast.error('Login Gagal: Email atau kata sandi salah.', { id: toastId })
         return
       }
 
+      // Verifikasi peran admin (logika ini sudah sangat bagus)
       const { data: profile } = await supabase
         .from('profiles')
         .select('role') 
@@ -40,31 +45,39 @@ export default function LoginPage() {
 
       if (profile?.role !== 'admin') { 
         await supabase.auth.signOut()
-        toast.error('Access denied. Admin privileges required.')
+        toast.error('Akses Ditolak: Anda bukan admin.', { id: toastId })
         return
       }
 
-      toast.success('Login successful!')
+      toast.success('Login berhasil! Mengalihkan ke dashboard...', { id: toastId })
       router.push('/dashboard')
       router.refresh()
     } catch (error) {
-      toast.error('An unexpected error occurred')
+      toast.error('Terjadi kesalahan yang tidak terduga.', { id: toastId })
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Dashboard Data HKI Admin</CardTitle>
+    <div className="relative min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
+      <div 
+        className="absolute inset-0 bg-cover bg-center"
+        style={{ backgroundImage: "url('/candi-prambanan.jpg')" }} 
+      />
+      <div className="absolute inset-0 bg-black/60" />
+      <Card className="relative z-10 w-full max-w-md shadow-2xl">
+        <CardHeader className="text-center space-y-2">
+          <div className="flex justify-center">
+            <ShieldCheck className="h-10 w-10 text-primary" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Manajemen Data Pengajuan HKI</CardTitle>
           <CardDescription>
-            Masuk untuk akses admin dashboard
+            Silakan masuk terlebih dahulu!
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -74,6 +87,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@example.com"
                 required
+                disabled={isLoading}
               />
             </div>
             <div className="space-y-2">
@@ -84,6 +98,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={isLoading}
               />
             </div>
             <Button 
@@ -91,7 +106,15 @@ export default function LoginPage() {
               className="w-full" 
               disabled={isLoading}
             >
-              {isLoading ? 'Signing in...' : 'Sign In'}
+              {/* -- PERUBAHAN 3: Indikator loading yang lebih jelas -- */}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Memproses...
+                </>
+              ) : (
+                'Masuk'
+              )}
             </Button>
           </form>
         </CardContent>

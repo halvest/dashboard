@@ -1,8 +1,8 @@
 // app/dashboard/data-pengajuan-fasilitasi/hki-client-page.tsx
 'use client'
 
-import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useMemo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable } from '@/components/hki/data-table'
 import { EditHKIModal } from '@/components/hki/edit-hki-modal'
 import { CreateHKIModal } from '@/components/hki/create-hki-modal'
@@ -14,21 +14,19 @@ import { Button } from '@/components/ui/button'
 
 type ComboboxOption = { value: string; label: string };
 
-// PERBAIKAN: Menyesuaikan tipe props agar sinkron dengan data dari server component
 interface HKIClientPageProps {
   initialData: HKIEntry[]
   totalCount: number
   formOptions: Readonly<{
-    jenisOptions: { id_jenis: number; nama_jenis: string }[] // Disesuaikan dengan data asli dari Supabase
-    statusOptions: { id_status: number; nama_status: string }[] // Disesuaikan dengan data asli dari Supabase
-    tahunOptions: number[] // PERBAIKAN: Tipe disamakan menjadi number[]
+    jenisOptions: { id_jenis: number; nama_jenis: string }[]
+    statusOptions: { id_status: number; nama_status: string }[]
+    tahunOptions: { tahun: number }[]
     pengusulOptions: ComboboxOption[]
     kelasOptions: ComboboxOption[]
   }>
-  error: string | null; // WAJIB: Menambahkan prop error
+  error: string | null;
 }
 
-// Komponen baru untuk menampilkan error dari server
 const ServerErrorDisplay = ({ errorMessage }: { errorMessage: string }) => (
   <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-destructive bg-red-50 p-12 text-center dark:bg-red-950/30">
     <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
@@ -52,27 +50,47 @@ const ServerErrorDisplay = ({ errorMessage }: { errorMessage: string }) => (
 
 
 export function HKIClientPage({ initialData, totalCount, formOptions, error }: HKIClientPageProps) {
-  const router = useRouter()
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [editingHkiId, setEditingHkiId] = useState<number | null>(null)
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [viewingEntry, setViewingEntry] = useState<HKIEntry | null>(null)
+  // ✅ PENGELOLAAN MODAL BERBASIS URL
+  const isCreateModalOpen = searchParams.get('create') === 'true';
+  const editingHkiId = useMemo(() => {
+    const id = searchParams.get('edit');
+    return id ? Number(id) : null;
+  }, [searchParams]);
+  const viewingEntryId = useMemo(() => {
+    const id = searchParams.get('view');
+    return id ? Number(id) : null;
+  }, [searchParams]);
 
-  // WAJIB: Jika prop error ada, tampilkan komponen error dan hentikan render sisanya
+  const viewingEntry = useMemo(() => {
+      if (!viewingEntryId) return null;
+      return initialData.find(item => item.id_hki === viewingEntryId) || null;
+  }, [viewingEntryId, initialData]);
+
+  // Fungsi untuk memanipulasi URL tanpa reload halaman
+  const updateQueryString = (newParams: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(newParams).forEach(([key, value]) => {
+      if (value === null) {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+    // Gunakan { scroll: false } untuk mencegah scroll ke atas
+    router.push(`?${params.toString()}`, { scroll: false });
+  };
+  
+  // Handlers untuk membuka dan menutup modal
+  const handleOpenCreateModal = () => updateQueryString({ create: 'true', edit: null, view: null });
+  const handleEdit = (id: number) => updateQueryString({ edit: String(id), create: null, view: null });
+  const handleViewDetails = (entry: HKIEntry) => updateQueryString({ view: String(entry.id_hki), create: null, edit: null });
+  const handleCloseModals = () => updateQueryString({ create: null, edit: null, view: null });
+
   if (error) {
     return <ServerErrorDisplay errorMessage={error} />
-  }
-
-  const handleEdit = (id: number) => {
-    setEditingHkiId(id)
-  }
-
-  const handleViewDetails = (entry: HKIEntry) => {
-    setViewingEntry(entry)
-  }
-
-  const handleCloseEditModal = () => {
-    setEditingHkiId(null)
   }
 
   // Fungsi refresh data yang menampilkan notifikasi
@@ -83,12 +101,12 @@ export function HKIClientPage({ initialData, totalCount, formOptions, error }: H
   }
 
   const handleEditSuccess = (updatedItem: HKIEntry) => {
-    setEditingHkiId(null)
+    handleCloseModals();
     refreshData(`Data HKI "${updatedItem.nama_hki}" berhasil diperbarui.`);
   }
 
   const handleCreateSuccess = (newItem: HKIEntry) => {
-    setIsCreateModalOpen(false)
+    handleCloseModals();
     refreshData(`Data HKI "${newItem.nama_hki}" berhasil ditambahkan.`);
   }
 
@@ -112,35 +130,31 @@ export function HKIClientPage({ initialData, totalCount, formOptions, error }: H
         totalCount={totalCount}
         formOptions={formOptions}
         onEdit={handleEdit}
-        onOpenCreateModal={() => setIsCreateModalOpen(true)}
+        onOpenCreateModal={handleOpenCreateModal}
         onViewDetails={handleViewDetails}
       />
 
-      {/* Edit Modal */}
-      {/* Menggunakan key untuk me-reset state internal modal saat hkiId berubah */}
       <EditHKIModal
         key={`edit-${editingHkiId}`}
         isOpen={!!editingHkiId}
         hkiId={editingHkiId}
-        onClose={handleCloseEditModal}
+        onClose={handleCloseModals}
         onSuccess={handleEditSuccess}
         onError={handleError}
         formOptions={formOptions}
       />
 
-      {/* Create Modal */}
       <CreateHKIModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={handleCloseModals}
         onSuccess={handleCreateSuccess}
         onError={handleError}
         formOptions={formOptions}
       />
 
-      {/* View Modal */}
       <ViewHKIModal
         isOpen={!!viewingEntry}
-        onClose={() => setViewingEntry(null)}
+        onClose={handleCloseModals}
         entry={viewingEntry}
       />
     </div>

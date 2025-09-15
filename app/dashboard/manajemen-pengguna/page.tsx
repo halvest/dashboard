@@ -1,91 +1,126 @@
-// app/dashboard/users/page.tsx
-import { createClient } from '@/utils/supabase/server';
+// app/dashboard/manajemen-pengguna/page.tsx
+
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { createClient } from '@/utils/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { UserManagementClient } from './user-management-client';
-import { ShieldAlert } from 'lucide-react';
 
+// Memaksa halaman untuk selalu dirender secara dinamis setiap kali diakses
 export const dynamic = 'force-dynamic';
 
-async function getUsersData(supabase: any) {
-  // Ambil semua user dari 'auth.users'
-  const { data: { users }, error: usersError } = await supabase.auth.admin.listUsers();
+// Tipe data gabungan dari auth.users dan public.profiles
+export type UserProfile = {
+  id: string;
+  email: string | undefined;
+  full_name: string | null;
+  role: 'admin' | 'user';
+  created_at: string;
+};
+
+/**
+ * Mengambil semua data pengguna dan profil mereka menggunakan hak akses admin.
+ * Fungsi ini hanya boleh dijalankan di server.
+ */
+async function getUsersData() {
+  // 1. Buat klien Supabase khusus dengan SERVICE_ROLE_KEY untuk hak akses admin
+  // Pastikan variabel environment sudah diatur di .env.local
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+
+  // 2. Ambil semua pengguna dari Supabase Auth menggunakan klien admin
+  const { data: { users }, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
+
   if (usersError) {
     console.error("Gagal mengambil daftar pengguna:", usersError);
-    throw new Error('Tidak dapat memuat daftar pengguna.');
+    throw new Error(`Gagal mengambil daftar pengguna: ${usersError.message}`);
   }
 
-  // Ambil semua profil dari tabel 'profiles'
-  const { data: profiles, error: profilesError } = await supabase
+  // 3. Ambil semua profil dari tabel 'profiles' menggunakan klien admin yang sama
+  // Ini untuk memastikan kita melewati RLS dan mendapatkan semua data
+  const { data: profiles, error: profilesError } = await supabaseAdmin
     .from('profiles')
-    .select('id, role, full_name');
+    .select('id, full_name, role');
+
   if (profilesError) {
-    console.error("Gagal mengambil profil:", profilesError);
-    throw new Error('Tidak dapat memuat data profil pengguna.');
+    console.error("Gagal mengambil data profil:", profilesError);
+    throw new Error(`Gagal mengambil data profil: ${profilesError.message}`);
   }
 
-  // Gabungkan data user dengan profil mereka
-  const combinedUsers = users.map(user => {
+  // 4. Gabungkan data pengguna dari Auth dengan data dari tabel profiles
+  const combinedUsers: UserProfile[] = users.map(user => {
     const profile = profiles?.find(p => p.id === user.id);
     return {
-      ...user,
-      role: profile?.role || 'user',
-      full_name: profile?.full_name || 'Tanpa Nama',
+      id: user.id,
+      email: user.email,
+      full_name: profile?.full_name ?? 'Nama Tidak Ditemukan',
+      role: profile?.role === 'admin' ? 'admin' : 'user',
+      created_at: new Date(user.created_at).toISOString(),
     };
   });
 
   return combinedUsers;
 }
 
-const ErrorDisplay = ({ message }: { message: string }) => (
-    <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-destructive bg-red-50 p-12 text-center dark:bg-red-950/30">
-        <ShieldAlert className="h-12 w-12 text-destructive" />
-        <h3 className="mt-4 text-xl font-semibold tracking-tight text-destructive">
-            Terjadi Kesalahan
-        </h3>
-        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
-    </div>
-);
-
 
 export default async function UserManagementPage() {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
 
-  // Guard: Pastikan hanya admin yang bisa mengakses
+  // Langkah Keamanan: Pastikan hanya admin yang bisa mengakses halaman ini
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+  if (!user) {
+    redirect('/login');
+  }
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+    
   if (profile?.role !== 'admin') {
     redirect('/dashboard?error=Akses_Ditolak');
   }
-  
+
   try {
-    const users = await getUsersData(supabase);
-    // Filter agar super-admin tidak bisa diedit oleh admin lain
-    const filteredUsers = users.filter(u => u.email !== process.env.SUPER_ADMIN_EMAIL);
-    const currentUserIsSuperAdmin = user.email === process.env.SUPER_ADMIN_EMAIL;
-
-
+    // Ambil data pengguna jika verifikasi berhasil
+    const usersData = await getUsersData();
+    
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-3xl font-bold">
             Manajemen Pengguna
           </h1>
           <p className="mt-1 text-muted-foreground">
-            Kelola akun administrator yang dapat mengakses dashboard ini.
+            Tambah, edit, dan kelola peran pengguna yang dapat mengakses dasbor.
           </p>
         </div>
         
-        <UserManagementClient 
-            initialUsers={filteredUsers} 
-            currentUserIsSuperAdmin={currentUserIsSuperAdmin}
-        />
+        {/* Render Client Component dan kirim data sebagai props */}
+        <UserManagementClient initialUsers={usersData} />
       </div>
     );
   } catch (error) {
-     return <ErrorDisplay message={error instanceof Error ? error.message : "Terjadi kesalahan tidak diketahui."} />;
+    // Tampilkan pesan error jika pengambilan data gagal
+    return (
+      <div className="text-red-600 bg-red-50 border border-red-200 p-4 rounded-md">
+        <h2 className="font-bold">Terjadi Kesalahan</h2>
+        <p>
+          {error instanceof Error 
+            ? error.message 
+            : "Gagal memuat data pengguna karena kesalahan tidak diketahui."}
+        </p>
+      </div>
+    );
   }
 }
