@@ -1,4 +1,3 @@
-// app/components/forms/hki-form.tsx
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
@@ -19,8 +18,6 @@ import { Button } from '@/components/ui/button'
 import { FileText, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-// --- Skema Zod, Tipe, dan Props ---
-
 const MAX_FILE_SIZE_MB = 5;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const ACCEPTED_FILE_TYPES = ["application/pdf"];
@@ -35,21 +32,17 @@ const hkiSchema = z.object({
     .min(new Date().getFullYear() - 25, `Tahun tidak valid.`)
     .max(new Date().getFullYear() + 1, `Tahun tidak boleh melebihi ${new Date().getFullYear() + 1}.`),
   keterangan: z.string().optional().nullable(),
-  id_jenis: z.string({ required_error: 'Jenis HKI wajib dipilih.' }).min(1, 'Jenis HKI wajib dipilih.'),
+  id_jenis_hki: z.string({ required_error: 'Jenis HKI wajib dipilih.' }).min(1, 'Jenis HKI wajib dipilih.'),
   id_status: z.string({ required_error: 'Status wajib dipilih.' }).min(1, 'Status wajib dipilih.'),
   id_pengusul: z.string({ required_error: 'Pengusul wajib dipilih.' }).min(1, 'Pengusul wajib dipilih.'),
   id_kelas: z.string().optional().nullable(),
   
-  // PERBAIKAN: Menggunakan z.instanceof(FileList) untuk validasi file yang lebih baik dan aman.
   sertifikat_pdf: z.any()
     .optional()
     .refine(
       (files) => {
-        // Lewati validasi di server, karena File/FileList tidak ada
         if (typeof window === 'undefined') return true;
-        // Jika tidak ada file, lewati (karena opsional)
         if (!files || !(files instanceof FileList) || files.length === 0) return true;
-        // Validasi ukuran file pertama
         return files[0].size <= MAX_FILE_SIZE_BYTES;
       },
       `Ukuran file maksimal ${MAX_FILE_SIZE_MB}MB.`
@@ -58,13 +51,11 @@ const hkiSchema = z.object({
       (files) => {
         if (typeof window === 'undefined') return true;
         if (!files || !(files instanceof FileList) || files.length === 0) return true;
-        // Validasi tipe file pertama
         return ACCEPTED_FILE_TYPES.includes(files[0].type);
       },
       'Hanya file format .pdf.'
     ),
 }).transform(data => ({
-    // PENJELASAN: Mengubah string kosong menjadi null sebelum validasi untuk field opsional
     ...data,
     alamat: data.alamat === '' ? null : data.alamat,
     jenis_produk: data.jenis_produk === '' ? null : data.jenis_produk,
@@ -101,7 +92,6 @@ export function HKIForm({
 }: HKIFormProps) {
 
   const router = useRouter();
-  // PERBAIKAN: State eksplisit untuk menandai penghapusan file lama
   const [isDeletingFile, setIsDeletingFile] = useState(false);
   const [activeAccordion, setActiveAccordion] = useState<string[]>(Object.values(ACCORDION_ITEMS));
 
@@ -114,11 +104,10 @@ export function HKIForm({
       jenis_produk: initialData?.jenis_produk || '',
       tahun_fasilitasi: initialData?.tahun_fasilitasi || new Date().getFullYear(),
       keterangan: initialData?.keterangan || '',
-      id_jenis: initialData?.jenis?.id_jenis.toString() || undefined,
+      id_jenis_hki: initialData?.jenis?.id_jenis_hki.toString() || undefined,
       id_status: initialData?.status_hki?.id_status.toString() || undefined,
       id_pengusul: initialData?.pengusul?.id_pengusul.toString() || undefined,
       id_kelas: initialData?.kelas?.id_kelas.toString() || undefined,
-      // PERBAIKAN: Daftarkan field file agar RHF dapat melacaknya dengan benar
       sertifikat_pdf: undefined,
     },
   });
@@ -139,7 +128,6 @@ export function HKIForm({
     return years;
   }, []);
 
-  // PENJELASAN: Fungsi untuk membuka accordion dan fokus ke input saat ada error
   const focusOnError = (fieldName: string, accordionId: string) => {
     setActiveAccordion((prev) => [...new Set([...prev, accordionId])]);
     setTimeout(() => {
@@ -154,7 +142,6 @@ export function HKIForm({
     const firstErrorMessage = errors[firstErrorKey]?.message;
     toast.error(`Validasi Gagal: ${firstErrorMessage}`);
     
-    // PENJELASAN: Logika untuk membuka accordion yang relevan saat validasi gagal
     if (['nama_hki', 'jenis_produk'].includes(firstErrorKey)) {
         focusOnError(firstErrorKey, ACCORDION_ITEMS.mainInfo);
     } else if (['nama_pemohon', 'alamat'].includes(firstErrorKey)) {
@@ -172,26 +159,18 @@ export function HKIForm({
       const formData = new FormData();
       const file = data.sertifikat_pdf?.[0];
 
-      // --- Logika Persiapan FormData ---
-      // 1. Tambahkan file jika ada file baru yang diunggah
       if (file instanceof File) {
         formData.append('file', file);
       }
       
-      // 2. PERBAIKAN: Kirim sinyal hapus file jika state isDeletingFile true
       if (mode === 'edit' && isDeletingFile) {
         formData.append('delete_sertifikat', 'true');
       }
 
-      // 3. Tambahkan sisa data form
       for (const [key, value] of Object.entries(data)) {
-        // Jangan kirim data file (FileList) sebagai string
         if (key === 'sertifikat_pdf') continue;
-        
         if (value !== null && value !== undefined) {
-          // PENJELASAN: Mapping nama field form ke nama field API jika berbeda
-          const apiKey = key === 'id_jenis' ? 'id_jenis_hki' : key;
-          formData.append(apiKey, String(value));
+          formData.append(key, String(value));
         }
       }
 
@@ -201,7 +180,7 @@ export function HKIForm({
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || `Gagal ${actionText} data.`);
+        throw new Error(result.message || `Gagal ${actionText} data.`);
       }
 
       toast.success(`Data HKI berhasil di${actionText}!`, {
@@ -217,13 +196,7 @@ export function HKIForm({
     } catch (err: unknown) {
       let errorMessage = `Terjadi kesalahan saat ${actionText} data.`;
       if (err instanceof Error) {
-        if (err.message.includes('duplicate key value violates unique constraint')) {
-          errorMessage = `Gagal menyimpan: Nama HKI "${data.nama_hki}" sudah ada.`;
-          // PENINGKATAN UX: Buka accordion dan fokus ke field yang error
-          focusOnError('nama_hki', ACCORDION_ITEMS.mainInfo);
-        } else {
-          errorMessage = err.message;
-        }
+        errorMessage = err.message;
       }
       
       toast.error(errorMessage, {
@@ -234,13 +207,11 @@ export function HKIForm({
     }
   }
 
-  // PENJELASAN: Fungsi untuk menangani penghapusan file yang sudah ada
   const handleRemoveExistingFile = () => {
     setIsDeletingFile(true);
     form.setValue('sertifikat_pdf', undefined);
   };
   
-  // PENJELASAN: Kondisi untuk menampilkan file yang sudah ada
   const showExistingFile = mode === 'edit' && initialData?.sertifikat_pdf && !selectedFile?.[0] && !isDeletingFile;
 
   return (
@@ -248,188 +219,179 @@ export function HKIForm({
       <form
         id={id}
         onSubmit={form.handleSubmit(onSubmit, onInvalid)}
-        className="max-h-[70vh] overflow-y-auto" 
+        className="space-y-4" // PERBAIKAN: Menghapus max-h dan overflow
       >
-        <div className="pr-6 space-y-4">
-          <fieldset disabled={isSubmitting} className="space-y-4">
-            <Accordion type="multiple" value={activeAccordion} onValueChange={setActiveAccordion} className="w-full">
-              
-              <AccordionItem value={ACCORDION_ITEMS.mainInfo}>
-                <AccordionTrigger className="font-semibold text-base">Informasi Utama HKI</AccordionTrigger>
-                <AccordionContent className="pt-2">
-                  <Card><CardContent className="pt-6 space-y-6">
-                    <FormField name="nama_hki" control={form.control} render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nama HKI *</FormLabel>
-                        <FormControl><Input placeholder="Contoh: Merek Kopi 'Sleman Jaya'" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    <FormField name="jenis_produk" control={form.control} render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Jenis Produk</FormLabel>
-                        {/* PERBAIKAN: Hilangkan `value={field.value ?? ''}` */}
-                        <FormControl><Input placeholder="Contoh: Makanan Olahan, Minuman, Jasa Konsultasi" {...field} /></FormControl>
-                        <FormDescription>Jelaskan produk atau jasa yang terkait.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  </CardContent></Card>
-                </AccordionContent>
-              </AccordionItem>
+        <fieldset disabled={isSubmitting} className="space-y-4">
+          <Accordion type="multiple" value={activeAccordion} onValueChange={setActiveAccordion} className="w-full">
+            
+            <AccordionItem value={ACCORDION_ITEMS.mainInfo}>
+              <AccordionTrigger className="font-semibold text-base">Informasi Utama HKI</AccordionTrigger>
+              <AccordionContent className="pt-2">
+                <Card><CardContent className="pt-6 space-y-6">
+                  <FormField name="nama_hki" control={form.control} render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nama HKI *</FormLabel>
+                      <FormControl><Input placeholder="Contoh: Merek Kopi 'Sleman Jaya'" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField name="jenis_produk" control={form.control} render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Jenis Produk</FormLabel>
+                      <FormControl><Input placeholder="Contoh: Makanan Olahan, Minuman, Jasa Konsultasi" {...field} value={field.value ?? ''} /></FormControl>
+                      <FormDescription>Jelaskan produk atau jasa yang terkait.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </CardContent></Card>
+              </AccordionContent>
+            </AccordionItem>
 
-              <AccordionItem value={ACCORDION_ITEMS.applicantInfo}>
-                <AccordionTrigger className="font-semibold text-base">Detail Pemohon</AccordionTrigger>
-                <AccordionContent className="pt-2">
-                  <Card><CardContent className="pt-6 space-y-6">
-                    <FormField name="nama_pemohon" control={form.control} render={({ field }) => (
+            <AccordionItem value={ACCORDION_ITEMS.applicantInfo}>
+              <AccordionTrigger className="font-semibold text-base">Detail Pemohon</AccordionTrigger>
+              <AccordionContent className="pt-2">
+                <Card><CardContent className="pt-6 space-y-6">
+                  <FormField name="nama_pemohon" control={form.control} render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nama Pemohon *</FormLabel>
+                      <FormControl><Input placeholder="Nama lengkap perorangan atau perusahaan" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField name="alamat" control={form.control} render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Alamat Pemohon</FormLabel>
+                      <FormControl><Textarea rows={3} placeholder="Alamat lengkap sesuai KTP/domisili..." {...field} value={field.value ?? ''} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </CardContent></Card>
+              </AccordionContent>
+            </AccordionItem>
+            
+            <AccordionItem value={ACCORDION_ITEMS.adminInfo}>
+              <AccordionTrigger className="font-semibold text-base">Data Administrasi</AccordionTrigger>
+              <AccordionContent className="pt-2">
+                <Card><CardContent className="pt-6 space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <FormField name="id_jenis_hki" control={form.control} render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nama Pemohon *</FormLabel>
-                        <FormControl><Input placeholder="Nama lengkap perorangan atau perusahaan" {...field} /></FormControl>
+                        <FormLabel>Jenis HKI *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Pilih jenis HKI" /></SelectTrigger></FormControl>
+                          <SelectContent>{jenisOptions.map(opt => (<SelectItem key={opt.id_jenis_hki} value={String(opt.id_jenis_hki)}>{opt.nama_jenis_hki}</SelectItem>))}</SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )} />
-                    <FormField name="alamat" control={form.control} render={({ field }) => (
+                    <FormField name="id_status" control={form.control} render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Alamat Pemohon</FormLabel>
-                        {/* PERBAIKAN: Hilangkan `value={field.value ?? ''}` */}
-                        <FormControl><Textarea rows={3} placeholder="Alamat lengkap sesuai KTP/domisili..." {...field} /></FormControl>
+                        <FormLabel>Status HKI *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Pilih status HKI" /></SelectTrigger></FormControl>
+                          <SelectContent>{statusOptions.map(opt => (<SelectItem key={opt.id_status} value={String(opt.id_status)}>{opt.nama_status}</SelectItem>))}</SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )} />
-                  </CardContent></Card>
-                </AccordionContent>
-              </AccordionItem>
-              
-              <AccordionItem value={ACCORDION_ITEMS.adminInfo}>
-                <AccordionTrigger className="font-semibold text-base">Data Administrasi</AccordionTrigger>
-                <AccordionContent className="pt-2">
-                  <Card><CardContent className="pt-6 space-y-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      <FormField name="id_jenis" control={form.control} render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Jenis HKI *</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Pilih jenis HKI" /></SelectTrigger></FormControl>
-                            <SelectContent>{jenisOptions.map(opt => (<SelectItem key={opt.id_jenis} value={String(opt.id_jenis)}>{opt.nama_jenis}</SelectItem>))}</SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                      <FormField name="id_status" control={form.control} render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Status HKI *</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl><SelectTrigger><SelectValue placeholder="Pilih status HKI" /></SelectTrigger></FormControl>
-                            <SelectContent>{statusOptions.map(opt => (<SelectItem key={opt.id_status} value={String(opt.id_status)}>{opt.nama_status}</SelectItem>))}</SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                      <FormField name="tahun_fasilitasi" control={form.control} render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tahun Fasilitasi *</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
-                              <FormControl><SelectTrigger><SelectValue placeholder="Pilih tahun" /></SelectTrigger></FormControl>
-                              <SelectContent>
-                                  <SelectGroup>{yearOptions.map(year => (<SelectItem key={year.value} value={year.value}>{year.label}</SelectItem>))}</SelectGroup>
-                              </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                    </div>
-                    
-                    <FormField name="id_pengusul" control={form.control} render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Pengusul (OPD) *</FormLabel>
-                        <Combobox options={pengusulOptions} value={field.value} onChange={field.onChange} placeholder="Pilih OPD pengusul..." searchPlaceholder="Cari OPD..." />
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    
-                    <FormField name="id_kelas" control={form.control} render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Kelas HKI (Opsional)</FormLabel>
-                        {/* PERBAIKAN: Hilangkan `value={field.value ?? ''}` */}
-                        <Combobox options={kelasOptions} value={field.value} onChange={field.onChange} placeholder="Pilih Kelas HKI (1-45)..." searchPlaceholder="Cari kelas (cth: 1, 35, atau Iklan)..." />
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                    
-                    <FormField name="keterangan" control={form.control} render={({ field }) => (
+                    <FormField name="tahun_fasilitasi" control={form.control} render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Keterangan</FormLabel>
-                        {/* PERBAIKAN: Hilangkan `value={field.value ?? ''}` */}
-                        <FormControl><Textarea rows={3} placeholder="Informasi tambahan, catatan internal, atau detail lain..." {...field} /></FormControl>
+                        <FormLabel>Tahun Fasilitasi *</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={String(field.value)}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Pilih tahun" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                <SelectGroup>{yearOptions.map(year => (<SelectItem key={year.value} value={year.value}>{year.label}</SelectItem>))}</SelectGroup>
+                            </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )} />
-                    
-                    <FormField control={form.control} name="sertifikat_pdf" render={({ field: { onChange, value, ...restField } }) => (
-                        <FormItem>
-                          <FormLabel>Sertifikat PDF (Opsional)</FormLabel>
-                          <FormControl>
-                              <Input
-                                type="file"
-                                accept=".pdf"
-                                className="hidden"
-                                id="file-upload"
-                                onChange={(e) => {
-                                    onChange(e.target.files);
-                                    // Jika user memilih file baru, batalkan status "hapus file lama"
-                                    if (e.target.files?.length) setIsDeletingFile(false);
-                                }}
-                                {...restField}
-                              />
-                          </FormControl>
-                          <label htmlFor="file-upload" className={cn(
-                            `flex items-center justify-center w-full p-4 border-2 border-dashed rounded-lg cursor-pointer`,
-                            isSubmitting ? 'bg-muted/50 cursor-not-allowed' : 'hover:bg-muted/50'
-                          )}>
-                            <div className="text-center">
-                              <FileText className="mx-auto h-10 w-10 text-muted-foreground" />
-                              <p className="mt-2 text-sm text-muted-foreground">
-                                <span className="font-semibold text-primary">Klik untuk memilih file</span> atau seret file ke sini
-                              </p>
-                              <p className="text-xs text-muted-foreground">PDF (Maks. {MAX_FILE_SIZE_MB}MB)</p>
-                            </div>
-                          </label>
+                  </div>
+                  
+                  <FormField name="id_pengusul" control={form.control} render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Pengusul (OPD) *</FormLabel>
+                      <Combobox options={pengusulOptions} value={field.value} onChange={field.onChange} placeholder="Pilih OPD pengusul..." searchPlaceholder="Cari OPD..." />
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  
+                  <FormField name="id_kelas" control={form.control} render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Kelas HKI (Opsional)</FormLabel>
+                      <Combobox options={kelasOptions} value={field.value ?? ''} onChange={field.onChange} placeholder="Pilih Kelas HKI (1-45)..." searchPlaceholder="Cari kelas (cth: 1, 35, atau Iklan)..." />
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  
+                  <FormField name="keterangan" control={form.control} render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Keterangan</FormLabel>
+                      <FormControl><Textarea rows={3} placeholder="Informasi tambahan, catatan internal, atau detail lain..." {...field} value={field.value ?? ''} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  
+                  <FormField control={form.control} name="sertifikat_pdf" render={({ field: { onChange, value, ...restField } }) => (
+                      <FormItem>
+                        <FormLabel>Sertifikat PDF (Opsional)</FormLabel>
+                        <FormControl>
+                            <Input
+                              type="file"
+                              accept=".pdf"
+                              className="hidden"
+                              id={`${id}-file-upload`} // Gunakan ID unik untuk setiap form instance
+                              onChange={(e) => {
+                                  onChange(e.target.files);
+                                  if (e.target.files?.length) setIsDeletingFile(false);
+                              }}
+                              {...restField}
+                            />
+                        </FormControl>
+                        <label htmlFor={`${id}-file-upload`} className={cn(
+                          `flex items-center justify-center w-full p-4 border-2 border-dashed rounded-lg cursor-pointer`,
+                          isSubmitting ? 'bg-muted/50 cursor-not-allowed' : 'hover:bg-muted/50'
+                        )}>
+                          <div className="text-center">
+                            <FileText className="mx-auto h-10 w-10 text-muted-foreground" />
+                            <p className="mt-2 text-sm text-muted-foreground">
+                              <span className="font-semibold text-primary">Klik untuk memilih file</span> atau seret file ke sini
+                            </p>
+                            <p className="text-xs text-muted-foreground">PDF (Maks. {MAX_FILE_SIZE_MB}MB)</p>
+                          </div>
+                        </label>
 
-                          {/* Tampilan untuk file yang sudah ada sebelumnya */}
-                          {showExistingFile && (
-                            <div className="mt-2 p-2 border rounded-md flex items-center justify-between bg-muted/50 text-sm">
-                              <span className="truncate text-blue-600 font-medium">
-                                {initialData.sertifikat_pdf.split('/').pop()}
-                              </span>
-                              <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={handleRemoveExistingFile}>
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
+                        {showExistingFile && (
+                          <div className="mt-2 p-2 border rounded-md flex items-center justify-between bg-muted/50 text-sm">
+                            <span className="truncate text-blue-600 font-medium">
+                              {initialData.sertifikat_pdf.split('/').pop()}
+                            </span>
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={handleRemoveExistingFile}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
 
-                          {/* Tampilan untuk file baru yang dipilih */}
-                          {selectedFile?.[0] && (
-                            <div className="mt-2 p-2 border rounded-md flex items-center justify-between bg-muted/50 text-sm">
-                              <span className="truncate text-green-600 font-medium">{selectedFile[0].name}</span>
-                              <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => onChange(null)}>
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                          <FormDescription>
-                            {mode === 'edit' && initialData?.sertifikat_pdf && 'Mengunggah file baru akan menggantikan file yang lama.'}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent></Card>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </fieldset>
-        </div>
+                        {selectedFile?.[0] && (
+                          <div className="mt-2 p-2 border rounded-md flex items-center justify-between bg-muted/50 text-sm">
+                            <span className="truncate text-green-600 font-medium">{selectedFile[0].name}</span>
+                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => onChange(null)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                        <FormDescription>
+                          {mode === 'edit' && initialData?.sertifikat_pdf && 'Mengunggah file baru akan menggantikan file yang lama.'}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent></Card>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </fieldset>
       </form>
     </Form>
   )

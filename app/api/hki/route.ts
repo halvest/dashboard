@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
-
+import { Database } from '@/lib/database.types'; // PERBAIKAN: Path impor yang benar
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +11,7 @@ const HKI_TABLE = 'hki';
 const PEMOHON_TABLE = 'pemohon';
 const HKI_BUCKET = 'sertifikat-hki';
 
-// PERBAIKAN: Alias kolom disesuaikan dengan skema database
+// PERBAIKAN: Alias disesuaikan dengan skema database yang benar
 const ALIASED_SELECT_QUERY = `
   id_hki, nama_hki, jenis_produk, tahun_fasilitasi, sertifikat_pdf, keterangan, created_at,
   pemohon ( id_pemohon, nama_pemohon, alamat ),
@@ -27,14 +27,15 @@ async function getPemohonId(supabase: any, nama: string, alamat: string | null):
         throw new Error("Nama pemohon tidak boleh kosong.");
     }
 
+    // PERBAIKAN: Menggunakan .eq() untuk pencocokan nama yang sama persis
     const { data: existingPemohon, error: findError } = await supabase
         .from(PEMOHON_TABLE)
         .select('id_pemohon')
-        .eq('nama_pemohon', trimmedNama) // Menggunakan .eq untuk pencocokan persis
+        .eq('nama_pemohon', trimmedNama) 
         .limit(1)
         .single();
 
-    if (findError && findError.code !== 'PGRST116') { // PGRST116 = baris tidak ditemukan, itu bukan error
+    if (findError && findError.code !== 'PGRST116') { // PGRST116 = baris tidak ditemukan, ini normal
         console.error("Error saat mencari pemohon:", findError);
         throw new Error("Gagal memeriksa data pemohon: " + findError.message);
     }
@@ -63,6 +64,7 @@ async function getPemohonId(supabase: any, nama: string, alamat: string | null):
     return newPemohon.id_pemohon;
 }
 
+// --- POST: Membuat entri HKI baru ---
 export async function POST(request: NextRequest) {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
@@ -72,9 +74,15 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       return NextResponse.json(
-        { success: false, message: userError?.message || 'Tidak terautentikasi' },
+        { success: false, message: 'Tidak terautentikasi' },
         { status: 401 }
       );
+    }
+
+    // PERBAIKAN KEAMANAN: Pastikan hanya admin yang bisa membuat data baru
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    if (profile?.role !== 'admin') {
+        return NextResponse.json({ success: false, message: 'Akses ditolak. Hanya admin yang dapat membuat data.' }, { status: 403 });
     }
 
     const formData = await request.formData();
@@ -89,8 +97,7 @@ export async function POST(request: NextRequest) {
     
     const idKelas = getVal('id_kelas');
 
-    // PERBAIKAN: Tipe disederhanakan dan disesuaikan dengan skema
-    const hkiRecord = {
+    const hkiRecord: Omit<Database['public']['Tables']['hki']['Insert'], 'id_hki' | 'created_at' | 'updated_at'> = {
       nama_hki: String(getVal('nama_hki') || '').trim(),
       jenis_produk: (getVal('jenis_produk') as string | null) || null,
       tahun_fasilitasi: Number(getVal('tahun_fasilitasi')),
@@ -99,7 +106,7 @@ export async function POST(request: NextRequest) {
       id_status: Number(getVal('id_status')),
       id_pengusul: Number(getVal('id_pengusul')),
       id_pemohon: pemohonId,
-      sertifikat_pdf: null, 
+      sertifikat_pdf: null,
       id_kelas: idKelas ? Number(idKelas) : null,
     };
     
@@ -119,7 +126,7 @@ export async function POST(request: NextRequest) {
       if (insertError.code === '23505') {
           message = `Gagal menyimpan: Nama HKI "${hkiRecord.nama_hki}" sudah ada.`;
       }
-      return NextResponse.json({ success: false, message }, { status: 409 }); 
+      return NextResponse.json({ success: false, message }, { status: 409 });
     }
 
     if (!newHki) {

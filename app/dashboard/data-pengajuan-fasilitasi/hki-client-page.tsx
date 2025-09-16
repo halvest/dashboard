@@ -1,7 +1,6 @@
-// app/dashboard/data-pengajuan-fasilitasi/hki-client-page.tsx
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable } from '@/components/hki/data-table'
 import { EditHKIModal } from '@/components/hki/edit-hki-modal'
@@ -14,12 +13,13 @@ import { Button } from '@/components/ui/button'
 
 type ComboboxOption = { value: string; label: string };
 
+// PERBAIKAN: Menyelaraskan tipe props dengan tipe data yang benar dari page.tsx
 interface HKIClientPageProps {
   initialData: HKIEntry[]
   totalCount: number
   formOptions: Readonly<{
-    jenisOptions: { id_jenis: number; nama_jenis: string }[]
-    statusOptions: { id_status: number; nama_status: string }[]
+    jenisOptions: JenisHKI[]
+    statusOptions: StatusHKI[]
     tahunOptions: { tahun: number }[]
     pengusulOptions: ComboboxOption[]
     kelasOptions: ComboboxOption[]
@@ -53,7 +53,6 @@ export function HKIClientPage({ initialData, totalCount, formOptions, error }: H
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // ✅ PENGELOLAAN MODAL BERBASIS URL
   const isCreateModalOpen = searchParams.get('create') === 'true';
   const editingHkiId = useMemo(() => {
     const id = searchParams.get('edit');
@@ -69,7 +68,6 @@ export function HKIClientPage({ initialData, totalCount, formOptions, error }: H
       return initialData.find(item => item.id_hki === viewingEntryId) || null;
   }, [viewingEntryId, initialData]);
 
-  // Fungsi untuk memanipulasi URL tanpa reload halaman
   const updateQueryString = (newParams: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(newParams).forEach(([key, value]) => {
@@ -79,11 +77,9 @@ export function HKIClientPage({ initialData, totalCount, formOptions, error }: H
         params.set(key, value);
       }
     });
-    // Gunakan { scroll: false } untuk mencegah scroll ke atas
     router.push(`?${params.toString()}`, { scroll: false });
   };
   
-  // Handlers untuk membuka dan menutup modal
   const handleOpenCreateModal = () => updateQueryString({ create: 'true', edit: null, view: null });
   const handleEdit = (id: number) => updateQueryString({ edit: String(id), create: null, view: null });
   const handleViewDetails = (entry: HKIEntry) => updateQueryString({ view: String(entry.id_hki), create: null, edit: null });
@@ -93,7 +89,6 @@ export function HKIClientPage({ initialData, totalCount, formOptions, error }: H
     return <ServerErrorDisplay errorMessage={error} />
   }
 
-  // Fungsi refresh data yang menampilkan notifikasi
   const refreshData = (message: string) => {
     toast.info('Memuat ulang data terbaru...', { duration: 1500 });
     router.refresh();

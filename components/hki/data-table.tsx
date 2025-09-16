@@ -1,4 +1,3 @@
-// app/components/hki/data-table.tsx
 'use client'
 
 import React, { useState, useEffect, useCallback, useMemo, useTransition, memo, useRef } from 'react'
@@ -120,8 +119,9 @@ const InteractiveExportModal = ({ isOpen, onClose, filters, formOptions }: {
             if (pengusul) summary.push(`Pengusul: ${pengusul.label}`);
         }
         if (filters.jenisId) {
-            const jenis = formOptions.jenisOptions.find((j: any) => j.id_jenis.toString() === filters.jenisId);
-            if (jenis) summary.push(`Jenis HKI: ${jenis.nama_jenis}`);
+            // PERBAIKAN: Menggunakan nama properti yang benar
+            const jenis = formOptions.jenisOptions.find((j: any) => j.id_jenis_hki.toString() === filters.jenisId);
+            if (jenis) summary.push(`Jenis HKI: ${jenis.nama_jenis_hki}`);
         }
         return summary;
     }, [filters, formOptions]);
@@ -211,7 +211,8 @@ const DataTableToolbar = memo(({ tableState, formOptions, onBulkDelete, onOpenCr
 }) => {
   const { filters, selectedRows, handleFilterChange, clearFilters } = tableState;
   const activeFiltersCount = Object.values(filters).filter(val => !!val).length;
-  const selectedJenisLabel = formOptions.jenisOptions.find((o: any) => o.id_jenis.toString() === filters.jenisId)?.nama_jenis;
+  // PERBAIKAN: Menggunakan nama properti yang benar
+  const selectedJenisLabel = formOptions.jenisOptions.find((o: any) => o.id_jenis_hki.toString() === filters.jenisId)?.nama_jenis_hki;
   const selectedStatusLabel = formOptions.statusOptions.find((o: any) => o.id_status.toString() === filters.statusId)?.nama_status;
   const shouldShowBottomBar = selectionModeActive || activeFiltersCount > 0;
 
@@ -239,7 +240,7 @@ const DataTableToolbar = memo(({ tableState, formOptions, onBulkDelete, onOpenCr
                 <Upload className="h-4 w-4" />
                 <span className="font-medium text-base md:text-sm">Ekspor Data</span>
             </Button>
-            <Button variant="primary" className="gap-2 w-full sm:w-auto shadow-sm h-10" onClick={onOpenCreateModal}><Plus className="h-5 w-5" /><span className="font-semibold text-base md:text-sm">Tambah Data</span></Button>
+            <Button className="gap-2 w-full sm:w-auto shadow-sm h-10" onClick={onOpenCreateModal}><Plus className="h-5 w-5" /><span className="font-semibold text-base md:text-sm">Tambah Data</span></Button>
           </div>
         </div>
       </CardHeader>
@@ -255,7 +256,8 @@ const DataTableToolbar = memo(({ tableState, formOptions, onBulkDelete, onOpenCr
               <SelectTrigger className="h-10 truncate"><FilterTrigger icon={Copyright} label={selectedJenisLabel} placeholder='Semua Jenis HKI' /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Jenis HKI</SelectItem>
-                {formOptions.jenisOptions.map((opt: JenisHKI) => <SelectItem key={opt.id_jenis} value={String(opt.id_jenis)}>{opt.nama_jenis}</SelectItem>)}
+                {/* PERBAIKAN: Menggunakan nama properti yang benar */}
+                {formOptions.jenisOptions.map((opt: JenisHKI) => <SelectItem key={opt.id_jenis_hki} value={String(opt.id_jenis_hki)}>{opt.nama_jenis_hki}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={filters.statusId || ''} onValueChange={(v) => handleFilterChange('statusId', v === 'all' ? '' : v)}>
@@ -371,8 +373,8 @@ const DataTableRow = memo(({ entry, index, pagination, isSelected, onSelectRow, 
         <TableCell className="text-center font-mono text-sm text-muted-foreground py-2 px-4 align-top">{(pagination.page - 1) * pagination.pageSize + index + 1}</TableCell>
         <TableCell className='py-2 px-4 align-top'><div className="flex flex-col"><span className="font-semibold text-foreground leading-snug break-words">{entry.nama_hki}</span><span className="text-sm text-muted-foreground break-words">{entry.jenis_produk || '-'}</span></div></TableCell>
         <TableCell className='py-2 px-4 align-top'><div className="flex flex-col"><span className="font-medium text-foreground leading-snug break-words">{entry.pemohon?.nama_pemohon || '-'}</span><TooltipProvider><Tooltip><TooltipTrigger asChild><span className="text-sm text-muted-foreground line-clamp-2 break-words">{entry.pemohon?.alamat || ''}</span></TooltipTrigger>{entry.pemohon?.alamat && <TooltipContent align="start" className="max-w-xs whitespace-pre-line"><p>{entry.pemohon.alamat}</p></TooltipContent>}</Tooltip></TooltipProvider></div></TableCell>
-        <TableCell className='py-2 px-4 align-top'><div className="flex flex-col gap-1 items-start"><Badge variant="outline" className="font-medium bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700">{entry.jenis?.nama_jenis || '-'}</Badge>{entry.kelas && (<TooltipProvider><Tooltip><TooltipTrigger asChild><Badge variant="secondary" className="cursor-default font-normal bg-blue-50 text-blue-800 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 line-clamp-1">Kelas {entry.kelas.id_kelas}: {entry.kelas.tipe}</Badge></TooltipTrigger><TooltipContent align="start"><p className="max-w-xs">{entry.kelas.nama_kelas}</p></TooltipContent></Tooltip></TooltipProvider>)}</div></TableCell>
-        <TableCell className="text-sm text-muted-foreground break-words py-2 px-4 align-top">{entry.pengusul?.nama_pengusul || '-'}</TableCell>
+        <TableCell className='py-2 px-4 align-top'><div className="flex flex-col gap-1 items-start"><Badge variant="outline" className="font-medium bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700">{entry.jenis?.nama_jenis_hki || '-'}</Badge>{entry.kelas && (<TooltipProvider><Tooltip><TooltipTrigger asChild><Badge variant="secondary" className="cursor-default font-normal bg-blue-50 text-blue-800 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 line-clamp-1">Kelas {entry.kelas.id_kelas}: {entry.kelas.tipe}</Badge></TooltipTrigger><TooltipContent align="start"><p className="max-w-xs">{entry.kelas.nama_kelas}</p></TooltipContent></Tooltip></TooltipProvider>)}</div></TableCell>
+        <TableCell className="text-sm text-muted-foreground break-words py-2 px-4 align-top">{entry.pengusul?.nama_opd || '-'}</TableCell>
         <TableCell className="text-center font-mono text-sm text-foreground py-2 px-4 align-top">{entry.tahun_fasilitasi || '-'}</TableCell>
         <TableCell className="py-2 px-4 align-top"><TooltipProvider><Tooltip><TooltipTrigger asChild><p className="line-clamp-3 text-sm text-muted-foreground break-words">{entry.keterangan || '-'}</p></TooltipTrigger>{entry.keterangan && <TooltipContent align="start" className="max-w-sm whitespace-pre-line"><p>{entry.keterangan}</p></TooltipContent>}</Tooltip></TooltipProvider></TableCell>
         <TableCell className='py-2 px-4 align-top'><StatusDropdown /></TableCell>
@@ -389,8 +391,8 @@ const DataTableRow = memo(({ entry, index, pagination, isSelected, onSelectRow, 
               <ActionsMenu />
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3 text-sm">
-              <div className="flex justify-between items-center"><span className="text-muted-foreground">Jenis:</span><Badge variant="outline" className="text-right">{entry.jenis?.nama_jenis || '-'}</Badge></div>
-              <div className="flex justify-between items-center"><span className="text-muted-foreground">Pengusul:</span><span className="font-medium text-right">{entry.pengusul?.nama_pengusul || '-'}</span></div>
+              <div className="flex justify-between items-center"><span className="text-muted-foreground">Jenis:</span><Badge variant="outline" className="text-right">{entry.jenis?.nama_jenis_hki || '-'}</Badge></div>
+              <div className="flex justify-between items-center"><span className="text-muted-foreground">Pengusul:</span><span className="font-medium text-right">{entry.pengusul?.nama_opd || '-'}</span></div>
               <div className="flex justify-between items-center"><span className="text-muted-foreground">Tahun:</span><span className="font-mono">{entry.tahun_fasilitasi}</span></div>
             </CardContent>
             <CardFooter className="p-4 pt-0"><StatusDropdown /></CardFooter>
@@ -457,8 +459,7 @@ SortableHeader.displayName = 'SortableHeader';
 // =================================================================
 // KOMPONEN UTAMA
 // =================================================================
-type ComboboxOption = { value: string; label: string };
-interface DataTableProps {
+type DataTableProps = {
   data: HKIEntry[];
   totalCount: number;
   formOptions: {
@@ -473,7 +474,7 @@ interface DataTableProps {
   onViewDetails: (entry: HKIEntry) => void;
   isLoading?: boolean;
   enableBulkActions?: boolean;
-}
+};
 
 export function DataTable({
   data, totalCount, formOptions, onEdit, isLoading = false, onOpenCreateModal, onViewDetails,
@@ -628,7 +629,7 @@ export function DataTable({
                         <h3 className="text-lg font-semibold text-foreground">Tidak Ada Data Ditemukan</h3>
                         <p className="text-sm text-muted-foreground">Coba ubah filter atau buat data baru.</p>
                       </div>
-                      <Button onClick={onOpenCreateModal} variant="primary" className="gap-2">
+                      <Button onClick={onOpenCreateModal} className="gap-2">
                         <Plus className="h-4 w-4" /> Tambah Data Baru
                       </Button>
                     </div>
