@@ -14,7 +14,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-// BARU: Impor komponen yang diperlukan untuk Tooltip
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Loader2, MoreHorizontal, Pen, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -64,8 +63,7 @@ export function MasterCrudTable<T extends AnyMasterItem>({ dataType, data, confi
     router.refresh()
   }
 
-  // BARU: Variabel untuk menentukan apakah tombol 'Tambah' boleh aktif
-  const canAddNew = dataType === 'pengusul';
+  const canAddNew = dataType === 'pengusul' || dataType === 'jenis_hki' || dataType === 'kelas_hki';
 
   return (
     <Card className="shadow-sm">
@@ -77,11 +75,9 @@ export function MasterCrudTable<T extends AnyMasterItem>({ dataType, data, confi
           </CardTitle>
           <CardDescription className="mt-1">{config.description} Total {data.length} item.</CardDescription>
         </div>
-        {/* MODIFIKASI: Logika untuk tombol 'Tambah Baru' */}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              {/* Wrapper <span> diperlukan agar tooltip bisa muncul pada tombol yang disabled */}
               <span tabIndex={0}>
                 <Button 
                   onClick={() => openModal()} 
@@ -94,7 +90,7 @@ export function MasterCrudTable<T extends AnyMasterItem>({ dataType, data, confi
             </TooltipTrigger>
             {!canAddNew && (
               <TooltipContent>
-                <p>Data ini dikelola oleh sistem dan tidak dapat ditambah.</p>
+                <p>Data ini tidak dapat ditambah secara manual.</p>
               </TooltipContent>
             )}
           </Tooltip>
@@ -170,18 +166,11 @@ export function MasterCrudTable<T extends AnyMasterItem>({ dataType, data, confi
   )
 }
 
-/**
- * =================================================================================
- * Modal Dinamis untuk Create/Edit Data Master
- * =================================================================================
- */
-
-// Fungsi untuk menghasilkan skema Zod secara dinamis
-const generateSchema = (dataType: MasterDataType, isEditMode: boolean) => {
+const generateSchema = (dataType: MasterDataType) => {
   switch (dataType) {
     case 'jenis_hki':
       return z.object({
-        nama_jenis: z.string().min(3, 'Nama jenis harus memiliki minimal 3 karakter.'),
+        nama_jenis_hki: z.string().min(3, 'Nama jenis harus memiliki minimal 3 karakter.'),
       });
     case 'kelas_hki':
       return z.object({
@@ -191,7 +180,7 @@ const generateSchema = (dataType: MasterDataType, isEditMode: boolean) => {
       });
     case 'pengusul':
       return z.object({
-        nama_pengusul: z.string().min(3, 'Nama pengusul harus memiliki minimal 3 karakter.'),
+        nama_opd: z.string().min(3, 'Nama pengusul harus memiliki minimal 3 karakter.'),
       });
     default:
       throw new Error('Tipe data master tidak valid');
@@ -210,16 +199,16 @@ interface MasterDataModalProps<T extends AnyMasterItem> {
 function MasterDataModal<T extends AnyMasterItem>({ isOpen, onClose, item, dataType, config, onSuccess }: MasterDataModalProps<T>) {
   const isEditMode = !!item;
 
-  const formSchema = useMemo(() => generateSchema(dataType, isEditMode), [dataType, isEditMode]);
+  const formSchema = useMemo(() => generateSchema(dataType), [dataType]);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: useMemo(() => {
       if (isEditMode && item) return item;
       switch (dataType) {
-        case 'jenis_hki': return { nama_jenis: '' };
+        case 'jenis_hki': return { nama_jenis_hki: '' };
         case 'kelas_hki': return { id_kelas: undefined, nama_kelas: '', tipe: 'Barang' };
-        case 'pengusul': return { nama_pengusul: '' };
+        case 'pengusul': return { nama_opd: '' };
         default: return {};
       }
     }, [item, isEditMode, dataType]),
@@ -250,12 +239,11 @@ function MasterDataModal<T extends AnyMasterItem>({ isOpen, onClose, item, dataT
     }
   };
 
-  // Fungsi untuk merender form fields secara dinamis
   const renderFormFields = () => {
     switch (dataType) {
       case 'jenis_hki':
         return (
-          <FormField control={form.control} name="nama_jenis" render={({ field }) => (
+          <FormField control={form.control} name="nama_jenis_hki" render={({ field }) => (
             <FormItem>
               <FormLabel>Nama Jenis HKI</FormLabel>
               <FormControl><Input placeholder="Contoh: Merek" {...field} /></FormControl>
@@ -297,7 +285,7 @@ function MasterDataModal<T extends AnyMasterItem>({ isOpen, onClose, item, dataT
         );
       case 'pengusul':
         return (
-          <FormField control={form.control} name="nama_pengusul" render={({ field }) => (
+          <FormField control={form.control} name="nama_opd" render={({ field }) => (
             <FormItem>
               <FormLabel>Nama Pengusul (OPD)</FormLabel>
               <FormControl><Input placeholder="Contoh: Dinas Koperasi, Usaha Kecil dan Menengah" {...field} /></FormControl>

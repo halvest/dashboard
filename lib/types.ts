@@ -7,8 +7,8 @@ export interface Pemohon {
 }
 
 export interface JenisHKI {
-  id_jenis: number;
-  nama_jenis: string;
+  id_jenis_hki: number;
+  nama_jenis_hki: string;
 }
 
 export interface StatusHKI {
@@ -18,10 +18,9 @@ export interface StatusHKI {
 
 export interface Pengusul {
   id_pengusul: number;
-  nama_pengusul: string; // Ini adalah alias 'nama_opd' dari query Anda
+  nama_opd: string;
 }
 
-// ✅ TAMBAH: Interface baru untuk Kelas HKI
 export interface KelasHKI {
   id_kelas: number;
   nama_kelas: string;
@@ -36,21 +35,18 @@ export interface HKIBase {
   sertifikat_pdf: string | null;
   keterangan: string | null;
   created_at: string;
-  updated_at: string | null; 
-  // user_id: string | null; // Kolom ini tidak ada di skema Anda
-
+  updated_at: string | null;
   id_pemohon: number;
   id_jenis_hki: number;
   id_status: number;
   id_pengusul: number;
-  id_kelas: number | null; // ✅ TAMBAH: Kolom foreign key baru
+  id_kelas: number | null;
 }
 
-// ✅ UPDATE: Perbarui HKIEntry untuk menyertakan relasi kelas
 export type HKIEntry = Omit<HKIBase, 'id_pemohon' | 'id_jenis_hki' | 'id_status' | 'id_pengusul' | 'id_kelas'> & {
   pemohon: Pemohon | null;
-  jenis: JenisHKI | null; 
-  status_hki: StatusHKI | null; 
+  jenis: JenisHKI | null;
+  status_hki: StatusHKI | null;
   pengusul: Pengusul | null;
-  kelas: KelasHKI | null; // ✅ TAMBAH: Relasi objek baru
+  kelas: KelasHKI | null;
 };

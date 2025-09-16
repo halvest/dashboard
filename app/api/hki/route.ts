@@ -11,55 +11,62 @@ const HKI_TABLE = 'hki';
 const PEMOHON_TABLE = 'pemohon';
 const HKI_BUCKET = 'sertifikat-hki';
 
-// ✅ UPDATE: Tambahkan relasi 'kelas' ke query alias
+// PERBAIKAN: Alias kolom disesuaikan dengan skema database
 const ALIASED_SELECT_QUERY = `
   id_hki, nama_hki, jenis_produk, tahun_fasilitasi, sertifikat_pdf, keterangan, created_at,
   pemohon ( id_pemohon, nama_pemohon, alamat ),
-  jenis:jenis_hki ( id_jenis:id_jenis_hki, nama_jenis:nama_jenis_hki ), 
+  jenis:jenis_hki ( id_jenis_hki, nama_jenis_hki ), 
   status_hki ( id_status, nama_status ),
-  pengusul ( id_pengusul, nama_pengusul:nama_opd ),
+  pengusul ( id_pengusul, nama_opd ),
   kelas:kelas_hki ( id_kelas, nama_kelas, tipe )
 `;
 
-// ✅ FUNGSI INI TETAP SAMA, TAPI DIPASTIKAN LEBIH ROBUST
 async function getPemohonId(supabase: any, nama: string, alamat: string | null): Promise<number> {
     const trimmedNama = nama.trim();
     if (!trimmedNama) {
         throw new Error("Nama pemohon tidak boleh kosong.");
     }
+
     const { data: existingPemohon, error: findError } = await supabase
         .from(PEMOHON_TABLE)
         .select('id_pemohon')
-        .ilike('nama_pemohon', trimmedNama)
+        .eq('nama_pemohon', trimmedNama) // Menggunakan .eq untuk pencocokan persis
         .limit(1)
         .single();
+
     if (findError && findError.code !== 'PGRST116') { // PGRST116 = baris tidak ditemukan, itu bukan error
         console.error("Error saat mencari pemohon:", findError);
         throw new Error("Gagal memeriksa data pemohon: " + findError.message);
     }
+
     if (existingPemohon) {
         return existingPemohon.id_pemohon;
     }
+
     const { data: newPemohon, error: insertError } = await supabase
         .from(PEMOHON_TABLE)
         .insert({ nama_pemohon: trimmedNama, alamat: alamat })
         .select('id_pemohon')
         .single();
+
     if (insertError) {
+        if (insertError.code === '23505') { // unique_violation
+             throw new Error(`Nama pemohon "${trimmedNama}" sudah terdaftar.`);
+        }
         console.error("Error saat membuat pemohon baru:", insertError);
         throw new Error("Gagal menyimpan data pemohon baru: " + insertError.message);
     }
+
     if (!newPemohon) {
         throw new Error("Gagal membuat atau menemukan pemohon setelah insert.");
     }
     return newPemohon.id_pemohon;
 }
 
-// --- POST: Create new HKI entry ---
 export async function POST(request: NextRequest) {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
-  let newHkiId: number | null = null; // Variabel untuk menyimpan ID jika perlu rollback
+  let newHkiId: number | null = null; 
 
   try {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -82,7 +89,8 @@ export async function POST(request: NextRequest) {
     
     const idKelas = getVal('id_kelas');
 
-    const hkiRecord: Omit<Database['public']['Tables']['hki']['Insert'], 'id_hki' | 'created_at' | 'updated_at'> = {
+    // PERBAIKAN: Tipe disederhanakan dan disesuaikan dengan skema
+    const hkiRecord = {
       nama_hki: String(getVal('nama_hki') || '').trim(),
       jenis_produk: (getVal('jenis_produk') as string | null) || null,
       tahun_fasilitasi: Number(getVal('tahun_fasilitasi')),
@@ -91,7 +99,7 @@ export async function POST(request: NextRequest) {
       id_status: Number(getVal('id_status')),
       id_pengusul: Number(getVal('id_pengusul')),
       id_pemohon: pemohonId,
-      sertifikat_pdf: null, // ✅ Disimpan sebagai null terlebih dahulu
+      sertifikat_pdf: null, 
       id_kelas: idKelas ? Number(idKelas) : null,
     };
     
@@ -99,7 +107,6 @@ export async function POST(request: NextRequest) {
          return NextResponse.json({ success: false, message: 'Data wajib tidak lengkap (Nama, Jenis, Status, Pengusul, Tahun).'}, { status: 400 });
     }
 
-    // 1. INSERT DATA KE DATABASE TERLEBIH DAHULU
     const { data: newHki, error: insertError } = await supabase
       .from(HKI_TABLE)
       .insert(hkiRecord)
@@ -107,51 +114,46 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
-      console.error("!!! KRITIS: Error saat insert HKI:", insertError);
+      console.error("Error saat insert HKI:", insertError);
       let message = `Database error: ${insertError.message}`;
-      if (insertError.code === '23505') { // Kode error untuk unique violation
+      if (insertError.code === '23505') {
           message = `Gagal menyimpan: Nama HKI "${hkiRecord.nama_hki}" sudah ada.`;
       }
-      return NextResponse.json({ success: false, message }, { status: 409 }); // 409 Conflict lebih cocok untuk duplikat
+      return NextResponse.json({ success: false, message }, { status: 409 }); 
     }
 
-    newHkiId = newHki.id_hki; // Simpan ID untuk potensi rollback
+    if (!newHki) {
+        throw new Error("Gagal mendapatkan ID HKI baru setelah insert.");
+    }
+    newHkiId = newHki.id_hki;
 
-    // 2. JIKA INSERT BERHASIL, BARU UPLOAD FILE
     const file = formData.get('file') as File | null;
-    let dbFilePath: string | null = null;
     if (file && file.size > 0) {
       const fileExt = file.name.split('.').pop() || 'pdf';
       const filePath = `public/${user.id}-${uuidv4()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from(HKI_BUCKET)
-        .upload(filePath, file, { contentType: file.type });
+        .upload(filePath, file);
 
       if (uploadError) {
         console.error('Upload file gagal:', uploadError.message);
-        // ✅ ROLLBACK: Hapus record HKI yang sudah terbuat jika upload gagal
         await supabase.from(HKI_TABLE).delete().eq('id_hki', newHkiId);
         throw new Error(`Upload file gagal: ${uploadError.message}`);
       }
       
-      dbFilePath = filePath;
-
-      // 3. JIKA UPLOAD BERHASIL, UPDATE RECORD DENGAN PATH FILE
       const { error: updateFileError } = await supabase
         .from(HKI_TABLE)
-        .update({ sertifikat_pdf: dbFilePath })
+        .update({ sertifikat_pdf: filePath })
         .eq('id_hki', newHkiId);
 
       if (updateFileError) {
-        // Jika update path gagal, coba hapus file yang sudah diupload dan record HKI
-        await supabase.storage.from(HKI_BUCKET).remove([dbFilePath]);
+        await supabase.storage.from(HKI_BUCKET).remove([filePath]);
         await supabase.from(HKI_TABLE).delete().eq('id_hki', newHkiId);
         throw new Error(`Gagal memperbarui path file di database: ${updateFileError.message}`);
       }
     }
 
-    // 4. AMBIL DATA LENGKAP UNTUK DIKEMBALIKAN KE CLIENT
     const { data: finalData, error: finalFetchError } = await supabase
         .from(HKI_TABLE)
         .select(ALIASED_SELECT_QUERY)
@@ -165,7 +167,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: finalData }, { status: 201 });
 
   } catch (err: any) {
-    console.error('!!! KRITIS: API POST error (catch paling luar):', err.message);
+    console.error(`[API POST HKI Error]: ${err.message}`);
     return NextResponse.json(
       { success: false, message: `Terjadi kesalahan tak terduga: ${err.message}` },
       { status: 500 }

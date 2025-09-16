@@ -5,11 +5,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { createClient } from '@/utils/supabase/server'; 
 
 export const dynamic = 'force-dynamic';
-
 const HKI_TABLE = 'hki';
 const PEMOHON_TABLE = 'pemohon';
 const HKI_BUCKET = 'sertifikat-hki';
-
 const ALIASED_SELECT_QUERY = `
   id_hki, nama_hki, jenis_produk, tahun_fasilitasi, sertifikat_pdf, keterangan, created_at,
   pemohon ( id_pemohon, nama_pemohon, alamat ),
@@ -19,7 +17,6 @@ const ALIASED_SELECT_QUERY = `
   kelas:kelas_hki ( id_kelas, nama_kelas, tipe )
 `;
 
-// --- [GET] (Tidak ada perubahan signifikan, sudah baik) ---
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -54,8 +51,6 @@ export async function GET(
   }
 }
 
-
-// --- [PATCH] (Logika Diperbaiki Total) ---
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -72,8 +67,6 @@ export async function PATCH(
 
     const formData = await request.formData();
     const getVal = (key: string) => formData.get(key);
-
-    // 1. Ambil data HKI yang ada saat ini
     const { data: currentHki, error: findHkiError } = await supabase
       .from(HKI_TABLE)
       .select('id_pemohon, sertifikat_pdf')
@@ -84,7 +77,6 @@ export async function PATCH(
       return NextResponse.json({ success: false, message: `HKI dengan ID ${hkiId} tidak ditemukan.`}, { status: 404 });
     }
 
-    // 2. PERBAIKAN LOGIKA PEMOHON: Selalu update data pemohon yang sudah ada.
     const namaPemohon = (getVal('nama_pemohon') as string | null)?.trim();
     if (!namaPemohon) {
         return NextResponse.json({ success: false, message: 'Nama pemohon wajib diisi.' }, { status: 400 });
@@ -97,14 +89,12 @@ export async function PATCH(
         .eq('id_pemohon', currentHki.id_pemohon);
 
     if (pemohonUpdateError) {
-        // Jika nama pemohon yang baru sudah ada (unique constraint), beri pesan error yang jelas
         if (pemohonUpdateError.code === '23505') {
             throw new Error(`Nama pemohon "${namaPemohon}" sudah digunakan oleh entri lain.`);
         }
         throw new Error(`Gagal memperbarui data pemohon: ${pemohonUpdateError.message}`);
     }
 
-    // 3. UPDATE DATA HKI DI DATABASE (TANPA FILE DULU)
     const idKelas = getVal('id_kelas');
     const hkiUpdateData: Omit<Database['public']['Tables']['hki']['Update'], 'sertifikat_pdf'> = {
       nama_hki: String(getVal('nama_hki') || '').trim(),
@@ -114,7 +104,7 @@ export async function PATCH(
       id_jenis_hki: Number(getVal('id_jenis_hki')),
       id_status: Number(getVal('id_status')),
       id_pengusul: Number(getVal('id_pengusul')),
-      id_pemohon: currentHki.id_pemohon, // Gunakan ID pemohon yang sama
+      id_pemohon: currentHki.id_pemohon, 
       id_kelas: idKelas ? Number(idKelas) : null,
     };
 
@@ -127,7 +117,6 @@ export async function PATCH(
         throw new Error(`Gagal memperbarui data HKI: ${hkiUpdateError.message}`);
     }
 
-    // 4. LOGIKA UPLOAD FILE BARU (JIKA ADA)
     const file = formData.get('file') as File | null;
     if (file && file.size > 0) {
         const oldFilePath = currentHki.sertifikat_pdf;
@@ -143,14 +132,12 @@ export async function PATCH(
             throw new Error(`Upload file baru gagal: ${uploadError.message}`);
         }
 
-        // Jika upload berhasil, update path di DB dan hapus file lama
         await supabase.from(HKI_TABLE).update({ sertifikat_pdf: newFilePath }).eq('id_hki', hkiId);
         if (oldFilePath) {
             await supabase.storage.from(HKI_BUCKET).remove([oldFilePath]);
         }
     }
 
-    // 5. AMBIL DATA TERBARU UNTUK DIKIRIM KE CLIENT
     const { data: updatedHki, error: finalFetchError } = await supabase
       .from(HKI_TABLE)
       .select(ALIASED_SELECT_QUERY)
@@ -168,7 +155,6 @@ export async function PATCH(
   }
 }
 
-// --- [DELETE] (Logika sudah cukup baik, tidak perlu perubahan besar) ---
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -182,8 +168,7 @@ export async function DELETE(
     if (!user) {
       return NextResponse.json({ success: false, message: 'Tidak terautentikasi' }, { status: 401 });
     }
-    
-    // Ambil path file sebelum menghapus record database
+
     const { data: hkiData, error: findError } = await supabase
       .from(HKI_TABLE)
       .select('sertifikat_pdf')
@@ -193,8 +178,7 @@ export async function DELETE(
     if (findError) {
       return NextResponse.json({ success: false, message: 'Data HKI tidak ditemukan untuk dihapus' }, { status: 404 });
     }
-    
-    // Hapus record dari database terlebih dahulu
+
     const { error: deleteError } = await supabase
       .from(HKI_TABLE)
       .delete()
@@ -204,11 +188,9 @@ export async function DELETE(
       throw new Error(`Gagal menghapus data HKI: ${deleteError.message}`);
     }
 
-    // Jika record berhasil dihapus, hapus file terkait di storage
     if (hkiData.sertifikat_pdf) {
       const { error: storageError } = await supabase.storage.from(HKI_BUCKET).remove([hkiData.sertifikat_pdf]);
       if (storageError) {
-        // Jangan mengembalikan error ke user, cukup catat di log karena data utama sudah terhapus
         console.warn(`Gagal menghapus file di storage: ${storageError.message}`);
       }
     }

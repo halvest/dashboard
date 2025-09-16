@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
+
 /**
  * GET: Mengambil daftar semua pengguna.
  * Hanya bisa diakses oleh pengguna dengan role 'admin'.

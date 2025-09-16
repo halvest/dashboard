@@ -2,18 +2,16 @@
 
 import React from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { MasterCrudTable } from './master-crud-components' // Akan kita buat selanjutnya
+import { MasterCrudTable } from './master-crud-components'
 import { JenisHKI, KelasHKI, Pengusul } from '@/lib/types'
 import { Copyright, Building, FileText } from 'lucide-react'
 
-// Definisikan tipe data master yang bisa dikelola
 export type MasterDataType = 'jenis_hki' | 'kelas_hki' | 'pengusul'
 
-// Tipe gabungan untuk item data apapun
-export type AnyMasterItem = (JenisHKI & { id_jenis_hki?: number }) | (KelasHKI & { id_kelas?: number }) | (Pengusul & { id_pengusul?: number })
+// Perbaikan: Menyesuaikan tipe agar lebih robust
+export type AnyMasterItem = JenisHKI | KelasHKI | Pengusul;
 
-// Konfigurasi untuk setiap tabel data master
-const masterConfig = {
+export const masterConfig = {
   jenis_hki: {
     title: 'Jenis HKI',
     description: 'Data referensi untuk tipe-tipe HKI yang tersedia.',
@@ -51,9 +49,9 @@ const masterConfig = {
 }
 
 interface MasterDataClientProps {
-  initialJenis: (JenisHKI & { id_jenis_hki: number })[]
+  initialJenis: JenisHKI[]
   initialKelas: KelasHKI[]
-  initialPengusul: (Pengusul & { id_pengusul: number })[]
+  initialPengusul: Pengusul[]
 }
 
 export function MasterDataClient({ initialJenis, initialKelas, initialPengusul }: MasterDataClientProps) {
