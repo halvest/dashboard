@@ -1,20 +1,16 @@
 // app/api/hki/[id]/status/route.ts
-import { createClient } from '@/utils/supabase/server'; 
+import { createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
-
-/**
- * Endpoint PATCH khusus untuk memperbarui status HKI secara inline dari tabel.
- */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
-  const hkiId = params.id;
+  const hkiId = Number(params.id); // <-- PERBAIKAN DI SINI
 
   try {
     // 1. Validasi Autentikasi & Admin (Perlu cek profil)
@@ -47,7 +43,7 @@ export async function PATCH(
         id_status: statusId,
         updated_at: new Date().toISOString() // Set updated_at ke 'now'
       })
-      .eq('id_hki', hkiId)
+      .eq('id_hki', hkiId) // <-- Sekarang hkiId adalah number
       .select('id_hki, status_hki(nama_status)') // Kembalikan data baru untuk konfirmasi
       .single();
 

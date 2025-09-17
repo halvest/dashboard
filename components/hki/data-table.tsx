@@ -44,7 +44,6 @@ import { downloadFilteredExport } from '@/app/services/hki-service'
 // UTILITIES & CONSTANTS
 // =================================================================
 
-// DIPERBAIKI: Menambahkan definisi tipe ComboboxOption yang hilang.
 type ComboboxOption = {
   value: string;
   label: string;
@@ -544,9 +543,20 @@ export function DataTable({
   };
   const handleDeleteSingle = useCallback((entry: HKIEntry) => setDeleteAlert({ open: true, entry, isBulk: false }), []);
   const handleBulkDelete = useCallback(() => setDeleteAlert({ open: true, entry: undefined, isBulk: true }), []);
+  
   const handleStatusUpdate = useCallback(async (entryId: number, newStatusId: number) => {
-    const promise = fetch(`/api/hki/${entryId}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ statusId: newStatusId }) })
-      .then(async (res) => { if (!res.ok) { const err = await res.json(); throw new Error(err.message || 'Gagal update.'); } return res.json(); });
+    const promise = fetch(`/api/hki/${entryId}/status`, { 
+      method: 'PATCH', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ statusId: newStatusId }) 
+    })
+    .then(async (res) => {
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: 'Gagal memproses respons server.' }));
+        throw new Error(errorData.message || 'Gagal memperbarui status.');
+      }
+      return res.json();
+    });
     
     toast.promise(promise, { 
       loading: 'Memperbarui status...', 
@@ -554,9 +564,15 @@ export function DataTable({
         router.refresh(); 
         setFlashingRowId(entryId);
         setTimeout(() => setFlashingRowId(null), 1500);
-        return data.message; 
+        return data.message || 'Status berhasil diperbarui!'; 
       }, 
-      error: (err) => err.message 
+      // Versi penanganan error yang lebih aman
+      error: (err) => {
+        if (err instanceof Error) {
+          return err.message;
+        }
+        return 'Terjadi kesalahan tidak diketahui.';
+      }
     });
   }, [router]);
 

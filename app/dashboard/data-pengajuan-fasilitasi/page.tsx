@@ -44,7 +44,6 @@ export default async function HKIPage({
     const sortOrder = searchParams.sortOrder === 'asc';
     const offset = (page - 1) * pageSize;
 
-    // Menggunakan logika yang benar dengan `null` agar data muncul
     const rpcParams = {
       p_search_text: search,
       p_jenis_id: jenisId ? Number(jenisId) : null,
@@ -53,7 +52,6 @@ export default async function HKIPage({
       p_pengusul_id: pengusulId ? Number(pengusulId) : null,
     };
 
-    // DIPERBAIKI: Menambahkan `as any` untuk mengatasi error TypeScript yang keliru
     const { data: filterResult, error: rpcError } = await supabase.rpc('search_hki_ids_with_count', rpcParams as any);
 
     if (rpcError) {
@@ -76,12 +74,12 @@ export default async function HKIPage({
     const hkiQuery = supabase
       .from('hki')
       .select(querySelectString)
-      .in('id_hki', filteredIds.length > 0 ? filteredIds : ['']) 
+      .in('id_hki', filteredIds) // <-- PERBAIKAN DI SINI
       .order(sortBy, { ascending: sortOrder })
       .range(offset, offset + pageSize - 1);
 
     const [hkiRes, jenisRes, statusRes, tahunRes, pengusulRes, kelasRes] = await Promise.all([
-      hkiQuery, 
+      hkiQuery,
       supabase.from('jenis_hki').select('id_jenis_hki, nama_jenis_hki').order('nama_jenis_hki'),
       supabase.from('status_hki').select('id_status, nama_status').order('id_status'),
       supabase.rpc('get_distinct_hki_years'),
@@ -105,7 +103,7 @@ export default async function HKIPage({
       tahunOptions: mappedTahunOptions,
       pengusulOptions: (pengusulRes.data || []).map(p => ({
         value: String(p.id_pengusul),
-        label: p.nama_opd, 
+        label: p.nama_opd,
       })),
       kelasOptions: (kelasRes.data || []).map(k => ({
         value: String(k.id_kelas),
@@ -118,7 +116,7 @@ export default async function HKIPage({
         initialData={(hkiRes.data as HKIEntry[]) ?? []}
         totalCount={totalCount}
         formOptions={formOptions}
-        error={null} 
+        error={null}
       />
     );
 
