@@ -12,10 +12,11 @@ type SelectOption = {
   label: string;
 };
 
+// --- PERBAIKAN 1: Sesuaikan tipe data agar konsisten ---
 type FormOptions = {
   jenisOptions: JenisHKI[];
   statusOptions: StatusHKI[];
-  tahunOptions: { tahun: number }[];
+  tahunOptions: { tahun_fasilitasi: number }[];
   pengusulOptions: SelectOption[];
   kelasOptions: SelectOption[];
 };
@@ -71,13 +72,22 @@ export default async function HKIPage({
       kelas:kelas_hki ( id_kelas, nama_kelas, tipe )
     `;
 
-    const hkiQuery = supabase
+    // Hanya jalankan query jika ada ID yang cocok, atau jika tidak ada filter sama sekali
+    const shouldFetchHki = filteredIds.length > 0 || !search && !jenisId && !statusId && !year && !pengusulId;
+    
+    let hkiQuery = supabase
       .from('hki')
       .select(querySelectString)
-      .in('id_hki', filteredIds) // <-- PERBAIKAN DI SINI
       .order(sortBy, { ascending: sortOrder })
       .range(offset, offset + pageSize - 1);
 
+    if (shouldFetchHki) {
+      hkiQuery = hkiQuery.in('id_hki', filteredIds);
+    } else {
+      // Jika filter aktif dan tidak ada ID yang cocok, tidak perlu query data HKI
+      hkiQuery = hkiQuery.limit(0); 
+    }
+    
     const [hkiRes, jenisRes, statusRes, tahunRes, pengusulRes, kelasRes] = await Promise.all([
       hkiQuery,
       supabase.from('jenis_hki').select('id_jenis_hki, nama_jenis_hki').order('nama_jenis_hki'),
@@ -95,12 +105,12 @@ export default async function HKIPage({
     if (kelasRes.error) throw new Error(`Gagal memuat data kelas HKI: ${kelasRes.error.message}`);
 
     const tahunOptionsData = (tahunRes.data as { tahun_fasilitasi: number }[] | null) ?? [];
-    const mappedTahunOptions = tahunOptionsData.map(item => ({ tahun: item.tahun_fasilitasi }));
 
     const formOptions: FormOptions = {
       jenisOptions: jenisRes.data ?? [],
       statusOptions: statusRes.data ?? [],
-      tahunOptions: mappedTahunOptions,
+      // --- PERBAIKAN 2: Hapus transformasi .map dan gunakan data asli ---
+      tahunOptions: tahunOptionsData,
       pengusulOptions: (pengusulRes.data || []).map(p => ({
         value: String(p.id_pengusul),
         label: p.nama_opd,
@@ -113,7 +123,7 @@ export default async function HKIPage({
 
     return (
       <HKIClientPage
-        initialData={(hkiRes.data as HKIEntry[]) ?? []}
+        initialData={shouldFetchHki ? (hkiRes.data as HKIEntry[]) ?? [] : []}
         totalCount={totalCount}
         formOptions={formOptions}
         error={null}

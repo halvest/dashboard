@@ -25,8 +25,6 @@ interface ComboboxProps {
   options: { value: string; label: string }[]
   value?: string
   onChange: (value: string) => void
-  // DIPERBAIKI: Mengubah tipe dari `string` ke `React.ReactNode`
-  // Ini memungkinkan placeholder untuk menerima komponen React (seperti ikon + teks).
   placeholder?: React.ReactNode
   searchPlaceholder?: string
   emptyMessage?: string
@@ -57,8 +55,7 @@ export function Combobox({
     setOpen(false)
   }
 
-  // Menentukan apa yang akan ditampilkan: label yang dipilih atau placeholder.
-  const displayContent = value ? selectedLabel : placeholder;
+  const displayContent = value ? selectedLabel : placeholder
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -70,10 +67,7 @@ export function Combobox({
           className="min-w-0 w-full justify-between font-normal"
           disabled={disabled || loading}
         >
-          {/* Bagian ini sekarang bisa merender string atau komponen React */}
-          <div className="truncate flex items-center">
-            {displayContent}
-          </div>
+          <div className="truncate flex items-center">{displayContent}</div>
 
           {loading ? (
             <Loader2 className="ml-2 h-4 w-4 shrink-0 animate-spin opacity-50" />
@@ -85,7 +79,8 @@ export function Combobox({
 
       <PopoverContent
         className={cn(
-          'w-[--radix-popover-trigger-width] max-w-full sm:max-w-sm md:max-w-md p-0'
+          // ✅ Lebar mengikuti trigger + batas max width agar responsif
+          'w-[--radix-popover-trigger-width] max-w-xs sm:max-w-sm md:max-w-md p-0'
         )}
         align="start"
       >
@@ -96,7 +91,8 @@ export function Combobox({
               {options.length > 0 ? noResultsMessage : emptyMessage}
             </CommandEmpty>
 
-            <ScrollArea className="max-h-[40vh]">
+            {/* ✅ Scrollable area dibatasi tingginya */}
+            <ScrollArea className="max-h-[40vh] overflow-y-auto">
               <CommandGroup>
                 {options.map((option) => (
                   <CommandItem

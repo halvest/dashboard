@@ -40,10 +40,6 @@ import { HKIEntry, JenisHKI, StatusHKI } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { downloadFilteredExport } from '@/app/services/hki-service'
 
-// =================================================================
-// UTILITIES & CONSTANTS
-// =================================================================
-
 type ComboboxOption = {
   value: string;
   label: string;
@@ -68,9 +64,6 @@ const buildPageItems = (current: number, total: number) => {
 };
 interface HKIFilters { search: string; jenisId: string; statusId: string; year: string; pengusulId: string; }
 
-// =================================================================
-// CUSTOM HOOK useDataTable
-// =================================================================
 function useDataTable(totalCount: number) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -102,9 +95,6 @@ function useDataTable(totalCount: number) {
 }
 type UseDataTableReturn = ReturnType<typeof useDataTable>;
 
-// =================================================================
-// MODAL EKSPOR BARU YANG INTERAKTIF
-// =================================================================
 const InteractiveExportModal = ({ isOpen, onClose, filters, formOptions }: {
     isOpen: boolean,
     onClose: () => void,
@@ -133,24 +123,20 @@ const InteractiveExportModal = ({ isOpen, onClose, filters, formOptions }: {
         return summary;
     }, [filters, formOptions]);
 
-    const handleExport = () => {
+    const handleExport = async () => {
         setIsExporting(true);
-        const exportPromise = downloadFilteredExport({ format, filters });
-
-        toast.promise(exportPromise, {
-            loading: 'Membuat file ekspor, mohon tunggu...',
-            success: 'Ekspor berhasil! Unduhan akan segera dimulai.',
-            error: (err) => err.message || 'Terjadi kesalahan saat mengekspor.',
-        });
-
-        exportPromise.finally(() => {
-            setIsExporting(false);
+        try {
+            await downloadFilteredExport({ format, filters });
             onClose();
-        });
+        } catch (error) {
+            console.error("Export failed from component:", error);
+        } finally {
+            setIsExporting(false);
+        }
     };
     
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
+        <Dialog open={isOpen} onOpenChange={(open) => !isExporting && onClose()}>
             <DialogContent className="sm:max-w-md">
                 <SimpleDialogHeader>
                     <SimpleDialogTitle>Konfirmasi Ekspor Data</SimpleDialogTitle>
@@ -195,9 +181,6 @@ const InteractiveExportModal = ({ isOpen, onClose, filters, formOptions }: {
     );
 };
 
-// =================================================================
-// CHILD COMPONENTS
-// =================================================================
 const FilterTrigger = memo(({ icon: Icon, label, placeholder }: { icon: LucideIcon, label?: string, placeholder: string }) => (
   <div className='flex items-center gap-2 text-sm font-normal'>
     <Icon className="h-4 w-4 text-muted-foreground"/>
@@ -243,8 +226,8 @@ const DataTableToolbar = memo(({ tableState, formOptions, onBulkDelete, onOpenCr
               </Button>
             )}
             <Button variant="outline" className="gap-2 w-full sm:w-auto h-10" onClick={onOpenExportModal}>
-                <Upload className="h-4 w-4" />
-                <span className="font-medium text-base md:text-sm">Ekspor Data</span>
+              <Upload className="h-4 w-4" />
+              <span className="font-medium text-base md:text-sm">Ekspor Data</span>
             </Button>
             <Button className="gap-2 w-full sm:w-auto shadow-sm h-10" onClick={onOpenCreateModal}><Plus className="h-5 w-5" /><span className="font-semibold text-base md:text-sm">Tambah Data</span></Button>
           </div>
@@ -276,7 +259,15 @@ const DataTableToolbar = memo(({ tableState, formOptions, onBulkDelete, onOpenCr
               <SelectTrigger className="h-10"><FilterTrigger icon={CalendarDays} label={filters.year} placeholder='Semua Tahun' /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Tahun</SelectItem>
-                {formOptions.tahunOptions.map((opt: any) => <SelectItem key={opt.tahun} value={String(opt.tahun)}>{String(opt.tahun)}</SelectItem>)}
+                {/* --- PERBAIKAN SEBENARNYA ADA DI SINI --- */}
+                {formOptions.tahunOptions.map((opt: any, index: number) => {
+                  const year = opt.tahun_fasilitasi; // Menggunakan properti yang benar
+                  return (
+                    <SelectItem key={`${year}-${index}`} value={String(year)}>
+                      {String(year)}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
             <Combobox options={[{ value: '', label: 'Semua Pengusul (OPD)' }, ...formOptions.pengusulOptions]} value={filters.pengusulId} onChange={(v) => handleFilterChange('pengusulId', v)} placeholder={<FilterTrigger icon={Building} label={undefined} placeholder="Semua Pengusul"/>} searchPlaceholder="Cari OPD..." />
@@ -470,7 +461,7 @@ type DataTableProps = {
   formOptions: {
     jenisOptions: JenisHKI[];
     statusOptions: StatusHKI[];
-    tahunOptions: { tahun: number }[];
+    tahunOptions: { tahun_fasilitasi: number }[]; // Tipe disesuaikan di sini
     pengusulOptions: ComboboxOption[];
     kelasOptions: ComboboxOption[];
   };
@@ -566,7 +557,6 @@ export function DataTable({
         setTimeout(() => setFlashingRowId(null), 1500);
         return data.message || 'Status berhasil diperbarui!'; 
       }, 
-      // Versi penanganan error yang lebih aman
       error: (err) => {
         if (err instanceof Error) {
           return err.message;

@@ -1,7 +1,7 @@
 // app/dashboard/data-pengajuan-fasilitasi/hki-client-page.tsx
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import React, { useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable } from '@/components/hki/data-table'
 import { EditHKIModal } from '@/components/hki/edit-hki-modal'
@@ -20,7 +20,7 @@ interface HKIClientPageProps {
   formOptions: Readonly<{
     jenisOptions: JenisHKI[]
     statusOptions: StatusHKI[]
-    tahunOptions: { tahun: number }[]
+    tahunOptions: { tahun_fasilitasi: number }[]
     pengusulOptions: ComboboxOption[]
     kelasOptions: ComboboxOption[]
   }>
@@ -68,16 +68,13 @@ export function HKIClientPage({ initialData, totalCount, formOptions, error }: H
       return initialData.find(item => item.id_hki === viewingEntryId) || null;
   }, [viewingEntryId, initialData]);
 
-  // PERBAIKAN: Buat variabel baru untuk memetakan data agar sesuai dengan props modal
   const modalFormOptions = useMemo(() => ({
     ...formOptions,
-    // Ubah nama properti dari { id_jenis_hki, nama_jenis_hki } menjadi { id_jenis, nama_jenis }
     jenisOptions: formOptions.jenisOptions.map(j => ({
       id_jenis: j.id_jenis_hki,
       nama_jenis: j.nama_jenis_hki,
     })),
-    // Ubah dari array of objects [{ tahun: ... }] menjadi array of numbers [....]
-    tahunOptions: formOptions.tahunOptions.map(t => t.tahun),
+    tahunOptions: formOptions.tahunOptions.map(t => t.tahun_fasilitasi),
   }), [formOptions]);
 
   const updateQueryString = (newParams: Record<string, string | null>) => {
@@ -148,7 +145,6 @@ export function HKIClientPage({ initialData, totalCount, formOptions, error }: H
         onClose={handleCloseModals}
         onSuccess={handleEditSuccess}
         onError={handleError}
-        // Gunakan data yang sudah dipetakan
         formOptions={modalFormOptions}
       />
 
@@ -157,13 +153,12 @@ export function HKIClientPage({ initialData, totalCount, formOptions, error }: H
         onClose={handleCloseModals}
         onSuccess={handleCreateSuccess}
         onError={handleError}
-        // Gunakan data yang sudah dipetakan
         formOptions={modalFormOptions}
       />
 
       <ViewHKIModal
         isOpen={!!viewingEntry}
-        onClose={handleCloseModals}
+        onClose={handleCloseModals} // <-- PERBAIKAN DI SINI
         entry={viewingEntry}
       />
     </div>
