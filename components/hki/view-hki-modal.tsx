@@ -1,4 +1,5 @@
 // components/hki/view-hki-modal.tsx
+
 'use client'
 
 import React, { useCallback, memo } from 'react'
@@ -97,7 +98,8 @@ export function ViewHKIModal({ isOpen, onClose, entry }: ViewHKIModalProps) {
             <DetailItem label="Jenis Produk" value={entry.jenis_produk} />
             <DetailItem label="Jenis HKI">
               <Badge variant="outline" className="font-medium bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 w-fit">
-                {entry.jenis?.nama_jenis || '-'}
+                {/* DIPERBAIKI: Menggunakan nama properti `nama_jenis_hki` yang benar */}
+                {entry.jenis?.nama_jenis_hki || '-'}
               </Badge>
             </DetailItem>
             <DetailItem label="Kelas HKI (Nice)">
@@ -126,9 +128,10 @@ export function ViewHKIModal({ isOpen, onClose, entry }: ViewHKIModalProps) {
             <DetailItem label="Alamat Pemohon">
               <p className="text-base text-foreground whitespace-pre-wrap">{entry.pemohon?.alamat || '-'}</p>
             </DetailItem>
-            <DetailItem label="Pengusul (OPD)" value={entry.pengusul?.nama_pengusul} />
+            {/* DIPERBAIKI: Menggunakan nama properti `nama_opd` yang benar */}
+            <DetailItem label="Pengusul (OPD)" value={entry.pengusul?.nama_opd} />
             <DetailItem label="Keterangan Tambahan">
-               <p className="text-base text-foreground whitespace-pre-wrap">{entry.keterangan || '-'}</p>
+              <p className="text-base text-foreground whitespace-pre-wrap">{entry.keterangan || '-'}</p>
             </DetailItem>
             <DetailItem label="Sertifikat PDF">
               {entry.sertifikat_pdf ? (

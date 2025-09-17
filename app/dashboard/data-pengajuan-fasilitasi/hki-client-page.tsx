@@ -1,3 +1,4 @@
+// app/dashboard/data-pengajuan-fasilitasi/hki-client-page.tsx
 'use client'
 
 import React, { useMemo, useState } from 'react'
@@ -13,7 +14,6 @@ import { Button } from '@/components/ui/button'
 
 type ComboboxOption = { value: string; label: string };
 
-// PERBAIKAN: Menyelaraskan tipe props dengan tipe data yang benar dari page.tsx
 interface HKIClientPageProps {
   initialData: HKIEntry[]
   totalCount: number
@@ -67,6 +67,18 @@ export function HKIClientPage({ initialData, totalCount, formOptions, error }: H
       if (!viewingEntryId) return null;
       return initialData.find(item => item.id_hki === viewingEntryId) || null;
   }, [viewingEntryId, initialData]);
+
+  // PERBAIKAN: Buat variabel baru untuk memetakan data agar sesuai dengan props modal
+  const modalFormOptions = useMemo(() => ({
+    ...formOptions,
+    // Ubah nama properti dari { id_jenis_hki, nama_jenis_hki } menjadi { id_jenis, nama_jenis }
+    jenisOptions: formOptions.jenisOptions.map(j => ({
+      id_jenis: j.id_jenis_hki,
+      nama_jenis: j.nama_jenis_hki,
+    })),
+    // Ubah dari array of objects [{ tahun: ... }] menjadi array of numbers [....]
+    tahunOptions: formOptions.tahunOptions.map(t => t.tahun),
+  }), [formOptions]);
 
   const updateQueryString = (newParams: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -136,7 +148,8 @@ export function HKIClientPage({ initialData, totalCount, formOptions, error }: H
         onClose={handleCloseModals}
         onSuccess={handleEditSuccess}
         onError={handleError}
-        formOptions={formOptions}
+        // Gunakan data yang sudah dipetakan
+        formOptions={modalFormOptions}
       />
 
       <CreateHKIModal
@@ -144,7 +157,8 @@ export function HKIClientPage({ initialData, totalCount, formOptions, error }: H
         onClose={handleCloseModals}
         onSuccess={handleCreateSuccess}
         onError={handleError}
-        formOptions={formOptions}
+        // Gunakan data yang sudah dipetakan
+        formOptions={modalFormOptions}
       />
 
       <ViewHKIModal

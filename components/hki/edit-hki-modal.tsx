@@ -1,4 +1,5 @@
 // components/hki/edit-hki-modal.tsx
+
 "use client";
 
 import React, { useState, useCallback, memo } from 'react';
@@ -6,7 +7,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { HKIForm } from "@/components/forms/hki-form";
-import { HKIEntry } from "@/lib/types";
+import { HKIEntry, JenisHKI } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,6 @@ interface EditHKIModalProps {
     statusOptions: { id_status: number; nama_status: string }[];
     pengusulOptions: ComboboxOption[];
     kelasOptions: ComboboxOption[];
-    tahunOptions: number[];
   };
 }
 
@@ -77,6 +77,13 @@ export function EditHKIModal({
       onClose();
     }
   }, [isSubmitting, onClose]);
+  
+  // DIPERBAIKI: Ubah (map) nama properti dari `jenisOptions` agar sesuai dengan yang diharapkan oleh HKIForm.
+  // HKIForm mengharapkan `id_jenis_hki` dan `nama_jenis_hki`.
+  const mappedJenisOptions: JenisHKI[] = formOptions.jenisOptions.map(option => ({
+    id_jenis_hki: option.id_jenis,
+    nama_jenis_hki: option.nama_jenis,
+  }));
 
   const renderContent = () => {
     if (isLoading) return <FormSkeleton />;
@@ -87,11 +94,11 @@ export function EditHKIModal({
           id={EDIT_FORM_ID}
           mode="edit"
           initialData={data}
-          jenisOptions={formOptions.jenisOptions}
+          // Gunakan data yang sudah di-map
+          jenisOptions={mappedJenisOptions}
           statusOptions={formOptions.statusOptions}
           pengusulOptions={formOptions.pengusulOptions}
           kelasOptions={formOptions.kelasOptions}
-          tahunOptions={formOptions.tahunOptions}
           onSubmittingChange={setIsSubmitting}
           onSuccess={handleSuccess}
           onError={onError}
@@ -103,8 +110,7 @@ export function EditHKIModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-       {/* PERBAIKAN: Menghapus kelas `h-full` untuk memperbaiki double scrollbar */}
-      <DialogContent className="sm:max-w-4xl p-0 flex flex-col max-h-[90vh] md:h-auto md:max-h-[800px]">
+      <DialogContent className="sm:max-w-4xl p-0 flex flex-col max-h-[90vh]">
         <DialogHeader className="flex flex-row items-center gap-4 px-6 py-4 border-b">
           <div className="bg-primary/10 p-2.5 rounded-lg">
             <PencilLine className="h-6 w-6 text-primary" />

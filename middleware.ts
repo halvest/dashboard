@@ -1,3 +1,5 @@
+// middleware.ts
+
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
@@ -30,14 +32,16 @@ export async function middleware(request: NextRequest) {
           response.cookies.set({ name, value, ...options })
         },
         remove(name: string, options: CookieOptions) {
-          // Sama seperti set, kita harus membuat ulang request dan response
-          request.cookies.set({ name, ...options, maxAge: 0 })
+          // DIPERBAIKI: Metode `request.cookies.delete` hanya menerima `name` (string) sebagai argumen.
+          // Opsi seperti path dan domain tidak relevan untuk request cookie yang masuk.
+          request.cookies.delete(name);
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
-          })
-          response.cookies.set({ name, ...options, maxAge: 0 })
+          });
+          // Metode `response.cookies.delete` tetap menggunakan objek untuk memberitahu browser cookie mana yang harus dihapus.
+          response.cookies.delete({ name, ...options });
         },
       },
     }

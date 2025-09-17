@@ -1,9 +1,14 @@
 // app/api/master/[tableName]/[id]/route.ts
-import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
-import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/utils/supabase/server';
+import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+import type { Database } from '@/lib/database.types'; // <-- Tambahkan impor ini
 
-const TABLE_SAFELIST = ['jenis_hki', 'kelas_hki', 'pengusul'];
+// Definisikan tipe TableName dari Supabase types
+type TableName = keyof Database['public']['Tables'];
+
+const TABLE_SAFELIST: TableName[] = ['jenis_hki', 'kelas_hki', 'pengusul'];
+
 const ID_COLUMN_MAP: Record<string, string> = {
   jenis_hki: 'id_jenis_hki',
   kelas_hki: 'id_kelas',
@@ -28,7 +33,8 @@ export async function PATCH(
   { params }: { params: { tableName: string; id: string } }
 ) {
   const { tableName, id } = params;
-  if (!TABLE_SAFELIST.includes(tableName)) {
+  // Lakukan type assertion di sini untuk pengecekan
+  if (!TABLE_SAFELIST.includes(tableName as TableName)) {
     return NextResponse.json({ message: 'Tabel tidak valid' }, { status: 400 });
   }
 
@@ -48,8 +54,9 @@ export async function PATCH(
       delete body[idColumn];
     }
 
+    // Gunakan type assertion saat memanggil .from()
     const { data, error } = await supabase
-      .from(tableName)
+      .from(tableName as TableName)
       .update(body)
       .eq(idColumn, id)
       .select()
@@ -75,7 +82,8 @@ export async function DELETE(
   { params }: { params: { tableName: string; id: string } }
 ) {
   const { tableName, id } = params;
-  if (!TABLE_SAFELIST.includes(tableName)) {
+  // Lakukan type assertion di sini untuk pengecekan
+  if (!TABLE_SAFELIST.includes(tableName as TableName)) {
     return NextResponse.json({ message: 'Tabel tidak valid' }, { status: 400 });
   }
 
@@ -89,8 +97,9 @@ export async function DELETE(
   try {
     const idColumn = ID_COLUMN_MAP[tableName];
 
+    // Gunakan type assertion saat memanggil .from()
     const { error } = await supabase
-      .from(tableName)
+      .from(tableName as TableName)
       .delete()
       .eq(idColumn, id);
 

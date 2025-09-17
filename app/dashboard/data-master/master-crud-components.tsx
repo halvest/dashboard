@@ -1,9 +1,10 @@
+// app/dashboard/data-master/master-crud-components.tsx
 'use client'
 
 import React, { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import * as z from 'zod'
-import { useForm } from 'react-hook-form'
+import { useForm, FieldValues, UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -151,7 +152,8 @@ export function MasterCrudTable<T extends AnyMasterItem>({ dataType, data, confi
           <AlertDialogHeader>
             <AlertDialogTitle>Anda yakin?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus data <span className="font-semibold">&quot;{deleteAlert.item?.[config.nameKey as keyof T]}&quot;</span> secara permanen.
+              {/* PERBAIKAN 1: Menggunakan String() untuk memastikan nilai dapat dirender */}
+              Tindakan ini tidak dapat dibatalkan. Ini akan menghapus data <span className="font-semibold">&quot;{String(deleteAlert.item?.[config.nameKey as keyof T])}&quot;</span> secara permanen.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -165,6 +167,24 @@ export function MasterCrudTable<T extends AnyMasterItem>({ dataType, data, confi
     </Card>
   )
 }
+
+// PERBAIKAN 2: Skema Zod digabungkan menjadi satu union schema
+const masterSchema = z.union([
+  z.object({
+    nama_jenis_hki: z.string().min(3, 'Nama jenis harus memiliki minimal 3 karakter.'),
+  }),
+  z.object({
+    id_kelas: z.coerce.number().int().min(1, 'ID harus antara 1-45').max(45, 'ID harus antara 1-45'),
+    nama_kelas: z.string().min(3, 'Nama kelas harus memiliki minimal 3 karakter.'),
+    tipe: z.enum(['Barang', 'Jasa'], { required_error: 'Tipe harus dipilih.' }),
+  }),
+  z.object({
+    nama_opd: z.string().min(3, 'Nama pengusul harus memiliki minimal 3 karakter.'),
+  }),
+]);
+
+// Buat tipe dari union schema
+type MasterFormValues = z.infer<typeof masterSchema>;
 
 const generateSchema = (dataType: MasterDataType) => {
   switch (dataType) {
@@ -183,9 +203,11 @@ const generateSchema = (dataType: MasterDataType) => {
         nama_opd: z.string().min(3, 'Nama pengusul harus memiliki minimal 3 karakter.'),
       });
     default:
-      throw new Error('Tipe data master tidak valid');
+      // Seharusnya tidak pernah terjadi, tapi baik untuk penanganan error
+      return z.object({});
   }
 };
+
 
 interface MasterDataModalProps<T extends AnyMasterItem> {
   isOpen: boolean
@@ -201,10 +223,11 @@ function MasterDataModal<T extends AnyMasterItem>({ isOpen, onClose, item, dataT
 
   const formSchema = useMemo(() => generateSchema(dataType), [dataType]);
   
-  const form = useForm<z.infer<typeof formSchema>>({
+  // PERBAIKAN 3: Memberi tipe eksplisit pada useForm
+  const form = useForm<MasterFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: useMemo(() => {
-      if (isEditMode && item) return item;
+      if (isEditMode && item) return item as any; // 'as any' untuk menyederhanakan tipe default
       switch (dataType) {
         case 'jenis_hki': return { nama_jenis_hki: '' };
         case 'kelas_hki': return { id_kelas: undefined, nama_kelas: '', tipe: 'Barang' };
@@ -216,7 +239,8 @@ function MasterDataModal<T extends AnyMasterItem>({ isOpen, onClose, item, dataT
 
   const { isSubmitting } = form.formState;
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  // PERBAIKAN 4: Memberi tipe eksplisit pada 'values' di onSubmit
+  const onSubmit = async (values: MasterFormValues) => {
     const toastId = toast.loading(isEditMode ? 'Memperbarui data...' : 'Menyimpan data...');
     const id = isEditMode && item ? item[config.idKey as keyof T] : '';
     const url = isEditMode ? `/api/master/${dataType}/${id}` : `/api/master/${dataType}`;
@@ -239,11 +263,14 @@ function MasterDataModal<T extends AnyMasterItem>({ isOpen, onClose, item, dataT
     }
   };
 
+  // PERBAIKAN 5: Melakukan type assertion pada `form.control` untuk memuaskan tipe FormField
+  const typedForm = form as unknown as UseFormReturn<FieldValues>;
+
   const renderFormFields = () => {
     switch (dataType) {
       case 'jenis_hki':
         return (
-          <FormField control={form.control} name="nama_jenis_hki" render={({ field }) => (
+          <FormField control={typedForm.control} name="nama_jenis_hki" render={({ field }) => (
             <FormItem>
               <FormLabel>Nama Jenis HKI</FormLabel>
               <FormControl><Input placeholder="Contoh: Merek" {...field} /></FormControl>
@@ -254,21 +281,21 @@ function MasterDataModal<T extends AnyMasterItem>({ isOpen, onClose, item, dataT
       case 'kelas_hki':
         return (
           <div className="space-y-4">
-            <FormField control={form.control} name="id_kelas" render={({ field }) => (
+            <FormField control={typedForm.control} name="id_kelas" render={({ field }) => (
               <FormItem>
                 <FormLabel>ID Kelas (1-45)</FormLabel>
                 <FormControl><Input type="number" placeholder="Contoh: 35" {...field} disabled={isEditMode} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="nama_kelas" render={({ field }) => (
+            <FormField control={typedForm.control} name="nama_kelas" render={({ field }) => (
               <FormItem>
                 <FormLabel>Nama Kelas</FormLabel>
                 <FormControl><Input placeholder="Contoh: Periklanan, manajemen usaha..." {...field} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="tipe" render={({ field }) => (
+            <FormField control={typedForm.control} name="tipe" render={({ field }) => (
               <FormItem>
                 <FormLabel>Tipe</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
@@ -285,7 +312,7 @@ function MasterDataModal<T extends AnyMasterItem>({ isOpen, onClose, item, dataT
         );
       case 'pengusul':
         return (
-          <FormField control={form.control} name="nama_opd" render={({ field }) => (
+          <FormField control={typedForm.control} name="nama_opd" render={({ field }) => (
             <FormItem>
               <FormLabel>Nama Pengusul (OPD)</FormLabel>
               <FormControl><Input placeholder="Contoh: Dinas Koperasi, Usaha Kecil dan Menengah" {...field} /></FormControl>

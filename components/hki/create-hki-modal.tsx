@@ -1,4 +1,5 @@
 // app/components/hki/create-hki-modal.tsx
+
 'use client'
 
 import React, { useState, useCallback } from 'react'
@@ -7,7 +8,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { HKIForm } from '@/components/forms/hki-form'
-import { HKIEntry } from '@/lib/types'
+import { HKIEntry, JenisHKI } from '@/lib/types'
 import { PlusSquare, Loader2 } from 'lucide-react'
 
 type ComboboxOption = { value: string; label: string };
@@ -18,6 +19,7 @@ interface CreateHKIModalProps {
   onSuccess?: (newItem: HKIEntry) => void
   onError?: (message: string) => void
   formOptions: {
+    // Tipe data yang diterima oleh modal ini
     jenisOptions: { id_jenis: number; nama_jenis: string }[]
     statusOptions: { id_status: number; nama_status: string }[]
     pengusulOptions: ComboboxOption[]
@@ -43,12 +45,18 @@ export function CreateHKIModal({
     onClose(); // Tutup modal setelah sukses
   }, [onSuccess, onClose]);
 
-  // handleClose sekarang hanya digunakan untuk tombol batal dan klik di luar modal.
   const handleClose = useCallback(() => {
     if (!isSubmitting) {
       onClose();
     }
   }, [isSubmitting, onClose]);
+
+  // DIPERBAIKI: Ubah (map) nama properti dari `jenisOptions` agar sesuai dengan yang diharapkan oleh HKIForm.
+  // HKIForm mengharapkan `id_jenis_hki` dan `nama_jenis_hki`.
+  const mappedJenisOptions: JenisHKI[] = formOptions.jenisOptions.map(option => ({
+    id_jenis_hki: option.id_jenis,
+    nama_jenis_hki: option.nama_jenis,
+  }));
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -72,7 +80,8 @@ export function CreateHKIModal({
           <HKIForm
             id={CREATE_FORM_ID}
             mode="create"
-            jenisOptions={formOptions.jenisOptions}
+            // Gunakan data yang sudah di-map
+            jenisOptions={mappedJenisOptions}
             statusOptions={formOptions.statusOptions}
             pengusulOptions={formOptions.pengusulOptions}
             kelasOptions={formOptions.kelasOptions}

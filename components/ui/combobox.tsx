@@ -1,3 +1,5 @@
+// components/ui/combobox.tsx
+
 'use client'
 
 import * as React from 'react'
@@ -23,7 +25,9 @@ interface ComboboxProps {
   options: { value: string; label: string }[]
   value?: string
   onChange: (value: string) => void
-  placeholder?: string
+  // DIPERBAIKI: Mengubah tipe dari `string` ke `React.ReactNode`
+  // Ini memungkinkan placeholder untuk menerima komponen React (seperti ikon + teks).
+  placeholder?: React.ReactNode
   searchPlaceholder?: string
   emptyMessage?: string
   noResultsMessage?: string
@@ -53,6 +57,9 @@ export function Combobox({
     setOpen(false)
   }
 
+  // Menentukan apa yang akan ditampilkan: label yang dipilih atau placeholder.
+  const displayContent = value ? selectedLabel : placeholder;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -63,9 +70,11 @@ export function Combobox({
           className="min-w-0 w-full justify-between font-normal"
           disabled={disabled || loading}
         >
-          <span className="truncate">
-            {value ? selectedLabel : placeholder}
-          </span>
+          {/* Bagian ini sekarang bisa merender string atau komponen React */}
+          <div className="truncate flex items-center">
+            {displayContent}
+          </div>
+
           {loading ? (
             <Loader2 className="ml-2 h-4 w-4 shrink-0 animate-spin opacity-50" />
           ) : (

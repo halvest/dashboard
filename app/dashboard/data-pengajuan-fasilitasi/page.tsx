@@ -44,26 +44,26 @@ export default async function HKIPage({
     const sortOrder = searchParams.sortOrder === 'asc';
     const offset = (page - 1) * pageSize;
 
+    // Menggunakan logika yang benar dengan `null` agar data muncul
     const rpcParams = {
-      p_search_text: search || null,
+      p_search_text: search,
       p_jenis_id: jenisId ? Number(jenisId) : null,
       p_status_id: statusId ? Number(statusId) : null,
       p_year: year ? Number(year) : null,
       p_pengusul_id: pengusulId ? Number(pengusulId) : null,
     };
 
-    // Panggil RPC untuk mendapatkan ID yang difilter dan total hitungan
-    const { data: filterResult, error: rpcError } = await supabase.rpc('search_hki_ids_with_count', rpcParams);
+    // DIPERBAIKI: Menambahkan `as any` untuk mengatasi error TypeScript yang keliru
+    const { data: filterResult, error: rpcError } = await supabase.rpc('search_hki_ids_with_count', rpcParams as any);
 
     if (rpcError) {
-      console.error('Error saat memanggil RPC Filter:', rpcError);
+      console.error('Error calling RPC Filter:', rpcError);
       throw new Error('Gagal melakukan pencarian data HKI.');
     }
 
     const filteredIds = filterResult?.map((r: { result_id: number }) => r.result_id) ?? [];
     const totalCount = filterResult?.[0]?.result_count ?? 0;
     
-    // Query utama untuk mengambil data HKI yang sudah digabungkan
     const querySelectString = `
       id_hki, nama_hki, jenis_produk, tahun_fasilitasi, sertifikat_pdf, keterangan, created_at,
       pemohon ( id_pemohon, nama_pemohon, alamat ),
@@ -76,11 +76,10 @@ export default async function HKIPage({
     const hkiQuery = supabase
       .from('hki')
       .select(querySelectString)
-      .in('id_hki', filteredIds)
+      .in('id_hki', filteredIds.length > 0 ? filteredIds : ['']) 
       .order(sortBy, { ascending: sortOrder })
       .range(offset, offset + pageSize - 1);
 
-    // Ambil semua data untuk opsi form secara paralel
     const [hkiRes, jenisRes, statusRes, tahunRes, pengusulRes, kelasRes] = await Promise.all([
       hkiQuery, 
       supabase.from('jenis_hki').select('id_jenis_hki, nama_jenis_hki').order('nama_jenis_hki'),
@@ -90,7 +89,6 @@ export default async function HKIPage({
       supabase.from('kelas_hki').select('id_kelas, nama_kelas, tipe').order('id_kelas'),
     ]);
     
-    // Error handling untuk setiap promise
     if (hkiRes.error) throw new Error(`Gagal memuat data HKI: ${hkiRes.error.message}`);
     if (jenisRes.error) throw new Error(`Gagal memuat jenis HKI: ${jenisRes.error.message}`);
     if (statusRes.error) throw new Error(`Gagal memuat status HKI: ${statusRes.error.message}`);
@@ -98,11 +96,13 @@ export default async function HKIPage({
     if (pengusulRes.error) throw new Error(`Gagal memuat data pengusul: ${pengusulRes.error.message}`);
     if (kelasRes.error) throw new Error(`Gagal memuat data kelas HKI: ${kelasRes.error.message}`);
 
-    // Siapkan data untuk prop `formOptions`
+    const tahunOptionsData = (tahunRes.data as { tahun_fasilitasi: number }[] | null) ?? [];
+    const mappedTahunOptions = tahunOptionsData.map(item => ({ tahun: item.tahun_fasilitasi }));
+
     const formOptions: FormOptions = {
       jenisOptions: jenisRes.data ?? [],
       statusOptions: statusRes.data ?? [],
-      tahunOptions: (tahunRes.data as { tahun: number }[] | null) ?? [],
+      tahunOptions: mappedTahunOptions,
       pengusulOptions: (pengusulRes.data || []).map(p => ({
         value: String(p.id_pengusul),
         label: p.nama_opd, 

@@ -1,9 +1,13 @@
 // app/api/master/[tableName]/route.ts
-import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
-import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/utils/supabase/server';
+import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+import type { Database } from '@/lib/database.types'; // <-- Tambahkan impor ini
 
-const TABLE_SAFELIST = ['jenis_hki', 'kelas_hki', 'pengusul'];
+// Definisikan tipe TableName dari Supabase types
+type TableName = keyof Database['public']['Tables'];
+
+const TABLE_SAFELIST: TableName[] = ['jenis_hki', 'kelas_hki', 'pengusul'];
 
 /**
  * Admin Guard Helper
@@ -29,7 +33,8 @@ export async function POST(
   { params }: { params: { tableName: string } }
 ) {
   const { tableName } = params;
-  if (!TABLE_SAFELIST.includes(tableName)) {
+  // Lakukan type assertion di sini untuk pengecekan
+  if (!TABLE_SAFELIST.includes(tableName as TableName)) {
     return NextResponse.json({ message: 'Tabel tidak valid' }, { status: 400 });
   }
 
@@ -51,14 +56,19 @@ export async function POST(
       }
     }
 
+    // Gunakan type assertion saat memanggil .from()
     const { data, error } = await supabase
-      .from(tableName)
+      .from(tableName as TableName)
       .insert(body)
       .select()
       .single();
 
     if (error) {
       console.error('Error membuat data master:', error);
+      // Tangani error spesifik jika ada, misalnya duplikasi
+      if (error.code === '23505') { // unique_violation
+        return NextResponse.json({ message: 'Data dengan nama/ID tersebut sudah ada.' }, { status: 409 });
+      }
       return NextResponse.json({ message: error.message }, { status: 400 });
     }
 

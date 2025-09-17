@@ -1,4 +1,5 @@
 // app/components/hki/export-modal.tsx
+
 'use client'
 
 import React, { useState, useMemo } from 'react';
@@ -13,7 +14,7 @@ import { HKIEntry, JenisHKI, StatusHKI } from '@/lib/types';
 import { BookCheck, Building, CalendarDays, Loader2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { downloadExport } from '@/app/services/hki-service';
+import { downloadFilteredExport } from '@/app/services/hki-service';
 import { Combobox } from '@/components/ui/combobox';
 
 type ComboboxOption = { value: string; label: string };
@@ -23,7 +24,6 @@ type ExportFormat = 'csv' | 'xlsx';
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // Kita butuh data dinamis untuk mengisi pilihan filter
   formOptions: {
     tahunOptions: { tahun: number }[];
     pengusulOptions: ComboboxOption[];
@@ -37,28 +37,35 @@ export function ExportModal({ isOpen, onClose, formOptions }: ExportModalProps) 
   const [format, setFormat] = useState<ExportFormat>('xlsx');
   const [isExporting, setIsExporting] = useState(false);
   
-  // Memoize opsi untuk performa, terutama jika daftarnya panjang
   const pengusulOptions = useMemo(() => formOptions.pengusulOptions, [formOptions.pengusulOptions]);
   const statusOptions = useMemo(() => formOptions.statusOptions, [formOptions.statusOptions]);
   const tahunOptions = useMemo(() => formOptions.tahunOptions.map(y => ({ value: String(y.tahun), label: String(y.tahun) })), [formOptions.tahunOptions]);
   
-  // Reset nilai filter saat tipe filter berubah
   const handleFilterTypeChange = (value: FilterType) => {
     setFilterBy(value);
-    setFilterValue(''); // Reset pilihan
+    setFilterValue('');
   };
 
-  // Cek apakah tombol ekspor bisa diaktifkan
   const canExport = filterValue !== '';
 
   const handleExport = async () => {
     if (!canExport) return;
     setIsExporting(true);
     
-    const exportPromise = downloadExport({
+    // DIPERBAIKI: Membuat objek `filters` sesuai dengan format yang diharapkan oleh fungsi `downloadFilteredExport`.
+    const filters = {
+      search: '',
+      jenisId: '',
+      // Mengisi nilai filter yang sesuai berdasarkan pilihan pengguna
+      statusId: filterBy === 'status' ? filterValue : '',
+      year: filterBy === 'year' ? filterValue : '',
+      pengusulId: filterBy === 'pengusul' ? filterValue : '',
+    };
+    
+    // Memanggil fungsi ekspor dengan struktur objek yang benar.
+    const exportPromise = downloadFilteredExport({
       format,
-      filter: filterBy,
-      value: filterValue,
+      filters, // Menggunakan 'filters' (plural) bukan 'filter'
     });
 
     toast.promise(exportPromise, {
@@ -67,12 +74,11 @@ export function ExportModal({ isOpen, onClose, formOptions }: ExportModalProps) 
       error: (err) => err.message || 'Gagal mengekspor data.',
     });
     
-    // Tunggu promise selesai (berhasil atau gagal), lalu reset state
     try {
       await exportPromise;
-      onClose(); // Tutup modal jika berhasil
+      onClose();
     } catch (e) {
-      // Biarkan modal terbuka jika gagal agar pengguna bisa mencoba lagi
+      // Biarkan modal terbuka jika gagal
     } finally {
       setIsExporting(false);
     }

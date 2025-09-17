@@ -1,3 +1,5 @@
+// components/hki/data-table.tsx
+
 'use client'
 
 import React, { useState, useEffect, useCallback, useMemo, useTransition, memo, useRef } from 'react'
@@ -41,6 +43,13 @@ import { downloadFilteredExport } from '@/app/services/hki-service'
 // =================================================================
 // UTILITIES & CONSTANTS
 // =================================================================
+
+// DIPERBAIKI: Menambahkan definisi tipe ComboboxOption yang hilang.
+type ComboboxOption = {
+  value: string;
+  label: string;
+};
+
 type KnownStatus = 'Diterima' | 'Didaftar' | 'Ditolak' | 'Dalam Proses';
 const STATUS_STYLES: Record<KnownStatus | 'Default', { className: string; icon: LucideIcon }> = {
   'Diterima': { className: 'border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300', icon: CheckCircle },
@@ -119,7 +128,6 @@ const InteractiveExportModal = ({ isOpen, onClose, filters, formOptions }: {
             if (pengusul) summary.push(`Pengusul: ${pengusul.label}`);
         }
         if (filters.jenisId) {
-            // PERBAIKAN: Menggunakan nama properti yang benar
             const jenis = formOptions.jenisOptions.find((j: any) => j.id_jenis_hki.toString() === filters.jenisId);
             if (jenis) summary.push(`Jenis HKI: ${jenis.nama_jenis_hki}`);
         }
@@ -211,7 +219,6 @@ const DataTableToolbar = memo(({ tableState, formOptions, onBulkDelete, onOpenCr
 }) => {
   const { filters, selectedRows, handleFilterChange, clearFilters } = tableState;
   const activeFiltersCount = Object.values(filters).filter(val => !!val).length;
-  // PERBAIKAN: Menggunakan nama properti yang benar
   const selectedJenisLabel = formOptions.jenisOptions.find((o: any) => o.id_jenis_hki.toString() === filters.jenisId)?.nama_jenis_hki;
   const selectedStatusLabel = formOptions.statusOptions.find((o: any) => o.id_status.toString() === filters.statusId)?.nama_status;
   const shouldShowBottomBar = selectionModeActive || activeFiltersCount > 0;
@@ -256,7 +263,6 @@ const DataTableToolbar = memo(({ tableState, formOptions, onBulkDelete, onOpenCr
               <SelectTrigger className="h-10 truncate"><FilterTrigger icon={Copyright} label={selectedJenisLabel} placeholder='Semua Jenis HKI' /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Jenis HKI</SelectItem>
-                {/* PERBAIKAN: Menggunakan nama properti yang benar */}
                 {formOptions.jenisOptions.map((opt: JenisHKI) => <SelectItem key={opt.id_jenis_hki} value={String(opt.id_jenis_hki)}>{opt.nama_jenis_hki}</SelectItem>)}
               </SelectContent>
             </Select>

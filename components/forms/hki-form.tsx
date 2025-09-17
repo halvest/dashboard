@@ -1,3 +1,5 @@
+// components/forms/hki-form.tsx
+
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
@@ -129,7 +131,9 @@ export function HKIForm({
   }, []);
 
   const focusOnError = (fieldName: string, accordionId: string) => {
-    setActiveAccordion((prev) => [...new Set([...prev, accordionId])]);
+    // DIPERBAIKI: Menggunakan Array.from() untuk kompatibilitas dengan target JS yang lebih lama.
+    // Ini mencegah error "downlevelIteration".
+    setActiveAccordion((prev) => Array.from(new Set([...prev, accordionId])));
     setTimeout(() => {
       const element = document.querySelector(`[name="${fieldName}"]`) as HTMLElement;
       element?.focus();
@@ -219,7 +223,7 @@ export function HKIForm({
       <form
         id={id}
         onSubmit={form.handleSubmit(onSubmit, onInvalid)}
-        className="space-y-4" // PERBAIKAN: Menghapus max-h dan overflow
+        className="space-y-4"
       >
         <fieldset disabled={isSubmitting} className="space-y-4">
           <Accordion type="multiple" value={activeAccordion} onValueChange={setActiveAccordion} className="w-full">
@@ -340,7 +344,7 @@ export function HKIForm({
                               type="file"
                               accept=".pdf"
                               className="hidden"
-                              id={`${id}-file-upload`} // Gunakan ID unik untuk setiap form instance
+                              id={`${id}-file-upload`}
                               onChange={(e) => {
                                   onChange(e.target.files);
                                   if (e.target.files?.length) setIsDeletingFile(false);
@@ -364,7 +368,8 @@ export function HKIForm({
                         {showExistingFile && (
                           <div className="mt-2 p-2 border rounded-md flex items-center justify-between bg-muted/50 text-sm">
                             <span className="truncate text-blue-600 font-medium">
-                              {initialData.sertifikat_pdf.split('/').pop()}
+                              {/* DIPERBAIKI: Menggunakan optional chaining (?.) untuk mencegah error jika initialData.sertifikat_pdf null */}
+                              {initialData.sertifikat_pdf?.split('/').pop()}
                             </span>
                             <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={handleRemoveExistingFile}>
                               <X className="h-4 w-4" />

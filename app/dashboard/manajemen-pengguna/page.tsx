@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 export type UserProfile = {
   id: string;
   email: string | undefined;
-  full_name: string | null;
+  full_name: string; // Diubah menjadi string, karena kita akan memberikan nilai pengganti
   role: 'admin' | 'user';
   created_at: string;
 };
@@ -61,6 +61,7 @@ async function getUsersData() {
     return {
       id: user.id,
       email: user.email,
+      // Memberikan nilai pengganti jika full_name null atau undefined.
       full_name: profile?.full_name ?? 'Nama Tidak Ditemukan',
       role: profile?.role === 'admin' ? 'admin' : 'user',
       created_at: new Date(user.created_at).toISOString(),
@@ -86,15 +87,20 @@ export default async function UserManagementPage() {
     .select('role')
     .eq('id', user.id)
     .single();
-    
+
   if (profile?.role !== 'admin') {
     redirect('/dashboard?error=Akses_Ditolak');
   }
 
+  // DIPERBAIKI: Menentukan apakah pengguna saat ini adalah super admin.
+  // Cara ini aman karena dievaluasi di server.
+  // Pastikan Anda sudah mengatur SUPER_ADMIN_EMAIL di file .env.local Anda.
+  const isSuperAdmin = user.email === process.env.SUPER_ADMIN_EMAIL;
+
   try {
     // Ambil data pengguna jika verifikasi berhasil
     const usersData = await getUsersData();
-    
+
     return (
       <div className="space-y-6">
         <div>
@@ -105,9 +111,12 @@ export default async function UserManagementPage() {
             Tambah, edit, dan kelola peran pengguna yang dapat mengakses dasbor.
           </p>
         </div>
-        
-        {/* Render Client Component dan kirim data sebagai props */}
-        <UserManagementClient initialUsers={usersData} />
+
+        {/* Render Client Component dan kirim data sebagai props, termasuk status super admin */}
+        <UserManagementClient
+          initialUsers={usersData}
+          currentUserIsSuperAdmin={isSuperAdmin}
+        />
       </div>
     );
   } catch (error) {
@@ -116,8 +125,8 @@ export default async function UserManagementPage() {
       <div className="text-red-600 bg-red-50 border border-red-200 p-4 rounded-md">
         <h2 className="font-bold">Terjadi Kesalahan</h2>
         <p>
-          {error instanceof Error 
-            ? error.message 
+          {error instanceof Error
+            ? error.message
             : "Gagal memuat data pengguna karena kesalahan tidak diketahui."}
         </p>
       </div>

@@ -1,4 +1,4 @@
-// app/hki/layout.tsx
+// app/dashboard/layout.tsx
 import { Metadata } from 'next';
 import { AdminLayout } from '@/components/layout/admin-layout';
 import { createClient } from '@/utils/supabase/server'; 
@@ -66,7 +66,8 @@ async function protectAdminRoute(): Promise<AuthResult> {
       return { user: null, errorType: 'profile_not_found' };
     }
 
-    if (!ALLOWED_ROLES.includes(profile.role)) { 
+    // PERBAIKAN: Tambahkan pengecekan null untuk `profile.role` sebelum digunakan
+    if (!profile.role || !ALLOWED_ROLES.includes(profile.role)) { 
       console.warn(`Akses ditolak: User ID ${user.id} dengan role '${profile.role}' mencoba mengakses route admin.`);
       return { user, errorType: 'unauthorized' };
     }
