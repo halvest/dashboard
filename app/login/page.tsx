@@ -6,7 +6,13 @@ import { createClient } from '@/lib/supabase-browser'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 // Impor ikon untuk tampilan yang lebih baik
@@ -32,24 +38,28 @@ export default function LoginPage() {
 
       if (error) {
         // Pesan error yang lebih ramah
-        toast.error('Login Gagal: Email atau kata sandi salah.', { id: toastId })
+        toast.error('Login Gagal: Email atau kata sandi salah.', {
+          id: toastId,
+        })
         return
       }
 
       // Verifikasi peran admin (logika ini sudah sangat bagus)
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role') 
+        .select('role')
         .eq('id', data.user.id)
         .single()
 
-      if (profile?.role !== 'admin') { 
+      if (profile?.role !== 'admin') {
         await supabase.auth.signOut()
         toast.error('Akses Ditolak: Anda bukan admin.', { id: toastId })
         return
       }
 
-      toast.success('Login berhasil! Mengalihkan ke dashboard...', { id: toastId })
+      toast.success('Login berhasil! Mengalihkan ke dashboard...', {
+        id: toastId,
+      })
       router.push('/dashboard')
       router.refresh()
     } catch (error) {
@@ -61,9 +71,9 @@ export default function LoginPage() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/candi-prambanan.jpg')" }} 
+        style={{ backgroundImage: "url('/candi-prambanan.jpg')" }}
       />
       <div className="absolute inset-0 bg-black/60" />
       <Card className="relative z-10 w-full max-w-md shadow-2xl">
@@ -71,10 +81,10 @@ export default function LoginPage() {
           <div className="flex justify-center">
             <ShieldCheck className="h-10 w-10 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">Manajemen Data Pengajuan HKI</CardTitle>
-          <CardDescription>
-            Silakan masuk terlebih dahulu!
-          </CardDescription>
+          <CardTitle className="text-2xl font-bold">
+            Manajemen Data Pengajuan HKI
+          </CardTitle>
+          <CardDescription>Silakan masuk terlebih dahulu!</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-6">
@@ -101,11 +111,7 @@ export default function LoginPage() {
                 disabled={isLoading}
               />
             </div>
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={isLoading}
-            >
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {/* -- PERUBAHAN 3: Indikator loading yang lebih jelas -- */}
               {isLoading ? (
                 <>

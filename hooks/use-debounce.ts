@@ -1,6 +1,6 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'
 
 /**
  * Custom hook untuk menunda pembaruan nilai (debounce).
@@ -11,19 +11,19 @@ import { useState, useEffect } from 'react';
  * @returns Nilai yang sudah di-debounce.
  */
 export function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
 
   useEffect(() => {
     // Set timeout untuk memperbarui nilai setelah delay
     const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
+      setDebouncedValue(value)
+    }, delay)
 
     // Bersihkan timeout jika nilai berubah (misal: pengguna mengetik lagi)
     return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]); // Hanya jalankan ulang efek jika nilai atau delay berubah
+      clearTimeout(handler)
+    }
+  }, [value, delay]) // Hanya jalankan ulang efek jika nilai atau delay berubah
 
-  return debouncedValue;
+  return debouncedValue
 }

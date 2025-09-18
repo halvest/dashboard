@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-type ComboboxOption = { value: string; label: string };
+type ComboboxOption = { value: string; label: string }
 
 interface HKIClientPageProps {
   initialData: HKIEntry[]
@@ -24,7 +24,7 @@ interface HKIClientPageProps {
     pengusulOptions: ComboboxOption[]
     kelasOptions: ComboboxOption[]
   }>
-  error: string | null;
+  error: string | null
 }
 
 const ServerErrorDisplay = ({ errorMessage }: { errorMessage: string }) => (
@@ -46,72 +46,83 @@ const ServerErrorDisplay = ({ errorMessage }: { errorMessage: string }) => (
       Coba Lagi
     </Button>
   </div>
-);
+)
 
+export function HKIClientPage({
+  initialData,
+  totalCount,
+  formOptions,
+  error,
+}: HKIClientPageProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
-export function HKIClientPage({ initialData, totalCount, formOptions, error }: HKIClientPageProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const isCreateModalOpen = searchParams.get('create') === 'true';
+  const isCreateModalOpen = searchParams.get('create') === 'true'
   const editingHkiId = useMemo(() => {
-    const id = searchParams.get('edit');
-    return id ? Number(id) : null;
-  }, [searchParams]);
+    const id = searchParams.get('edit')
+    return id ? Number(id) : null
+  }, [searchParams])
   const viewingEntryId = useMemo(() => {
-    const id = searchParams.get('view');
-    return id ? Number(id) : null;
-  }, [searchParams]);
+    const id = searchParams.get('view')
+    return id ? Number(id) : null
+  }, [searchParams])
 
   const viewingEntry = useMemo(() => {
-      if (!viewingEntryId) return null;
-      return initialData.find(item => item.id_hki === viewingEntryId) || null;
-  }, [viewingEntryId, initialData]);
+    if (!viewingEntryId) return null
+    return initialData.find((item) => item.id_hki === viewingEntryId) || null
+  }, [viewingEntryId, initialData])
 
-  const modalFormOptions = useMemo(() => ({
-    ...formOptions,
-    jenisOptions: formOptions.jenisOptions.map(j => ({
-      id_jenis: j.id_jenis_hki,
-      nama_jenis: j.nama_jenis_hki,
-    })),
-    tahunOptions: formOptions.tahunOptions.map(t => t.tahun_fasilitasi),
-  }), [formOptions]);
+  const modalFormOptions = useMemo(
+    () => ({
+      ...formOptions,
+      jenisOptions: formOptions.jenisOptions.map((j) => ({
+        id_jenis: j.id_jenis_hki,
+        nama_jenis: j.nama_jenis_hki,
+      })),
+      tahunOptions: formOptions.tahunOptions.map((t) => t.tahun_fasilitasi),
+    }),
+    [formOptions]
+  )
 
   const updateQueryString = (newParams: Record<string, string | null>) => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams.toString())
     Object.entries(newParams).forEach(([key, value]) => {
       if (value === null) {
-        params.delete(key);
+        params.delete(key)
       } else {
-        params.set(key, value);
+        params.set(key, value)
       }
-    });
-    router.push(`?${params.toString()}`, { scroll: false });
-  };
-  
-  const handleOpenCreateModal = () => updateQueryString({ create: 'true', edit: null, view: null });
-  const handleEdit = (id: number) => updateQueryString({ edit: String(id), create: null, view: null });
-  const handleViewDetails = (entry: HKIEntry) => updateQueryString({ view: String(entry.id_hki), create: null, edit: null });
-  const handleCloseModals = () => updateQueryString({ create: null, edit: null, view: null });
+    })
+    router.push(`?${params.toString()}`, { scroll: false })
+  }
+
+  const handleOpenCreateModal = () =>
+    updateQueryString({ create: 'true', edit: null, view: null })
+  const handleEdit = (id: number) =>
+    updateQueryString({ edit: String(id), create: null, view: null })
+  const handleViewDetails = (entry: HKIEntry) =>
+    updateQueryString({ view: String(entry.id_hki), create: null, edit: null })
+  const handleCloseModals = () =>
+    updateQueryString({ create: null, edit: null, view: null })
 
   if (error) {
     return <ServerErrorDisplay errorMessage={error} />
   }
 
   const refreshData = (message: string) => {
-    toast.info('Memuat ulang data terbaru...', { duration: 1500 });
-    router.refresh();
-    toast.success(message, { duration: 3000 });
+    toast.info('Memuat ulang data terbaru...', { duration: 1500 })
+    router.refresh()
+    toast.success(message, { duration: 3000 })
   }
 
   const handleEditSuccess = (updatedItem: HKIEntry) => {
-    handleCloseModals();
-    refreshData(`Data HKI "${updatedItem.nama_hki}" berhasil diperbarui.`);
+    handleCloseModals()
+    refreshData(`Data HKI "${updatedItem.nama_hki}" berhasil diperbarui.`)
   }
 
   const handleCreateSuccess = (newItem: HKIEntry) => {
-    handleCloseModals();
-    refreshData(`Data HKI "${newItem.nama_hki}" berhasil ditambahkan.`);
+    handleCloseModals()
+    refreshData(`Data HKI "${newItem.nama_hki}" berhasil ditambahkan.`)
   }
 
   const handleError = (message = 'Terjadi kesalahan') => {

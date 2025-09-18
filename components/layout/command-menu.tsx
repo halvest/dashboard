@@ -52,7 +52,9 @@ export function CommandMenu() {
         <CommandList>
           <CommandEmpty>Tidak ada hasil.</CommandEmpty>
           <CommandGroup heading="Navigasi">
-            <CommandItem onSelect={() => runCommand(() => router.push('/dashboard'))}>
+            <CommandItem
+              onSelect={() => runCommand(() => router.push('/dashboard'))}
+            >
               <Home className="mr-2 h-4 w-4" />
               <span>Dasbor</span>
             </CommandItem>
@@ -63,7 +65,9 @@ export function CommandMenu() {
           </CommandGroup>
           <CommandSeparator />
           <CommandGroup heading="Aksi">
-            <CommandItem onSelect={() => runCommand(() => router.push('/hki/create'))}>
+            <CommandItem
+              onSelect={() => runCommand(() => router.push('/hki/create'))}
+            >
               <Plus className="mr-2 h-4 w-4" />
               <span>Buat Entri HKI Baru</span>
             </CommandItem>

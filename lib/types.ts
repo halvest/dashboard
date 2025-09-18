@@ -1,5 +1,6 @@
 // lib/types.ts
 
+// Tipe data dasar dari Supabase (bisa digenerate)
 export interface Pemohon {
   id_pemohon: number;
   nama_pemohon: string;
@@ -27,7 +28,8 @@ export interface KelasHKI {
   tipe: string;
 }
 
-export interface HKIBase {
+// Tipe entri HKI yang digabungkan (relasional)
+export interface HKIEntry {
   id_hki: number;
   nama_hki: string;
   jenis_produk: string | null;
@@ -35,18 +37,33 @@ export interface HKIBase {
   sertifikat_pdf: string | null;
   keterangan: string | null;
   created_at: string;
-  updated_at: string | null;
-  id_pemohon: number;
-  id_jenis_hki: number;
-  id_status: number;
-  id_pengusul: number;
-  id_kelas: number | null;
-}
-
-export type HKIEntry = Omit<HKIBase, 'id_pemohon' | 'id_jenis_hki' | 'id_status' | 'id_pengusul' | 'id_kelas'> & {
   pemohon: Pemohon | null;
   jenis: JenisHKI | null;
   status_hki: StatusHKI | null;
   pengusul: Pengusul | null;
   kelas: KelasHKI | null;
+}
+
+// Tipe data untuk pengguna yang digabungkan dari auth.users dan public.profiles
+export type UserProfile = {
+  id: string;
+  email?: string;
+  full_name: string;
+  role: 'admin' | 'user';
+  created_at: string;
+};
+
+// Tipe untuk opsi combobox/select yang sering digunakan
+export type SelectOption = {
+  value: string;
+  label: string;
+};
+
+// Tipe untuk opsi form yang dikirim ke komponen klien
+export type FormOptions = {
+  jenisOptions: JenisHKI[];
+  statusOptions: StatusHKI[];
+  tahunOptions: { tahun_fasilitasi: number }[];
+  pengusulOptions: SelectOption[];
+  kelasOptions: SelectOption[];
 };

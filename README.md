@@ -1,29 +1,27 @@
 Tentu, saya akan rombak total `README` ini agar lebih profesional, detail, dan sepenuhnya sesuai dengan proyek manajemen HKI yang telah kita bangun bersama.
 
-Saya akan menyajikannya dalam Bahasa Indonesia yang jelas, menambahkan detail teknis yang relevan seperti skema SQL, dan mempercantik tampilannya dengan *badge* dan format yang lebih baik.
+Saya akan menyajikannya dalam Bahasa Indonesia yang jelas, menambahkan detail teknis yang relevan seperti skema SQL, dan mempercantik tampilannya dengan _badge_ dan format yang lebih baik.
 
------
+---
 
 ### Inilah `README.md` baru yang telah disempurnakan:
 
 ````markdown
-#  Dashboard Admin - Manajemen Data HKI
+# Dashboard Admin - Manajemen Data HKI
 
 Selamat datang di Dashboard Admin Manajemen Hak Kekayaan Intelektual (HKI). Aplikasi ini adalah solusi lengkap yang dibangun untuk memusatkan, mengelola, dan menganalisis data pengajuan HKI secara efisien dan aman. Dibangun dengan teknologi modern, dashboard ini menawarkan antarmuka yang profesional dan fitur-fitur canggih untuk mempermudah alur kerja administrasi.
-
-
 
 ---
 
 ## ✨ Fitur Utama
 
--   **Otentikasi & Keamanan:** Sistem login berbasis email/password dengan verifikasi peran (hanya **admin** yang dapat mengakses dashboard).
--   **Manajemen Data HKI (CRUD):** Kemampuan penuh untuk **membuat, membaca, memperbarui, dan menghapus** data HKI dengan formulir yang intuitif.
--   **Tabel Data Interaktif & Responsif:** Menampilkan data dengan fitur **pencarian**, **penyortiran (sorting)**, **filter** berdasarkan beberapa kriteria, dan **paginasi**. Tampilan tabel otomatis berubah menjadi **kartu (card view)** di perangkat mobile untuk pengalaman pengguna terbaik.
--   **Fitur Ekspor Data Canggih:** Admin dapat mengekspor data yang sudah difilter ke dalam format **CSV** dan **Excel (.xlsx)** dengan nama file yang deskriptif.
--   **Manajemen File Aman:** Kemampuan untuk mengunggah sertifikat HKI dalam format **PDF**, yang disimpan dengan aman di Supabase Storage dan diakses melalui **URL sementara (signed URL)**.
--   **Validasi Formulir Modern:** Validasi data di sisi klien yang tangguh menggunakan **Zod** dan **React Hook Form** untuk memastikan integritas data.
--   **Antarmuka Profesional:** Didesain dengan **shadcn/ui** dan **TailwindCSS** untuk tampilan yang bersih, modern, dan sepenuhnya responsif.
+- **Otentikasi & Keamanan:** Sistem login berbasis email/password dengan verifikasi peran (hanya **admin** yang dapat mengakses dashboard).
+- **Manajemen Data HKI (CRUD):** Kemampuan penuh untuk **membuat, membaca, memperbarui, dan menghapus** data HKI dengan formulir yang intuitif.
+- **Tabel Data Interaktif & Responsif:** Menampilkan data dengan fitur **pencarian**, **penyortiran (sorting)**, **filter** berdasarkan beberapa kriteria, dan **paginasi**. Tampilan tabel otomatis berubah menjadi **kartu (card view)** di perangkat mobile untuk pengalaman pengguna terbaik.
+- **Fitur Ekspor Data Canggih:** Admin dapat mengekspor data yang sudah difilter ke dalam format **CSV** dan **Excel (.xlsx)** dengan nama file yang deskriptif.
+- **Manajemen File Aman:** Kemampuan untuk mengunggah sertifikat HKI dalam format **PDF**, yang disimpan dengan aman di Supabase Storage dan diakses melalui **URL sementara (signed URL)**.
+- **Validasi Formulir Modern:** Validasi data di sisi klien yang tangguh menggunakan **Zod** dan **React Hook Form** untuk memastikan integritas data.
+- **Antarmuka Profesional:** Didesain dengan **shadcn/ui** dan **TailwindCSS** untuk tampilan yang bersih, modern, dan sepenuhnya responsif.
 
 ---
 
@@ -55,11 +53,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Kunci Service Role (secret) Supabase Anda (untuk operasi di sisi server)
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+```
 ````
 
 ### 2\. 🗄️ Konfigurasi Database & Storage Supabase
 
-Aplikasi ini memerlukan beberapa tabel dan sebuah *bucket* penyimpanan. Jalankan skrip SQL berikut di **SQL Editor** pada dashboard Supabase Anda.
+Aplikasi ini memerlukan beberapa tabel dan sebuah _bucket_ penyimpanan. Jalankan skrip SQL berikut di **SQL Editor** pada dashboard Supabase Anda.
 
 \<details\>
 \<summary\>\<strong\>Klik untuk melihat Skema SQL Lengkap\</strong\>\</summary\>
@@ -167,9 +166,9 @@ EXECUTE PROCEDURE public.handle_updated_at();
 3.  Beri nama bucket `sertifikat-hki`.
 4.  Pastikan opsi **"Public bucket"** **tidak dicentang**.
 5.  Setelah bucket dibuat, navigasi ke **Storage** \> **Policies**.
-6.  Buat kebijakan (*policy*) baru untuk bucket `sertifikat-hki` agar admin dapat mengunggah dan mengakses file. Contoh:
-      * **Allow admin uploads (`INSERT`):** Izinkan `INSERT` untuk *role* `authenticated` jika profil pengguna adalah admin.
-      * **Allow admin reads (`SELECT`):** Izinkan `SELECT` untuk *role* `authenticated` jika profil pengguna adalah admin.
+6.  Buat kebijakan (_policy_) baru untuk bucket `sertifikat-hki` agar admin dapat mengunggah dan mengakses file. Contoh:
+    - **Allow admin uploads (`INSERT`):** Izinkan `INSERT` untuk _role_ `authenticated` jika profil pengguna adalah admin.
+    - **Allow admin reads (`SELECT`):** Izinkan `SELECT` untuk _role_ `authenticated` jika profil pengguna adalah admin.
 
 ### 3\. 📦 Instalasi Dependensi
 
@@ -195,7 +194,7 @@ Aplikasi akan tersedia di `http://localhost:3000`.
 2.  Tambahkan semua variabel dari `.env.local` ke pengaturan **Environment Variables** di dashboard Vercel.
 3.  Deploy\!
 
------
+---
 
 ## 📂 Struktur Proyek
 
@@ -228,11 +227,12 @@ services/
 middleware.ts           # Middleware untuk proteksi route (cek otentikasi)
 ```
 
------
+---
 
 ## 📄 Lisensi
 
 Proyek ini dilisensikan di bawah Lisensi MIT.
 
 ```
+
 ```

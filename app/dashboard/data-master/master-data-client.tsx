@@ -9,7 +9,7 @@ import { Copyright, Building, FileText } from 'lucide-react'
 export type MasterDataType = 'jenis_hki' | 'kelas_hki' | 'pengusul'
 
 // Perbaikan: Menyesuaikan tipe agar lebih robust
-export type AnyMasterItem = JenisHKI | KelasHKI | Pengusul;
+export type AnyMasterItem = JenisHKI | KelasHKI | Pengusul
 
 export const masterConfig = {
   jenis_hki: {
@@ -54,15 +54,25 @@ interface MasterDataClientProps {
   initialPengusul: Pengusul[]
 }
 
-export function MasterDataClient({ initialJenis, initialKelas, initialPengusul }: MasterDataClientProps) {
+export function MasterDataClient({
+  initialJenis,
+  initialKelas,
+  initialPengusul,
+}: MasterDataClientProps) {
   return (
     <Tabs defaultValue="jenis_hki" className="w-full">
       <TabsList className="grid w-full grid-cols-3 h-12">
-        <TabsTrigger value="jenis_hki" className="gap-2 text-base md:text-sm"><Copyright className="h-4 w-4" /> Jenis HKI</TabsTrigger>
-        <TabsTrigger value="kelas_hki" className="gap-2 text-base md:text-sm"><FileText className="h-4 w-4" /> Kelas HKI</TabsTrigger>
-        <TabsTrigger value="pengusul" className="gap-2 text-base md:text-sm"><Building className="h-4 w-4" /> Pengusul (OPD)</TabsTrigger>
+        <TabsTrigger value="jenis_hki" className="gap-2 text-base md:text-sm">
+          <Copyright className="h-4 w-4" /> Jenis HKI
+        </TabsTrigger>
+        <TabsTrigger value="kelas_hki" className="gap-2 text-base md:text-sm">
+          <FileText className="h-4 w-4" /> Kelas HKI
+        </TabsTrigger>
+        <TabsTrigger value="pengusul" className="gap-2 text-base md:text-sm">
+          <Building className="h-4 w-4" /> Pengusul (OPD)
+        </TabsTrigger>
       </TabsList>
-      
+
       <TabsContent value="jenis_hki" className="mt-4">
         <MasterCrudTable
           dataType="jenis_hki"
@@ -70,7 +80,7 @@ export function MasterDataClient({ initialJenis, initialKelas, initialPengusul }
           config={masterConfig.jenis_hki}
         />
       </TabsContent>
-      
+
       <TabsContent value="kelas_hki" className="mt-4">
         <MasterCrudTable
           dataType="kelas_hki"
@@ -80,7 +90,7 @@ export function MasterDataClient({ initialJenis, initialKelas, initialPengusul }
       </TabsContent>
 
       <TabsContent value="pengusul" className="mt-4">
-         <MasterCrudTable
+        <MasterCrudTable
           dataType="pengusul"
           data={initialPengusul}
           config={masterConfig.pengusul}

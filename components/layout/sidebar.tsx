@@ -1,11 +1,11 @@
 // app/components/layout/sidebar.tsx
-'use client';
+'use client'
 
-import React, { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import Image from 'next/image'; 
-import { usePathname, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { usePathname, useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Home,
   FileText,
@@ -15,11 +15,11 @@ import {
   Users,
   Database,
   type LucideIcon,
-} from 'lucide-react';
-import { User } from '@supabase/supabase-js';
-import { createClient } from '@/lib/supabase-browser';
-import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+} from 'lucide-react'
+import { User } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase-browser'
+import { cn } from '@/lib/utils'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,36 +30,44 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from 'sonner'; 
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from 'sonner'
 // --- Tipe Data & Konstanta ---
 interface NavItem {
-  name: string;
-  href: string;
-  icon: LucideIcon;
+  name: string
+  href: string
+  icon: LucideIcon
 }
 
 const mainNavigation: NavItem[] = [
   { name: 'Beranda', href: '/dashboard', icon: Home },
-  { name: 'Data Pengajuan Fasilitasi', href: '/dashboard/data-pengajuan-fasilitasi', icon: FileText },
-];
+  {
+    name: 'Data Pengajuan Fasilitasi',
+    href: '/dashboard/data-pengajuan-fasilitasi',
+    icon: FileText,
+  },
+]
 
 const managementNavigation: NavItem[] = [
-    { name: 'Laporan', href: '/dashboard/laporan', icon: BarChart3 },
-    { name: 'Data Master', href: '/dashboard/data-master', icon: Database },
-    { name: 'Manajemen Pengguna', href: '/dashboard/manajemen-pengguna', icon: Users },
-    { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings },
-];
+  { name: 'Laporan', href: '/dashboard/laporan', icon: BarChart3 },
+  { name: 'Data Master', href: '/dashboard/data-master', icon: Database },
+  {
+    name: 'Manajemen Pengguna',
+    href: '/dashboard/manajemen-pengguna',
+    icon: Users,
+  },
+  { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings },
+]
 
 // --- Komponen Anak ---
 const SidebarLink = ({ item }: { item: NavItem }) => {
-  const pathname = usePathname();
+  const pathname = usePathname()
   const isActive =
     item.href === '/dashboard'
       ? pathname === item.href
-      : pathname.startsWith(item.href);
+      : pathname.startsWith(item.href)
 
   return (
     <li className="relative">
@@ -77,38 +85,38 @@ const SidebarLink = ({ item }: { item: NavItem }) => {
         )}
       </Link>
     </li>
-  );
-};
+  )
+}
 
 // --- Konten Inti Sidebar ---
 const SidebarContent = () => {
-  const router = useRouter();
-  const supabase = createClient();
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter()
+  const supabase = createClient()
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
+      const { data, error } = await supabase.auth.getUser()
       if (!error && data.user) {
-        setUser(data.user);
+        setUser(data.user)
       }
-      setIsLoading(false);
-    };
-    fetchUser();
-  }, [supabase.auth]);
+      setIsLoading(false)
+    }
+    fetchUser()
+  }, [supabase.auth])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast.success('Berhasil keluar!'); // Notifikasi dari langkah sebelumnya
-    router.push('/login');
-    router.refresh();
-  };
+    await supabase.auth.signOut()
+    toast.success('Berhasil keluar!') // Notifikasi dari langkah sebelumnya
+    router.push('/login')
+    router.refresh()
+  }
 
   const getInitials = (email?: string) => {
-    if (!email) return '?';
-    return email.charAt(0).toUpperCase();
-  };
+    if (!email) return '?'
+    return email.charAt(0).toUpperCase()
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -119,12 +127,12 @@ const SidebarContent = () => {
           className="flex items-center gap-2 font-semibold"
         >
           <Image
-            src="/logo_sleman.png" 
+            src="/logo_sleman.png"
             alt="Logo Sleman"
-            width={50}  
-            height={50} 
-            className="shrink-0" 
-            priority 
+            width={50}
+            height={50}
+            className="shrink-0"
+            priority
           />
           <span className="text-xl text-white">Panel Dashboard</span>
         </Link>
@@ -138,14 +146,14 @@ const SidebarContent = () => {
           ))}
         </ul>
         <div>
-            <h3 className="px-4 text-xs font-semibold uppercase text-slate-500 tracking-wider">
-                Manajemen
-            </h3>
-            <ul className="mt-2 flex flex-col gap-1.5">
-                {managementNavigation.map((item) => (
-                    <SidebarLink key={item.name} item={item} />
-                ))}
-            </ul>
+          <h3 className="px-4 text-xs font-semibold uppercase text-slate-500 tracking-wider">
+            Manajemen
+          </h3>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {managementNavigation.map((item) => (
+              <SidebarLink key={item.name} item={item} />
+            ))}
+          </ul>
         </div>
       </nav>
 
@@ -165,14 +173,16 @@ const SidebarContent = () => {
               <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
             </Avatar>
             <div className="flex-1 overflow-hidden">
-              <p className="truncate text-sm font-medium text-white">
-                Admin
-              </p>
+              <p className="truncate text-sm font-medium text-white">Admin</p>
               <p className="truncate text-xs text-slate-400">{user.email}</p>
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="shrink-0 text-slate-400 hover:text-red-500">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-slate-400 hover:text-red-500"
+                >
                   <LogOut className="h-5 w-5" />
                 </Button>
               </AlertDialogTrigger>
@@ -198,17 +208,17 @@ const SidebarContent = () => {
         ) : null}
       </div>
     </div>
-  );
-};
+  )
+}
 
 // --- Komponen Utama Sidebar (Overlay/Drawer) ---
 interface SidebarProps {
-  sidebarOpen: boolean;
-  setSidebarOpen: (val: boolean) => void;
+  sidebarOpen: boolean
+  setSidebarOpen: (val: boolean) => void
 }
 
 export const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
-  const sidebarRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -216,15 +226,18 @@ export const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         sidebarRef.current &&
         !sidebarRef.current.contains(event.target as Node)
       ) {
-        setSidebarOpen(false);
+        setSidebarOpen(false)
       }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [sidebarOpen, setSidebarOpen]);
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [sidebarOpen, setSidebarOpen])
 
-  const sidebarVariants = { open: { x: 0 }, closed: { x: '-100%' } };
-  const overlayVariants = { open: { opacity: 1, pointerEvents: 'auto' as 'auto' }, closed: { opacity: 0, pointerEvents: 'none' as 'none' } };
+  const sidebarVariants = { open: { x: 0 }, closed: { x: '-100%' } }
+  const overlayVariants = {
+    open: { opacity: 1, pointerEvents: 'auto' as 'auto' },
+    closed: { opacity: 0, pointerEvents: 'none' as 'none' },
+  }
 
   return (
     <AnimatePresence>
@@ -256,5 +269,5 @@ export const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         </>
       )}
     </AnimatePresence>
-  );
-};
+  )
+}

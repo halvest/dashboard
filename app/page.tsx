@@ -4,9 +4,11 @@ import { createClient } from '@/utils/supabase/server'
 
 export default async function RootPage() {
   const cookieStore = cookies()
-  const supabase = createClient(cookieStore) 
+  const supabase = createClient(cookieStore)
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     redirect('/login')

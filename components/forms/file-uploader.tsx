@@ -9,82 +9,83 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 function formatBytes(bytes: number, decimals = 2): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const dm = decimals < 0 ? 0 : decimals
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
 }
 
 interface FileUploaderProps {
-  onFileSelect: (file: File | null) => void;
-  accept?: Record<string, string[]>; 
-  maxSize?: number; 
+  onFileSelect: (file: File | null) => void
+  accept?: Record<string, string[]>
+  maxSize?: number
 }
 
 export function FileUploader({
   onFileSelect,
-  accept = { 'application/pdf': ['.pdf'] }, 
-  maxSize = 10 * 1024 * 1024, 
+  accept = { 'application/pdf': ['.pdf'] },
+  maxSize = 10 * 1024 * 1024,
 }: FileUploaderProps) {
-  const [file, setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<File | null>(null)
 
-  const maxSizeInMB = useMemo(() => maxSize / 1024 / 1024, [maxSize]);
-  const acceptTypesLabel = useMemo(() => 
-    Object.values(accept).flat().join(', ').toUpperCase()
-  , [accept]);
+  const maxSizeInMB = useMemo(() => maxSize / 1024 / 1024, [maxSize])
+  const acceptTypesLabel = useMemo(
+    () => Object.values(accept).flat().join(', ').toUpperCase(),
+    [accept]
+  )
 
   const onDrop = useCallback(
     (acceptedFiles: File[], fileRejections: FileRejection[]) => {
       if (fileRejections.length > 0) {
-        const rejection = fileRejections[0];
-        const firstError = rejection.errors[0];
-        
+        const rejection = fileRejections[0]
+        const firstError = rejection.errors[0]
+
         switch (firstError.code) {
           case 'file-too-large':
             toast.error('File terlalu besar', {
               description: `Ukuran file Anda (${formatBytes(rejection.file.size)}) melebihi batas maksimal ${maxSizeInMB}MB.`,
-            });
-            break;
+            })
+            break
           case 'file-invalid-type':
             toast.error('Tipe file salah', {
               description: `Hanya file dengan format ${acceptTypesLabel} yang diizinkan.`,
-            });
-            break;
+            })
+            break
           default:
             toast.error('File ditolak', {
               description: firstError.message || 'Gagal mengunggah file.',
-            });
-            break;
+            })
+            break
         }
-        return;
+        return
       }
 
       // Tangani file yang diterima
       if (acceptedFiles.length > 0) {
-        const selectedFile = acceptedFiles[0];
-        setFile(selectedFile);
-        onFileSelect(selectedFile);
-        toast.success("File berhasil dipilih!", {
+        const selectedFile = acceptedFiles[0]
+        setFile(selectedFile)
+        onFileSelect(selectedFile)
+        toast.success('File berhasil dipilih!', {
           description: `${selectedFile.name} (${formatBytes(selectedFile.size)})`,
-        });
+        })
       }
     },
     [onFileSelect, maxSizeInMB, acceptTypesLabel, accept] // 'accept' ditambahkan untuk onDrop-hook
-  );
+  )
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: accept, // Gunakan prop 'accept'
     maxSize: maxSize, // Gunakan prop 'maxSize'
     multiple: false,
-  });
+  })
 
   const removeFile = useCallback(() => {
-    setFile(null);
-    onFileSelect(null);
-  }, [onFileSelect]);
+    setFile(null)
+    onFileSelect(null)
+  }, [onFileSelect])
 
   return (
     <div className="space-y-3">
@@ -97,23 +98,29 @@ export function FileUploader({
       >
         <input {...getInputProps()} />
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
-           <UploadCloud className="h-10 w-10" />
-           <span className="font-medium text-foreground">
-             {isDragActive ? "Lepaskan file di sini..." : "Seret & lepas file, atau klik untuk memilih"}
-           </span>
-           <span className="text-xs">
-             {acceptTypesLabel} (Maks. {maxSizeInMB}MB)
-           </span>
+          <UploadCloud className="h-10 w-10" />
+          <span className="font-medium text-foreground">
+            {isDragActive
+              ? 'Lepaskan file di sini...'
+              : 'Seret & lepas file, atau klik untuk memilih'}
+          </span>
+          <span className="text-xs">
+            {acceptTypesLabel} (Maks. {maxSizeInMB}MB)
+          </span>
         </div>
       </div>
-      
+
       {file && (
         <div className="flex items-center justify-between rounded-md border border-input bg-muted/50 p-3 shadow-sm">
           <div className="flex items-center gap-3 overflow-hidden">
             <FileIcon className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
             <div className="flex flex-col overflow-hidden">
-              <span className="truncate text-sm font-medium text-foreground">{file.name}</span>
-              <span className="text-xs text-muted-foreground">{formatBytes(file.size)}</span>
+              <span className="truncate text-sm font-medium text-foreground">
+                {file.name}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {formatBytes(file.size)}
+              </span>
             </div>
           </div>
           <Button

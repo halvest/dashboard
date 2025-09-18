@@ -13,14 +13,14 @@ async function getMasterData(supabase: any) {
   const [jenisRes, kelasRes, pengusulRes] = await Promise.all([
     supabase.from('jenis_hki').select('*').order('id_jenis_hki'),
     supabase.from('kelas_hki').select('*').order('id_kelas'),
-    supabase.from('pengusul').select('*').order('nama_opd')
+    supabase.from('pengusul').select('*').order('nama_opd'),
   ])
 
   if (jenisRes.error || kelasRes.error || pengusulRes.error) {
-    console.error("Gagal mengambil data master:", { 
-      jenisError: jenisRes.error, 
-      kelasError: kelasRes.error, 
-      pengusulError: pengusulRes.error 
+    console.error('Gagal mengambil data master:', {
+      jenisError: jenisRes.error,
+      kelasError: kelasRes.error,
+      pengusulError: pengusulRes.error,
     })
   }
 
@@ -36,10 +36,16 @@ export default async function MasterDataPage() {
   const supabase = createClient(cookieStore)
 
   // Guard: Pastikan hanya admin yang bisa mengakses halaman ini
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
   if (profile?.role !== 'admin') redirect('/dashboard?error=Akses_Ditolak')
 
   // Ambil data
@@ -55,7 +61,7 @@ export default async function MasterDataPage() {
           Kelola data referensi untuk Jenis HKI, Kelas HKI, dan Pengusul (OPD).
         </p>
       </div>
-      
+
       <MasterDataClient
         initialJenis={jenisData}
         initialKelas={kelasData}

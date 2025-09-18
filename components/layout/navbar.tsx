@@ -1,9 +1,9 @@
 // components/layout/navbar.tsx
-"use client";
+'use client'
 
-import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import Link from 'next/link'
+import { useRouter, usePathname } from 'next/navigation'
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +11,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu'
 import {
   Menu,
   CircleUser,
@@ -20,82 +20,82 @@ import {
   Settings,
   Sun,
   Moon,
-} from "lucide-react";
-import { createClient } from "@/lib/supabase-browser";
-import { toast } from "sonner";
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { useTheme } from "next-themes";
-import { User } from "@supabase/supabase-js";
+} from 'lucide-react'
+import { createClient } from '@/lib/supabase-browser'
+import { toast } from 'sonner'
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useTheme } from 'next-themes'
+import { User } from '@supabase/supabase-js'
 
 interface TopbarProps {
-  sidebarOpen: boolean;
-  setSidebarOpen: (val: boolean) => void;
+  sidebarOpen: boolean
+  setSidebarOpen: (val: boolean) => void
 }
 
 export function Topbar({ sidebarOpen, setSidebarOpen }: TopbarProps) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
-  const router = useRouter();
-  const pathname = usePathname();
-  const supabase = useMemo(() => createClient(), []);
-  const { theme, setTheme } = useTheme();
+  const [user, setUser] = useState<User | null>(null)
+  const [loadingUser, setLoadingUser] = useState(true)
+  const router = useRouter()
+  const pathname = usePathname()
+  const supabase = useMemo(() => createClient(), [])
+  const { theme, setTheme } = useTheme()
 
   // ✅ Fetch user session safely
   useEffect(() => {
-    let isMounted = true;
+    let isMounted = true
 
     const fetchUser = async () => {
       try {
-        const { data, error } = await supabase.auth.getUser();
+        const { data, error } = await supabase.auth.getUser()
 
-        if (error && error.name !== "AuthSessionMissingError") {
-          throw error;
+        if (error && error.name !== 'AuthSessionMissingError') {
+          throw error
         }
 
         if (isMounted) {
-          setUser(data?.user ?? null);
+          setUser(data?.user ?? null)
         }
       } catch (err) {
-        console.error("❌ Error fetching user:", err);
-        if (isMounted) setUser(null);
+        console.error('❌ Error fetching user:', err)
+        if (isMounted) setUser(null)
       } finally {
-        if (isMounted) setLoadingUser(false);
+        if (isMounted) setLoadingUser(false)
       }
-    };
+    }
 
-    fetchUser();
+    fetchUser()
 
     return () => {
-      isMounted = false;
-    };
-  }, [supabase]);
+      isMounted = false
+    }
+  }, [supabase])
 
   // ✅ Logout handler
   const handleLogout = useCallback(async () => {
     try {
-      await supabase.auth.signOut();
-      toast.success("Berhasil keluar!");
-      router.refresh();
+      await supabase.auth.signOut()
+      toast.success('Berhasil keluar!')
+      router.refresh()
     } catch (err) {
-      console.error("❌ Error saat logout:", err);
-      toast.error("Gagal keluar. Coba lagi.");
+      console.error('❌ Error saat logout:', err)
+      toast.error('Gagal keluar. Coba lagi.')
     }
-  }, [router, supabase]);
+  }, [router, supabase])
 
   // ✅ Theme toggle
   const toggleTheme = useCallback(() => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  }, [theme, setTheme]);
+    setTheme(theme === 'dark' ? 'light' : 'dark')
+  }, [theme, setTheme])
 
   // ✅ Breadcrumbs
   const breadcrumbs = useMemo(
     () =>
       pathname
-        .split("/")
+        .split('/')
         .filter(Boolean)
-        .map((crumb) => crumb.replace(/-/g, " ")),
+        .map((crumb) => crumb.replace(/-/g, ' ')),
     [pathname]
-  );
+  )
 
   return (
     <header className="sticky top-0 z-30 w-full border-b bg-white/80 shadow-sm backdrop-blur-md dark:bg-slate-900/80 dark:border-slate-800">
@@ -122,7 +122,7 @@ export function Topbar({ sidebarOpen, setSidebarOpen }: TopbarProps) {
               href="/dashboard"
               className="capitalize transition-colors hover:text-foreground"
             >
-              {breadcrumbs[0] || "Dasbor"}
+              {breadcrumbs[0] || 'Dasbor'}
             </Link>
             {breadcrumbs.slice(1).map((crumb, idx) => (
               <span key={idx} className="flex items-center gap-1">
@@ -145,7 +145,7 @@ export function Topbar({ sidebarOpen, setSidebarOpen }: TopbarProps) {
             onClick={toggleTheme}
             className="transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary/50"
           >
-            {theme === "dark" ? (
+            {theme === 'dark' ? (
               <Sun className="h-5 w-5" />
             ) : (
               <Moon className="h-5 w-5" />
@@ -193,11 +193,11 @@ export function Topbar({ sidebarOpen, setSidebarOpen }: TopbarProps) {
                 <div className="hidden text-left lg:block">
                   <span className="block text-sm font-medium text-black dark:text-white">
                     {!loadingUser && !user
-                      ? "Guest"
-                      : user?.email?.split("@")[0] || "Admin"}
+                      ? 'Guest'
+                      : user?.email?.split('@')[0] || 'Admin'}
                   </span>
                   <span className="block text-xs text-muted-foreground">
-                    {!loadingUser && !user ? "Anonymous" : "Administrator"}
+                    {!loadingUser && !user ? 'Anonymous' : 'Administrator'}
                   </span>
                 </div>
               </Button>
@@ -206,7 +206,7 @@ export function Topbar({ sidebarOpen, setSidebarOpen }: TopbarProps) {
               <DropdownMenuLabel>
                 <p>Akun Saya</p>
                 <p className="text-xs font-normal text-muted-foreground truncate">
-                  {loadingUser ? "Loading..." : user?.email || "Tidak login"}
+                  {loadingUser ? 'Loading...' : user?.email || 'Tidak login'}
                 </p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
@@ -230,5 +230,5 @@ export function Topbar({ sidebarOpen, setSidebarOpen }: TopbarProps) {
         </div>
       </div>
     </header>
-  );
+  )
 }

@@ -18,8 +18,7 @@ export function createClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
-          } catch {
-          }
+          } catch {}
         },
       },
     }
@@ -35,8 +34,7 @@ export function createServiceClient() {
         getAll() {
           return []
         },
-        setAll() {
-        },
+        setAll() {},
       },
     }
   )

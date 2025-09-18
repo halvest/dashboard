@@ -1,9 +1,9 @@
-"use client";
+'use client'
 
-import React, { useState, useCallback } from "react";
-import { Sidebar } from "./sidebar";
-import { Topbar } from "./navbar";
-import { Footer } from "./footer";
+import React, { useState, useCallback } from 'react'
+import { Sidebar } from './sidebar'
+import { Topbar } from './navbar'
+import { Footer } from './footer'
 
 // 🔹 Error Boundary sederhana untuk menghindari crash total UI
 class ErrorBoundary extends React.Component<
@@ -11,16 +11,16 @@ class ErrorBoundary extends React.Component<
   { hasError: boolean }
 > {
   constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
+    super(props)
+    this.state = { hasError: false }
   }
 
   static getDerivedStateFromError() {
-    return { hasError: true };
+    return { hasError: true }
   }
 
   componentDidCatch(error: any, errorInfo: any) {
-    console.error("❌ Error in AdminLayout:", error, errorInfo);
+    console.error('❌ Error in AdminLayout:', error, errorInfo)
   }
 
   render() {
@@ -36,19 +36,19 @@ class ErrorBoundary extends React.Component<
             </p>
           </div>
         </div>
-      );
+      )
     }
-    return this.props.children;
+    return this.props.children
   }
 }
 
 function AdminLayoutComponent({ children }: React.PropsWithChildren) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // 🔹 Callback biar lebih efisien (hindari re-render berlebih)
   const toggleSidebar = useCallback(() => {
-    setSidebarOpen((prev) => !prev);
-  }, []);
+    setSidebarOpen((prev) => !prev)
+  }, [])
 
   return (
     <div className="flex min-h-screen bg-gray-100 text-gray-900 dark:bg-slate-950 dark:text-gray-100">
@@ -71,7 +71,7 @@ function AdminLayoutComponent({ children }: React.PropsWithChildren) {
         <Footer />
       </div>
     </div>
-  );
+  )
 }
 
 // 🔹 Dibungkus ErrorBoundary agar lebih aman
@@ -82,5 +82,5 @@ export const AdminLayout = React.memo(function AdminLayout(
     <ErrorBoundary>
       <AdminLayoutComponent {...props} />
     </ErrorBoundary>
-  );
-});
+  )
+})

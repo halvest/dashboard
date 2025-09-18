@@ -1,17 +1,17 @@
 // components/layout/footer.tsx
-'use client';
+'use client'
 
-import React from 'react';
+import React from 'react'
 interface FooterProps {
-  companyName?: string;
+  companyName?: string
 }
 
 /**
 
  * @param companyName Nama perusahaan/organisasi. Default: "Bappeda Sleman".
  */
-export function Footer({ companyName = "Bappeda Sleman" }: FooterProps) {
-  const currentYear = new Date().getFullYear();
+export function Footer({ companyName = 'Bappeda Sleman' }: FooterProps) {
+  const currentYear = new Date().getFullYear()
 
   return (
     <footer className="w-full shrink-0 border-t border-gray-200 dark:border-slate-800 bg-white dark:bg-gray-900 px-4 py-4 text-center md:px-6 2xl:px-10">
@@ -19,5 +19,5 @@ export function Footer({ companyName = "Bappeda Sleman" }: FooterProps) {
         &copy; {currentYear} {companyName}. Hak Cipta Dilindungi.
       </p>
     </footer>
-  );
+  )
 }

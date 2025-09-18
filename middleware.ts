@@ -34,14 +34,14 @@ export async function middleware(request: NextRequest) {
         remove(name: string, options: CookieOptions) {
           // DIPERBAIKI: Metode `request.cookies.delete` hanya menerima `name` (string) sebagai argumen.
           // Opsi seperti path dan domain tidak relevan untuk request cookie yang masuk.
-          request.cookies.delete(name);
+          request.cookies.delete(name)
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
-          });
+          })
           // Metode `response.cookies.delete` tetap menggunakan objek untuk memberitahu browser cookie mana yang harus dihapus.
-          response.cookies.delete({ name, ...options });
+          response.cookies.delete({ name, ...options })
         },
       },
     }
