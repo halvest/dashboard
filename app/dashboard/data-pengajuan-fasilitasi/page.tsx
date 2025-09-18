@@ -1,5 +1,3 @@
-// app/dashboard/data-pengajuan-fasilitasi/page.tsx
-
 import { createClient } from '@/utils/supabase/server'
 import { HKIClientPage } from './hki-client-page'
 import { cookies } from 'next/headers'
@@ -12,13 +10,17 @@ type SelectOption = {
   label: string
 }
 
-// --- PERBAIKAN 1: Sesuaikan tipe data agar konsisten ---
+// PERBAIKAN FINAL: Tipe ini sekarang 100% cocok dengan data asli dari Supabase
 type FormOptions = {
   jenisOptions: JenisHKI[]
   statusOptions: StatusHKI[]
   tahunOptions: { tahun_fasilitasi: number }[]
   pengusulOptions: SelectOption[]
   kelasOptions: SelectOption[]
+}
+
+const getSearchParam = (param: string | string[] | undefined): string => {
+  return typeof param === 'string' ? param.trim() : ''
 }
 
 export default async function HKIPage({
@@ -30,54 +32,24 @@ export default async function HKIPage({
   const supabase = createClient(cookieStore)
 
   try {
-    const search =
-      typeof searchParams.search === 'string' ? searchParams.search.trim() : ''
-    const page =
-      typeof searchParams.page === 'string'
-        ? Math.max(1, parseInt(searchParams.page, 10))
-        : 1
-    const pageSize =
-      typeof searchParams.pageSize === 'string'
-        ? parseInt(searchParams.pageSize, 10)
-        : 10
-    const jenisId =
-      typeof searchParams.jenisId === 'string' ? searchParams.jenisId : ''
-    const statusId =
-      typeof searchParams.statusId === 'string' ? searchParams.statusId : ''
-    const year = typeof searchParams.year === 'string' ? searchParams.year : ''
-    const pengusulId =
-      typeof searchParams.pengusulId === 'string' ? searchParams.pengusulId : ''
+    // ... (Logika parameter Anda sudah benar)
+    const search = getSearchParam(searchParams.search)
+    const page = Math.max(1, parseInt(getSearchParam(searchParams.page) || '1', 10))
+    const pageSize = parseInt(getSearchParam(searchParams.pageSize) || '50', 10)
+    const jenisId = getSearchParam(searchParams.jenisId)
+    const statusId = getSearchParam(searchParams.statusId)
+    const year = getSearchParam(searchParams.year)
+    const pengusulId = getSearchParam(searchParams.pengusulId)
 
     const allowedSortFields = ['created_at', 'nama_hki', 'tahun_fasilitasi']
-    const sortBy =
-      typeof searchParams.sortBy === 'string' &&
-      allowedSortFields.includes(searchParams.sortBy)
-        ? searchParams.sortBy
-        : 'created_at'
+    const sortBy = allowedSortFields.includes(getSearchParam(searchParams.sortBy)) ? getSearchParam(searchParams.sortBy) : 'created_at'
     const sortOrder = searchParams.sortOrder === 'asc'
     const offset = (page - 1) * pageSize
+    
+    const isAnyFilterActive = !!(search || jenisId || statusId || year || pengusulId)
 
-    const rpcParams = {
-      p_search_text: search,
-      p_jenis_id: jenisId ? Number(jenisId) : null,
-      p_status_id: statusId ? Number(statusId) : null,
-      p_year: year ? Number(year) : null,
-      p_pengusul_id: pengusulId ? Number(pengusulId) : null,
-    }
-
-    const { data: filterResult, error: rpcError } = await supabase.rpc(
-      'search_hki_ids_with_count',
-      rpcParams as any
-    )
-
-    if (rpcError) {
-      console.error('Error calling RPC Filter:', rpcError)
-      throw new Error('Gagal melakukan pencarian data HKI.')
-    }
-
-    const filteredIds =
-      filterResult?.map((r: { result_id: number }) => r.result_id) ?? []
-    const totalCount = filterResult?.[0]?.result_count ?? 0
+    let dataToRender: HKIEntry[] = []
+    let totalCount = 0
 
     const querySelectString = `
       id_hki, nama_hki, jenis_produk, tahun_fasilitasi, sertifikat_pdf, keterangan, created_at,
@@ -87,85 +59,74 @@ export default async function HKIPage({
       pengusul ( id_pengusul, nama_opd ),
       kelas:kelas_hki ( id_kelas, nama_kelas, tipe )
     `
+    
+    if (isAnyFilterActive) {
+      const { data: filterResult, error: rpcError } = await supabase.rpc(
+        'search_hki_ids_with_count',
+        {
+          p_search_text: search,
+          p_jenis_id: jenisId ? Number(jenisId) : null,
+          p_status_id: statusId ? Number(statusId) : null,
+          p_year: year ? Number(year) : null,
+          p_pengusul_id: pengusulId ? Number(pengusulId) : null,
+        } as any
+      )
+      if (rpcError) throw new Error(`Gagal mencari data (RPC): ${JSON.stringify(rpcError)}`)
+      
+      const filteredIds = filterResult?.map((r: { result_id: number }) => r.result_id) ?? []
+      totalCount = filterResult?.[0]?.result_count ?? 0
 
-    // Hanya jalankan query jika ada ID yang cocok, atau jika tidak ada filter sama sekali
-    const shouldFetchHki =
-      filteredIds.length > 0 ||
-      (!search && !jenisId && !statusId && !year && !pengusulId)
-
-    let hkiQuery = supabase
-      .from('hki')
-      .select(querySelectString)
-      .order(sortBy, { ascending: sortOrder })
-      .range(offset, offset + pageSize - 1)
-
-    if (shouldFetchHki) {
-      hkiQuery = hkiQuery.in('id_hki', filteredIds)
+      if (filteredIds.length > 0) {
+        const { data, error } = await supabase.from('hki')
+          .select(querySelectString)
+          .in('id_hki', filteredIds)
+          .order(sortBy, { ascending: sortOrder })
+          .range(offset, offset + pageSize - 1)
+        
+        if (error) throw new Error(`Gagal memuat data HKI terfilter: ${JSON.stringify(error)}`)
+        dataToRender = data as HKIEntry[]
+      }
     } else {
-      // Jika filter aktif dan tidak ada ID yang cocok, tidak perlu query data HKI
-      hkiQuery = hkiQuery.limit(0)
+      const { data, count, error } = await supabase.from('hki')
+        .select(querySelectString, { count: 'exact' })
+        .order(sortBy, { ascending: sortOrder })
+        .range(offset, offset + pageSize - 1)
+
+      if (error) throw new Error(`Gagal memuat data HKI: ${JSON.stringify(error)}`)
+      dataToRender = data as HKIEntry[]
+      totalCount = count ?? 0
     }
 
-    const [hkiRes, jenisRes, statusRes, tahunRes, pengusulRes, kelasRes] =
+    const [jenisRes, statusRes, tahunRes, pengusulRes, kelasRes] =
       await Promise.all([
-        hkiQuery,
-        supabase
-          .from('jenis_hki')
-          .select('id_jenis_hki, nama_jenis_hki')
-          .order('nama_jenis_hki'),
-        supabase
-          .from('status_hki')
-          .select('id_status, nama_status')
-          .order('id_status'),
+        supabase.from('jenis_hki').select('id_jenis_hki, nama_jenis_hki').order('nama_jenis_hki'),
+        supabase.from('status_hki').select('id_status, nama_status').order('id_status'),
         supabase.rpc('get_distinct_hki_years'),
-        supabase
-          .from('pengusul')
-          .select('id_pengusul, nama_opd')
-          .order('nama_opd'),
-        supabase
-          .from('kelas_hki')
-          .select('id_kelas, nama_kelas, tipe')
-          .order('id_kelas'),
+        supabase.from('pengusul').select('id_pengusul, nama_opd').order('nama_opd'),
+        supabase.from('kelas_hki').select('id_kelas, nama_kelas, tipe').order('id_kelas'),
       ])
 
-    if (hkiRes.error)
-      throw new Error(`Gagal memuat data HKI: ${hkiRes.error.message}`)
-    if (jenisRes.error)
-      throw new Error(`Gagal memuat jenis HKI: ${jenisRes.error.message}`)
-    if (statusRes.error)
-      throw new Error(`Gagal memuat status HKI: ${statusRes.error.message}`)
-    if (tahunRes.error)
-      throw new Error(`Gagal memuat tahun HKI: ${tahunRes.error.message}`)
-    if (pengusulRes.error)
-      throw new Error(
-        `Gagal memuat data pengusul: ${pengusulRes.error.message}`
-      )
-    if (kelasRes.error)
-      throw new Error(`Gagal memuat data kelas HKI: ${kelasRes.error.message}`)
-
-    const tahunOptionsData =
-      (tahunRes.data as { tahun_fasilitasi: number }[] | null) ?? []
+    if (jenisRes.error) throw new Error(`Gagal memuat Jenis HKI: ${JSON.stringify(jenisRes.error)}`);
+    if (statusRes.error) throw new Error(`Gagal memuat Status HKI: ${JSON.stringify(statusRes.error)}`);
+    if (tahunRes.error) throw new Error(`Gagal memuat Tahun (RPC): ${JSON.stringify(tahunRes.error)}`);
+    if (pengusulRes.error) throw new Error(`Gagal memuat Pengusul: ${JSON.stringify(pengusulRes.error)}`);
+    if (kelasRes.error) throw new Error(`Gagal memuat Kelas HKI: ${JSON.stringify(kelasRes.error)}`);
 
     const formOptions: FormOptions = {
       jenisOptions: jenisRes.data ?? [],
       statusOptions: statusRes.data ?? [],
-      // --- PERBAIKAN 2: Hapus transformasi .map dan gunakan data asli ---
-      tahunOptions: tahunOptionsData,
-      pengusulOptions: (pengusulRes.data || []).map((p) => ({
-        value: String(p.id_pengusul),
-        label: p.nama_opd,
-      })),
-      kelasOptions: (kelasRes.data || []).map((k) => ({
-        value: String(k.id_kelas),
-        label: `${k.id_kelas} – ${k.nama_kelas} (${k.tipe})`,
-      })),
+      // PERBAIKAN FINAL: Pastikan cast sesuai dengan tipe FormOptions
+      tahunOptions: (tahunRes.data as { tahun_fasilitasi: number }[] | null) ?? [],
+      pengusulOptions: (pengusulRes.data || []).map((p) => ({ value: String(p.id_pengusul), label: p.nama_opd })),
+      kelasOptions: (kelasRes.data || []).map((k) => ({ value: String(k.id_kelas), label: `${k.id_kelas} – ${k.nama_kelas} (${k.tipe})` })),
     }
 
     return (
       <HKIClientPage
-        initialData={shouldFetchHki ? ((hkiRes.data as HKIEntry[]) ?? []) : []}
+        initialData={dataToRender}
         totalCount={totalCount}
         formOptions={formOptions}
+        isFiltered={isAnyFilterActive}
         error={null}
       />
     )
@@ -175,18 +136,9 @@ export default async function HKIPage({
       <HKIClientPage
         initialData={[]}
         totalCount={0}
-        formOptions={{
-          jenisOptions: [],
-          statusOptions: [],
-          tahunOptions: [],
-          pengusulOptions: [],
-          kelasOptions: [],
-        }}
-        error={
-          error instanceof Error
-            ? error.message
-            : 'Terjadi kesalahan tidak diketahui.'
-        }
+        formOptions={{ jenisOptions: [], statusOptions: [], tahunOptions: [], pengusulOptions: [], kelasOptions: [] }}
+        isFiltered={false}
+        error={ error instanceof Error ? error.message : 'Terjadi kesalahan tidak diketahui.' }
       />
     )
   }

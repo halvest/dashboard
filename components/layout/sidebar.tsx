@@ -1,7 +1,6 @@
-// app/components/layout/sidebar.tsx
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
@@ -29,12 +28,12 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
-// --- Tipe Data & Konstanta ---
+import { AlertDialogTrigger } from '@radix-ui/react-alert-dialog'
+
 interface NavItem {
   name: string
   href: string
@@ -61,7 +60,7 @@ const managementNavigation: NavItem[] = [
   { name: 'Pengaturan', href: '/dashboard/settings', icon: Settings },
 ]
 
-// --- Komponen Anak ---
+// --- Link Sidebar dengan active state ---
 const SidebarLink = ({ item }: { item: NavItem }) => {
   const pathname = usePathname()
   const isActive =
@@ -70,58 +69,70 @@ const SidebarLink = ({ item }: { item: NavItem }) => {
       : pathname.startsWith(item.href)
 
   return (
-    <li className="relative">
+    <li>
       <Link
         href={item.href}
         className={cn(
-          'group flex items-center gap-3 rounded-md px-4 py-2.5 font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-white',
-          isActive && 'bg-slate-800 text-blue-400'
+          'relative flex items-center gap-3 rounded-md px-4 py-2.5 font-medium transition-all',
+          'text-slate-400 hover:bg-slate-800/80 hover:text-white', // Warna default & hover
+          isActive &&
+            'rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30' // Desain baru untuk active
         )}
       >
         <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
         <span>{item.name}</span>
         {isActive && (
-          <div className="absolute left-0 top-0 h-full w-1 rounded-r-md bg-blue-500" />
+          // Indikator aktif (garis biru)
+          <span className="absolute left-0 top-0 h-full w-1 rounded-r-md bg-blue-300" />
         )}
       </Link>
     </li>
   )
 }
 
-// --- Konten Inti Sidebar ---
-const SidebarContent = () => {
+// --- Sidebar Content (Optimal) ---
+const SidebarContent = React.memo(function SidebarContent() {
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser()
-      if (!error && data.user) {
-        setUser(data.user)
-      }
+    const fetchInitialUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      setUser(user)
       setIsLoading(false)
     }
-    fetchUser()
-  }, [supabase.auth])
+
+    fetchInitialUser()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [supabase])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    toast.success('Berhasil keluar!') // Notifikasi dari langkah sebelumnya
+    toast.success('Berhasil keluar!')
     router.push('/login')
-    router.refresh()
   }
 
-  const getInitials = (email?: string) => {
-    if (!email) return '?'
-    return email.charAt(0).toUpperCase()
-  }
+  const getInitials = (email?: string) =>
+    email ? email.charAt(0).toUpperCase() : '?'
 
   return (
-    <div className="flex h-full flex-col">
+    // Mengubah latar belakang sidebar menjadi gradien halus
+    <div className="flex h-full flex-col bg-gradient-to-b from-slate-900 to-slate-950">
       {/* Header Sidebar */}
-      <div className="flex h-20 items-center justify-between border-b border-slate-700/50 px-4">
+      <div className="flex h-20 items-center border-b border-slate-700/50 px-4">
         <Link
           href="/dashboard"
           className="flex items-center gap-2 font-semibold"
@@ -129,27 +140,35 @@ const SidebarContent = () => {
           <Image
             src="/logo_sleman.png"
             alt="Logo Sleman"
-            width={50}
-            height={50}
-            className="shrink-0"
+            width={44}
+            height={44}
+            className="shrink-0" // Dihapus 'rounded-md'
             priority
           />
+          {/* Ukuran teks 'Panel Dashboard' sedikit diperbesar */}
           <span className="text-xl text-white">Panel Dashboard</span>
         </Link>
       </div>
 
-      {/* Menu Navigasi (Tidak berubah) */}
-      <nav className="flex-1 overflow-y-auto p-4 space-y-6">
-        <ul className="flex flex-col gap-1.5">
+      {/* Navigasi */}
+      <nav className="flex-1 space-y-6 overflow-y-auto p-4">
+        <ul className="flex flex-col gap-2">
+          {' '}
+          {/* Jarak antar item sedikit dilebarkan */}
           {mainNavigation.map((item) => (
             <SidebarLink key={item.name} item={item} />
           ))}
         </ul>
-        <div>
-          <h3 className="px-4 text-xs font-semibold uppercase text-slate-500 tracking-wider">
+
+        <div className="pt-4">
+          {' '}
+          {/* Padding atas untuk kategori */}
+          <h3 className="px-4 text-xs font-bold uppercase tracking-wider text-slate-500">
             Manajemen
           </h3>
-          <ul className="mt-2 flex flex-col gap-1.5">
+          <ul className="mt-3 flex flex-col gap-2">
+            {' '}
+            {/* Jarak antar item sedikit dilebarkan */}
             {managementNavigation.map((item) => (
               <SidebarLink key={item.name} item={item} />
             ))}
@@ -157,7 +176,7 @@ const SidebarContent = () => {
         </div>
       </nav>
 
-      {/* Footer Sidebar (Profil & Logout) (Tidak berubah) */}
+      {/* Footer User */}
       <div className="mt-auto border-t border-slate-700/50 p-4">
         {isLoading ? (
           <div className="flex items-center gap-3">
@@ -169,11 +188,16 @@ const SidebarContent = () => {
           </div>
         ) : user ? (
           <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
+            <Avatar className="relative h-10 w-10">
+              <AvatarFallback className="bg-blue-600 text-white">
+                {getInitials(user.email)}
+              </AvatarFallback>
+              {/* Status dot */}
+              <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full border-2 border-slate-900 bg-green-500" />
             </Avatar>
             <div className="flex-1 overflow-hidden">
-              <p className="truncate text-sm font-medium text-white">Admin</p>
+              <p className="truncate text-sm font-semibold text-white">Admin</p>{' '}
+              {/* Font lebih tebal */}
               <p className="truncate text-xs text-slate-400">{user.email}</p>
             </div>
             <AlertDialog>
@@ -209,9 +233,10 @@ const SidebarContent = () => {
       </div>
     </div>
   )
-}
+})
+SidebarContent.displayName = 'SidebarContent'
 
-// --- Komponen Utama Sidebar (Overlay/Drawer) ---
+// --- Wrapper Sidebar ---
 interface SidebarProps {
   sidebarOpen: boolean
   setSidebarOpen: (val: boolean) => void
@@ -231,12 +256,18 @@ export const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [sidebarOpen, setSidebarOpen])
+  }, [setSidebarOpen])
 
-  const sidebarVariants = { open: { x: 0 }, closed: { x: '-100%' } }
+  const sidebarVariants = {
+    open: { x: 0 },
+    closed: { x: '-100%' },
+  }
+
+  // --- PERBAIKAN DI SINI ---
+  // Menggunakan 'as const' untuk memberitahu TypeScript tipe yang paling spesifik.
   const overlayVariants = {
-    open: { opacity: 1, pointerEvents: 'auto' as 'auto' },
-    closed: { opacity: 0, pointerEvents: 'none' as 'none' },
+    open: { opacity: 1, pointerEvents: 'auto' as const },
+    closed: { opacity: 0, pointerEvents: 'none' as const },
   }
 
   return (
@@ -251,7 +282,7 @@ export const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             exit="closed"
             transition={{ duration: 0.3, ease: 'easeInOut' }}
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden" // Sembunyikan di layar besar
           />
 
           <motion.aside
@@ -262,7 +293,7 @@ export const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             animate="open"
             exit="closed"
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="fixed left-0 top-0 z-40 h-full w-72 bg-slate-900"
+            className="fixed inset-y-0 left-0 z-40 flex w-72 flex-col"
           >
             <SidebarContent />
           </motion.aside>

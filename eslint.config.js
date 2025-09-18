@@ -3,25 +3,25 @@ import securityPlugin from 'eslint-plugin-security'
 
 export default [
   {
-    ignores: ['.next/**', 'node_modules/**'], 
+    ignores: ['.next/**', 'node_modules/**'],
   },
   {
     files: ['**/*.js', '**/*.ts', '**/*.tsx'],
     languageOptions: {
       parserOptions: {
         ecmaVersion: 2022,
-        sourceType: 'module'
-      }
+        sourceType: 'module',
+      },
     },
     plugins: {
       '@next/next': nextPlugin,
-      security: securityPlugin
+      security: securityPlugin,
     },
     rules: {
       ...nextPlugin.configs['core-web-vitals'].rules,
       ...securityPlugin.configs.recommended.rules,
       'no-console': 'warn',
-      '@next/next/no-img-element': 'off'
-    }
-  }
+      '@next/next/no-img-element': 'off',
+    },
+  },
 ]

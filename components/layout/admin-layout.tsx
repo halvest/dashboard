@@ -1,3 +1,4 @@
+// app/components/layout/admin-layout.tsx
 'use client'
 
 import React, { useState, useCallback } from 'react'
@@ -5,7 +6,6 @@ import { Sidebar } from './sidebar'
 import { Topbar } from './navbar'
 import { Footer } from './footer'
 
-// 🔹 Error Boundary sederhana untuk menghindari crash total UI
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean }
@@ -23,17 +23,27 @@ class ErrorBoundary extends React.Component<
     console.error('❌ Error in AdminLayout:', error, errorInfo)
   }
 
+  handleRefresh = () => {
+    window.location.reload()
+  }
+
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex h-screen items-center justify-center bg-gray-100 dark:bg-slate-950">
-          <div className="rounded-xl bg-white p-6 shadow-lg dark:bg-slate-900">
+        <div className="flex h-screen items-center justify-center bg-gray-100">
+          <div className="rounded-xl bg-white p-6 shadow-lg">
             <h2 className="text-lg font-semibold text-red-600">
               Terjadi Kesalahan
             </h2>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+            <p className="mt-2 text-sm text-gray-600">
               Mohon refresh halaman atau hubungi admin jika masalah berlanjut.
             </p>
+            <button
+              onClick={this.handleRefresh}
+              className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-400"
+            >
+              Refresh Halaman
+            </button>
           </div>
         </div>
       )
@@ -44,24 +54,33 @@ class ErrorBoundary extends React.Component<
 
 function AdminLayoutComponent({ children }: React.PropsWithChildren) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-
-  // 🔹 Callback biar lebih efisien (hindari re-render berlebih)
-  const toggleSidebar = useCallback(() => {
+  const handleToggleSidebar = useCallback(() => {
     setSidebarOpen((prev) => !prev)
   }, [])
 
   return (
-    <div className="flex min-h-screen bg-gray-100 text-gray-900 dark:bg-slate-950 dark:text-gray-100">
+    <div className="flex min-h-screen bg-gray-100 text-gray-900">
       {/* Sidebar */}
-      <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+      <Sidebar
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        aria-expanded={sidebarOpen}
+      />
 
-      {/* Main content */}
+      {/* Main Area */}
       <div className="flex flex-1 flex-col">
         {/* Topbar */}
-        <Topbar sidebarOpen={sidebarOpen} setSidebarOpen={toggleSidebar} />
+        <Topbar
+          sidebarOpen={sidebarOpen}
+          setSidebarOpen={handleToggleSidebar}
+        />
 
         {/* Content */}
-        <main role="main" className="flex-1 focus:outline-none" tabIndex={-1}>
+        <main
+          role="main"
+          className="flex-1 focus:outline-none"
+          aria-label="Konten utama"
+        >
           <div className="mx-auto w-full max-w-screen-2xl p-4 md:p-6 2xl:p-10">
             {children}
           </div>
@@ -74,7 +93,6 @@ function AdminLayoutComponent({ children }: React.PropsWithChildren) {
   )
 }
 
-// 🔹 Dibungkus ErrorBoundary agar lebih aman
 export const AdminLayout = React.memo(function AdminLayout(
   props: React.PropsWithChildren
 ) {

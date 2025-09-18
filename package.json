@@ -7,8 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:fix": "next lint --fix",
     "type-check": "tsc --noEmit",
-    "check": "npm run lint && npm run type-check && npm run build"
+    "check": "npm run lint && npm run type-check && npm run build",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -42,6 +44,7 @@
     "@radix-ui/react-tooltip": "^1.1.2",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.43.4",
+    "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.12",
     "@types/react-dom": "18.2.7",
     "@types/uuid": "^10.0.0",
@@ -77,9 +80,13 @@
   "devDependencies": {
     "@types/node": "^24.5.2",
     "@types/react": "^19.1.13",
-    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^8.44.0",
+    "@typescript-eslint/parser": "^8.44.0",
+    "eslint": "^8.57.1",
     "eslint-config-next": "^15.5.3",
-    "eslint-plugin-security": "^3.0.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-security": "^2.1.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.2"
   }
