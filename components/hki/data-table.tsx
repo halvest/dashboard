@@ -1,18 +1,14 @@
+// app/components/hki/data-table.tsx
 'use client'
 
-// React and Next.js imports
 import React, { useState, useEffect, useCallback, useMemo, useTransition, memo, useRef, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-
-// Library imports
 import { toast } from 'sonner'
 import {
   ArrowDown, ArrowUp, ArrowUpDown, BookCheck, Building, CalendarDays, CheckCircle, ChevronLeft, ChevronRight,
   Clock, Copyright, Download, Edit, Eye, FolderOpen, Loader2, MoreHorizontal, Plus, Search,
   SlidersHorizontal, Trash2, Upload, X, XCircle, type LucideIcon
 } from 'lucide-react'
-
-// UI component imports
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -28,18 +24,12 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-
-// Utility and service imports
 import { useDebounce } from '@/hooks/use-debounce'
-import { HKIEntry, JenisHKI, StatusHKI } from '@/lib/types'
+import { HKIEntry, StatusHKI, FormOptions } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { downloadFilteredExport } from '@/app/services/hki-service'
 
-// =================================================================
-// SECTION 1: Tipe Data, Konstanta & Fungsi Helper
-// =================================================================
-
-type ComboboxOption = { value: string; label: string };
+type HKIFilters = { search: string; jenisId: string; statusId: string; year: string; pengusulId: string; }
 type KnownStatus = 'Diterima' | 'Didaftar' | 'Ditolak' | 'Dalam Proses';
 
 const STATUS_STYLES: Record<KnownStatus | 'Default', { className: string; icon: LucideIcon }> = {
@@ -52,15 +42,8 @@ const STATUS_STYLES: Record<KnownStatus | 'Default', { className: string; icon: 
 
 export const getStatusStyle = (statusName?: string) => STATUS_STYLES[statusName as KnownStatus] || STATUS_STYLES['Default'];
 
-const DEFAULTS = {
-  page: 1,
-  pageSize: 50,
-  sortBy: 'created_at',
-  sortOrder: 'desc' as const,
-};
-
+const DEFAULTS = { page: 1, pageSize: 50, sortBy: 'created_at', sortOrder: 'desc' as const, };
 const clamp = (num: number, min: number, max: number) => Math.max(min, Math.min(num, max));
-
 const buildPageItems = (current: number, total: number) => {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   if (current < 5) return [1, 2, 3, 4, '…', total];
@@ -68,123 +51,78 @@ const buildPageItems = (current: number, total: number) => {
   return [1, '…', current - 1, current, current + 1, '…', total];
 };
 
-interface HKIFilters {
-  search: string;
-  jenisId: string;
-  statusId: string;
-  year: string;
-  pengusulId: string;
-}
-
-// =================================================================
-// SECTION 2: Custom Hook untuk Logika State Tabel
-// =================================================================
 function useDataTable(totalCount: number) {
   const router = useRouter();
   const searchParams = useSearchParams();
-
   const [filters, setFilters] = useState<HKIFilters>({
-    search: searchParams.get('search') || '',
-    jenisId: searchParams.get('jenisId') || '',
-    statusId: searchParams.get('statusId') || '',
-    year: searchParams.get('year') || '',
+    search: searchParams.get('search') || '', jenisId: searchParams.get('jenisId') || '',
+    statusId: searchParams.get('statusId') || '', year: searchParams.get('year') || '',
     pengusulId: searchParams.get('pengusulId') || '',
   });
-
   const [pagination, setPagination] = useState({
     page: Number(searchParams.get('page')) || DEFAULTS.page,
     pageSize: Number(searchParams.get('pageSize')) || DEFAULTS.pageSize,
   });
-
   const [sort, setSort] = useState({
     sortBy: searchParams.get('sortBy') || DEFAULTS.sortBy,
     sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc') || DEFAULTS.sortOrder,
   });
-
   const [selectedRows, setSelectedRows] = useState(new Set<number>());
   const debouncedSearch = useDebounce(filters.search, 500);
 
   useEffect(() => {
-    const params = new URLSearchParams();
-    
+    const params = new URLSearchParams(searchParams.toString());
     const state = { ...filters, search: debouncedSearch, ...pagination, ...sort };
-    
     Object.entries(state).forEach(([key, value]) => {
       const defaultValue = DEFAULTS[key as keyof typeof DEFAULTS] ?? '';
       if (value && String(value).length > 0 && String(value) !== String(defaultValue)) {
         params.set(key, String(value));
+      } else {
+        params.delete(key);
       }
     });
-    
     router.push(`?${params.toString()}`, { scroll: false });
-  }, [debouncedSearch, filters, pagination, sort, router]);
+  }, [debouncedSearch, filters, pagination, sort, router, searchParams]);
 
   const handleSort = useCallback((columnId: string) => {
     if (!['created_at', 'nama_hki', 'tahun_fasilitasi'].includes(columnId)) return;
-    setSort((s) => ({
-      sortBy: columnId,
-      sortOrder: s.sortBy === columnId && s.sortOrder === 'asc' ? 'desc' : 'asc',
-    }));
+    setSort((s) => ({ sortBy: columnId, sortOrder: s.sortBy === columnId && s.sortOrder === 'asc' ? 'desc' : 'asc', }));
     setPagination((p) => ({ ...p, page: 1 }));
   }, []);
-
   const handleFilterChange = useCallback((filterName: keyof HKIFilters, value: string) => {
     setFilters((f) => ({ ...f, [filterName]: value }));
     setPagination((p) => ({ ...p, page: 1 }));
   }, []);
-
   const clearFilters = useCallback(() => {
     setFilters({ search: '', jenisId: '', statusId: '', year: '', pengusulId: '' });
     setPagination((p) => ({ ...p, page: 1 }));
     setSort({ sortBy: DEFAULTS.sortBy, sortOrder: DEFAULTS.sortOrder });
   }, []);
-
   const totalPages = useMemo(() => Math.max(1, Math.ceil(totalCount / pagination.pageSize)), [totalCount, pagination.pageSize]);
-  
-  const stableSetSelectedRows = useCallback(setSelectedRows, []);
-
   return {
-    filters, pagination, sort, selectedRows, totalPages,
-    setPagination, setSelectedRows: stableSetSelectedRows,
-    handleSort, handleFilterChange, clearFilters,
+    filters, pagination, sort, selectedRows, totalPages, setPagination,
+    setSelectedRows: useCallback(setSelectedRows, []), handleSort, handleFilterChange, clearFilters,
   };
 }
 type UseDataTableReturn = ReturnType<typeof useDataTable>;
 
-// =================================================================
-// SECTION 3: Komponen Anak (Memoized untuk Performa)
-// =================================================================
-
 const FilterTrigger = memo(({ icon: Icon, label, placeholder }: { icon: LucideIcon; label?: string; placeholder: string }) => (
-    <div className="flex items-center gap-2 text-sm font-normal">
-        <Icon className="h-4 w-4 text-muted-foreground" />
-        <span className={cn('truncate', !label && 'text-muted-foreground')}>{label || placeholder}</span>
-    </div>
+  <div className="flex items-center gap-2 text-sm font-normal">
+    <Icon className="h-4 w-4 text-muted-foreground" />
+    <span className={cn('truncate', !label && 'text-muted-foreground')}>{label || placeholder}</span>
+  </div>
 ));
 FilterTrigger.displayName = 'FilterTrigger';
 
 const DataTableToolbar = memo(({ tableState, formOptions, onBulkDelete, onOpenCreateModal, onOpenExportModal, enableBulkActions, selectionModeActive, toggleSelectionMode }: {
-  tableState: UseDataTableReturn;
-  formOptions: {
-    jenisOptions: JenisHKI[];
-    statusOptions: StatusHKI[];
-    // PERBAIKAN FINAL: Menggunakan `tahun` agar cocok dengan data dari RPC
-    tahunOptions: { tahun: number }[];
-    pengusulOptions: ComboboxOption[];
-  };
-  onBulkDelete: () => void;
-  onOpenCreateModal: () => void;
-  onOpenExportModal: () => void;
-  enableBulkActions: boolean;
-  selectionModeActive: boolean;
-  toggleSelectionMode: () => void;
+  tableState: UseDataTableReturn; formOptions: FormOptions; onBulkDelete: () => void;
+  onOpenCreateModal: () => void; onOpenExportModal: () => void; enableBulkActions: boolean;
+  selectionModeActive: boolean; toggleSelectionMode: () => void;
 }) => {
   const { filters, selectedRows, handleFilterChange, clearFilters } = tableState;
   const activeFiltersCount = Object.values(filters).filter((val) => !!val).length;
-
   const selectedJenisLabel = useMemo(() => formOptions.jenisOptions.find((o) => o.id_jenis_hki.toString() === filters.jenisId)?.nama_jenis_hki, [formOptions.jenisOptions, filters.jenisId]);
   const selectedStatusLabel = useMemo(() => formOptions.statusOptions.find((o) => o.id_status.toString() === filters.statusId)?.nama_status, [formOptions.statusOptions, filters.statusId]);
-
   const shouldShowBottomBar = selectionModeActive || activeFiltersCount > 0;
 
   return (
@@ -193,95 +131,50 @@ const DataTableToolbar = memo(({ tableState, formOptions, onBulkDelete, onOpenCr
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="relative w-full md:max-w-md">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              placeholder="Cari HKI, produk, atau nama pemohon..."
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-              className="pl-11 pr-10 h-10 rounded-lg text-base md:text-sm"
-            />
-            {filters.search && (
-              <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full text-muted-foreground hover:text-foreground" onClick={() => handleFilterChange('search', '')}>
-                <X className="h-4 w-4" />
-              </Button>
-            )}
+            <Input placeholder="Cari HKI, produk, atau nama pemohon..." value={filters.search}
+              onChange={(e) => handleFilterChange('search', e.target.value)} className="pl-11 pr-10 h-10 rounded-lg text-base md:text-sm" />
+            {filters.search && <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full text-muted-foreground hover:text-foreground" onClick={() => handleFilterChange('search', '')}><X className="h-4 w-4" /></Button>}
           </div>
           <div className="flex flex-col sm:flex-row w-full sm:w-auto items-center justify-end gap-3">
-            {enableBulkActions && (
-              <Button variant={selectionModeActive ? 'destructive' : 'outline'} className="gap-2 w-full sm:w-auto h-10" onClick={toggleSelectionMode}>
-                {selectionModeActive ? <X className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
-                <span className="font-medium text-base md:text-sm">{selectionModeActive ? 'Batal' : 'Pilih Data'}</span>
-              </Button>
-            )}
-            <Button variant="outline" className="gap-2 w-full sm:w-auto h-10" onClick={onOpenExportModal}>
-              <Upload className="h-4 w-4" />
-              <span className="font-medium text-base md:text-sm">Ekspor Data</span>
-            </Button>
-            <Button className="gap-2 w-full sm:w-auto shadow-sm h-10" onClick={onOpenCreateModal}>
-              <Plus className="h-5 w-5" />
-              <span className="font-semibold text-base md:text-sm">Tambah Data</span>
-            </Button>
+            {enableBulkActions && <Button variant={selectionModeActive ? 'destructive' : 'outline'} className="gap-2 w-full sm:w-auto h-10" onClick={toggleSelectionMode}>{selectionModeActive ? <X className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}<span className="font-medium text-base md:text-sm">{selectionModeActive ? 'Batal' : 'Pilih Data'}</span></Button>}
+            <Button variant="outline" className="gap-2 w-full sm:w-auto h-10" onClick={onOpenExportModal}><Upload className="h-4 w-4" /><span className="font-medium text-base md:text-sm">Ekspor Data</span></Button>
+            <Button className="gap-2 w-full sm:w-auto shadow-sm h-10" onClick={onOpenCreateModal}><Plus className="h-5 w-5" /><span className="font-semibold text-base md:text-sm">Tambah Data</span></Button>
           </div>
         </div>
       </CardHeader>
       <CardContent className="p-4">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <SlidersHorizontal className="h-4 w-4" />
-            <span>Filter Lanjutan</span>
+            <SlidersHorizontal className="h-4 w-4" /> <span>Filter Lanjutan</span>
             {activeFiltersCount > 0 && <Badge variant="secondary" className="px-2 py-0.5 text-xs">{activeFiltersCount} Aktif</Badge>}
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Select value={filters.jenisId || ''} onValueChange={(v) => handleFilterChange('jenisId', v === 'all' ? '' : v)}>
-              <SelectTrigger className="h-10 truncate">
-                <FilterTrigger icon={Copyright} label={selectedJenisLabel} placeholder="Semua Jenis HKI" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Jenis HKI</SelectItem>
-                {formOptions.jenisOptions.map((opt) => <SelectItem key={opt.id_jenis_hki} value={String(opt.id_jenis_hki)}>{opt.nama_jenis_hki}</SelectItem>)}
-              </SelectContent>
+              <SelectTrigger className="h-10 truncate"><FilterTrigger icon={Copyright} label={selectedJenisLabel} placeholder="Semua Jenis HKI" /></SelectTrigger>
+              <SelectContent><SelectItem value="all">Semua Jenis HKI</SelectItem>{formOptions.jenisOptions.map((opt) => <SelectItem key={opt.id_jenis_hki} value={String(opt.id_jenis_hki)}>{opt.nama_jenis_hki}</SelectItem>)}</SelectContent>
             </Select>
             <Select value={filters.statusId || ''} onValueChange={(v) => handleFilterChange('statusId', v === 'all' ? '' : v)}>
-              <SelectTrigger className="h-10 truncate">
-                <FilterTrigger icon={BookCheck} label={selectedStatusLabel} placeholder="Semua Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                {formOptions.statusOptions.map((opt) => <SelectItem key={opt.id_status} value={String(opt.id_status)}>{opt.nama_status}</SelectItem>)}
-              </SelectContent>
+              <SelectTrigger className="h-10 truncate"><FilterTrigger icon={BookCheck} label={selectedStatusLabel} placeholder="Semua Status" /></SelectTrigger>
+              <SelectContent><SelectItem value="all">Semua Status</SelectItem>{formOptions.statusOptions.map((opt) => <SelectItem key={opt.id_status} value={String(opt.id_status)}>{opt.nama_status}</SelectItem>)}</SelectContent>
             </Select>
             <Select value={filters.year || ''} onValueChange={(v) => handleFilterChange('year', v === 'all' ? '' : v)}>
-              <SelectTrigger className="h-10">
-                <FilterTrigger icon={CalendarDays} label={filters.year} placeholder="Semua Tahun" />
-              </SelectTrigger>
+              <SelectTrigger className="h-10"><FilterTrigger icon={CalendarDays} label={filters.year} placeholder="Semua Tahun" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Tahun</SelectItem>
-                {/* PERBAIKAN FINAL: Menggunakan properti `tahun` yang benar */}
-                {formOptions.tahunOptions.map((opt, index) => {
-                  const year = opt.tahun;
-                  return <SelectItem key={`${year}-${index}`} value={String(year)}>{String(year)}</SelectItem>;
-                })}
+                {formOptions.tahunOptions.map((opt, index) => (
+                  <SelectItem key={`${opt.tahun}-${index}`} value={String(opt.tahun)}>
+                    {opt.tahun}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <Combobox
-              options={[{ value: '', label: 'Semua Pengusul (OPD)' }, ...formOptions.pengusulOptions]}
-              value={filters.pengusulId}
-              onChange={(v) => handleFilterChange('pengusulId', v)}
-              placeholder={<FilterTrigger icon={Building} label={undefined} placeholder="Semua Pengusul" />}
-              searchPlaceholder="Cari OPD..."
-            />
+            <Combobox options={[{ value: '', label: 'Semua Pengusul (OPD)' }, ...formOptions.pengusulOptions]} value={filters.pengusulId}
+              onChange={(v) => handleFilterChange('pengusulId', v)} placeholder={<FilterTrigger icon={Building} label={undefined} placeholder="Semua Pengusul" />} searchPlaceholder="Cari OPD..." />
           </div>
           {shouldShowBottomBar && (
             <div className="flex flex-wrap items-center gap-4 pt-2">
-              {enableBulkActions && selectionModeActive && selectedRows.size > 0 && (
-                <Button variant="outline" size="sm" className="gap-2 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300" onClick={onBulkDelete}>
-                  <Trash2 className="h-4 w-4" /> Hapus ({selectedRows.size}) Pilihan
-                </Button>
-              )}
-              {activeFiltersCount > 0 && (
-                <Button variant="ghost" onClick={clearFilters} className="gap-2 text-muted-foreground hover:text-foreground h-auto p-2 text-sm font-medium">
-                  <X className="h-4 w-4" /> Bersihkan Semua Filter ({activeFiltersCount})
-                </Button>
-              )}
+              {enableBulkActions && selectionModeActive && selectedRows.size > 0 && <Button variant="outline" size="sm" className="gap-2 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300" onClick={onBulkDelete}><Trash2 className="h-4 w-4" /> Hapus ({selectedRows.size}) Pilihan</Button>}
+              {activeFiltersCount > 0 && <Button variant="ghost" onClick={clearFilters} className="gap-2 text-muted-foreground hover:text-foreground h-auto p-2 text-sm font-medium"><X className="h-4 w-4" /> Bersihkan Semua Filter ({activeFiltersCount})</Button>}
             </div>
           )}
         </div>
@@ -291,12 +184,10 @@ const DataTableToolbar = memo(({ tableState, formOptions, onBulkDelete, onOpenCr
 });
 DataTableToolbar.displayName = 'DataTableToolbar';
 
+
 const SortableHeader = memo(({ columnId, children, sort, onSort, className }: {
-  columnId: string;
-  children: ReactNode;
-  sort: { sortBy: string; sortOrder: 'asc' | 'desc' };
-  onSort: (columnId: string) => void;
-  className?: string;
+  columnId: string; children: ReactNode; sort: { sortBy: string; sortOrder: 'asc' | 'desc' };
+  onSort: (columnId: string) => void; className?: string;
 }) => {
   const isSorted = sort.sortBy === columnId;
   const SortIcon = isSorted ? (sort.sortOrder === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
@@ -312,18 +203,10 @@ const SortableHeader = memo(({ columnId, children, sort, onSort, className }: {
 SortableHeader.displayName = 'SortableHeader';
 
 const DataTableRow = memo(({ entry, index, pagination, isSelected, onSelectRow, onEdit, onDelete, onViewDetails, statusOptions, onStatusUpdate, showCheckboxColumn, flashingRowId }: {
-  entry: HKIEntry;
-  index: number;
-  pagination: { page: number; pageSize: number };
-  isSelected: boolean;
-  onSelectRow: (id: number, checked: boolean) => void;
-  onEdit: (id: number) => void;
-  onDelete: (entry: HKIEntry) => void;
-  onViewDetails: (entry: HKIEntry) => void;
-  statusOptions: StatusHKI[];
-  onStatusUpdate: (entryId: number, newStatusId: number) => void;
-  showCheckboxColumn: boolean;
-  flashingRowId: number | null;
+  entry: HKIEntry; index: number; pagination: { page: number; pageSize: number }; isSelected: boolean;
+  onSelectRow: (id: number, checked: boolean) => void; onEdit: (id: number) => void; onDelete: (entry: HKIEntry) => void;
+  onViewDetails: (entry: HKIEntry) => void; statusOptions: StatusHKI[]; onStatusUpdate: (entryId: number, newStatusId: number) => void;
+  showCheckboxColumn: boolean; flashingRowId: number | null;
 }) => {
   const [isPending, startTransition] = useTransition();
 
@@ -345,39 +228,6 @@ const DataTableRow = memo(({ entry, index, pagination, isSelected, onSelectRow, 
   const statusStyle = useMemo(() => getStatusStyle(entry.status_hki?.nama_status), [entry.status_hki?.nama_status]);
   const isFlashing = entry.id_hki === flashingRowId;
 
-  const ActionsMenu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 data-[state=open]:bg-muted"><span className="sr-only">Menu</span><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => onViewDetails(entry)}><Eye className="mr-2 h-4 w-4" /> Detail</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onEdit(entry.id_hki)}><Edit className="mr-2 h-4 w-4" /> Edit Data</DropdownMenuItem>
-        {entry.sertifikat_pdf && <DropdownMenuItem onClick={handleDownloadPDF}><Download className="mr-2 h-4 w-4" /> Unduh Sertifikat</DropdownMenuItem>}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20" onClick={() => onDelete(entry)}><Trash2 className="mr-2 h-4 w-4" /> Hapus Entri</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-
-  const StatusDropdown = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild disabled={isPending}>
-        <Button variant="outline" className={cn('h-auto px-2 py-1 text-sm font-medium disabled:opacity-100 w-full justify-start gap-2 disabled:cursor-wait', statusStyle.className)}>
-          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <statusStyle.icon className="h-4 w-4" />}
-          <span className="truncate">{entry.status_hki?.nama_status || 'N/A'}</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuLabel>Ubah Status</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={String(entry.status_hki?.id_status)} onValueChange={handleSelectStatus}>
-          {statusOptions.map((status) => {
-            const Icon = getStatusStyle(status.nama_status).icon;
-            return <DropdownMenuRadioItem key={status.id_status} value={String(status.id_status)} className="gap-2 text-sm" disabled={isPending}><Icon className="h-4 w-4" /><span>{status.nama_status}</span></DropdownMenuRadioItem>;
-          })}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-
   return (
     <>
       <TableRow data-state={isSelected ? 'selected' : ''} className={cn('dark:border-slate-800 transition-colors duration-1000 ease-out', 'hidden md:table-row', isFlashing && 'bg-emerald-50 dark:bg-emerald-900/30', isSelected && 'bg-primary/5 dark:bg-primary/10')}>
@@ -389,40 +239,49 @@ const DataTableRow = memo(({ entry, index, pagination, isSelected, onSelectRow, 
         <TableCell className="text-sm text-muted-foreground break-words py-2 px-4 align-top">{entry.pengusul?.nama_opd || '-'}</TableCell>
         <TableCell className="text-center font-mono text-sm text-foreground py-2 px-4 align-top">{entry.tahun_fasilitasi || '-'}</TableCell>
         <TableCell className="py-2 px-4 align-top"><TooltipProvider><Tooltip><TooltipTrigger asChild><p className="line-clamp-3 text-sm text-muted-foreground break-words">{entry.keterangan || '-'}</p></TooltipTrigger>{entry.keterangan && <TooltipContent align="start" className="max-w-sm whitespace-pre-line"><p>{entry.keterangan}</p></TooltipContent>}</Tooltip></TooltipProvider></TableCell>
-        <TableCell className="py-2 px-4 align-top">{StatusDropdown}</TableCell>
-        <TableCell className="text-right sticky right-0 bg-inherit z-10 px-4 py-2 border-l dark:border-slate-800 align-top">{ActionsMenu}</TableCell>
+        <TableCell className="py-2 px-4 align-top">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild disabled={isPending}>
+              <Button variant="outline" className={cn('h-auto px-2 py-1 text-sm font-medium disabled:opacity-100 w-full justify-start gap-2 disabled:cursor-wait', statusStyle.className)}>
+                {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <statusStyle.icon className="h-4 w-4" />}
+                <span className="truncate">{entry.status_hki?.nama_status || 'N/A'}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuLabel>Ubah Status</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={String(entry.status_hki?.id_status)} onValueChange={handleSelectStatus}>
+                {statusOptions.map((status) => {
+                  const Icon = getStatusStyle(status.nama_status).icon;
+                  return <DropdownMenuRadioItem key={status.id_status} value={String(status.id_status)} className="gap-2 text-sm" disabled={isPending}><Icon className="h-4 w-4" /><span>{status.nama_status}</span></DropdownMenuRadioItem>;
+                })}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </TableCell>
+        <TableCell className="text-right sticky right-0 bg-inherit z-10 px-4 py-2 border-l dark:border-slate-800 align-top">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 data-[state=open]:bg-muted"><span className="sr-only">Menu</span><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onViewDetails(entry)}><Eye className="mr-2 h-4 w-4" /> Detail</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit(entry.id_hki)}><Edit className="mr-2 h-4 w-4" /> Edit Data</DropdownMenuItem>
+              {entry.sertifikat_pdf && <DropdownMenuItem onClick={handleDownloadPDF}><Download className="mr-2 h-4 w-4" /> Unduh Sertifikat</DropdownMenuItem>}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20" onClick={() => onDelete(entry)}><Trash2 className="mr-2 h-4 w-4" /> Hapus Entri</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </TableCell>
       </TableRow>
-      <tr className="md:hidden">
-        <td colSpan={showCheckboxColumn ? 9 : 8} className="p-0">
-          <Card className={cn('m-2 border-l-4 rounded-lg', statusStyle.className.replace(/border-(?!l)/g, 'border-'), isFlashing && 'bg-emerald-50 dark:bg-emerald-900/30', isSelected && 'ring-2 ring-primary/50 dark:ring-primary')}>
-            <CardHeader className="flex flex-row items-start justify-between p-4">
-              <div className="flex items-start gap-4">
-                {showCheckboxColumn && <Checkbox className="mt-1" checked={isSelected} onCheckedChange={(c) => onSelectRow(entry.id_hki, !!c)} />}
-                <div className="space-y-1"><CardTitle className="text-base leading-tight">{entry.nama_hki}</CardTitle><p className="text-sm text-muted-foreground">{entry.pemohon?.nama_pemohon || '-'}</p></div>
-              </div>
-              {ActionsMenu}
-            </CardHeader>
-            <CardContent className="p-4 pt-0 space-y-3 text-sm">
-              <div className="flex justify-between items-center"><span className="text-muted-foreground">Jenis:</span><Badge variant="outline" className="text-right">{entry.jenis?.nama_jenis_hki || '-'}</Badge></div>
-              <div className="flex justify-between items-center"><span className="text-muted-foreground">Pengusul:</span><span className="font-medium text-right">{entry.pengusul?.nama_opd || '-'}</span></div>
-              <div className="flex justify-between items-center"><span className="text-muted-foreground">Tahun:</span><span className="font-mono">{entry.tahun_fasilitasi}</span></div>
-            </CardContent>
-            <CardFooter className="p-4 pt-0">{StatusDropdown}</CardFooter>
-          </Card>
-        </td>
-      </tr>
+      {/* Mobile Card View */}
+      <tr className="md:hidden"><td colSpan={showCheckboxColumn ? 9 : 8} className="p-0"><Card className={cn('m-2 border-l-4 rounded-lg', statusStyle.className.replace(/border-(?!l)/g, 'border-'), isFlashing && 'bg-emerald-50 dark:bg-emerald-900/30', isSelected && 'ring-2 ring-primary/50 dark:ring-primary')}><CardHeader className="flex flex-row items-start justify-between p-4"><div className="flex items-start gap-4">{showCheckboxColumn && <Checkbox className="mt-1" checked={isSelected} onCheckedChange={(c) => onSelectRow(entry.id_hki, !!c)} />}<div className="space-y-1"><CardTitle className="text-base leading-tight">{entry.nama_hki}</CardTitle><p className="text-sm text-muted-foreground">{entry.pemohon?.nama_pemohon || '-'}</p></div></div></CardHeader><CardContent className="p-4 pt-0 space-y-3 text-sm"><div className="flex justify-between items-center"><span className="text-muted-foreground">Jenis:</span><Badge variant="outline" className="text-right">{entry.jenis?.nama_jenis_hki || '-'}</Badge></div><div className="flex justify-between items-center"><span className="text-muted-foreground">Pengusul:</span><span className="font-medium text-right">{entry.pengusul?.nama_opd || '-'}</span></div><div className="flex justify-between items-center"><span className="text-muted-foreground">Tahun:</span><span className="font-mono">{entry.tahun_fasilitasi}</span></div></CardContent><CardFooter className="p-4 pt-0"></CardFooter></Card></td></tr>
     </>
   );
 });
 DataTableRow.displayName = 'DataTableRow';
 
+
 const DataTablePagination = memo(({ totalCount, pagination, totalPages, setPagination, selectedCount, showSelectionCount }: {
-  totalCount: number;
-  pagination: { page: number };
-  totalPages: number;
-  setPagination: (fn: (p: any) => any) => void;
-  selectedCount: number;
-  showSelectionCount: boolean;
+  totalCount: number; pagination: { page: number }; totalPages: number;
+  setPagination: (fn: (p: any) => any) => void; selectedCount: number; showSelectionCount: boolean;
 }) => {
   const pages = useMemo(() => buildPageItems(pagination.page, totalPages), [pagination.page, totalPages]);
   const setPage = (page: number) => setPagination((p: any) => ({ ...p, page: clamp(page, 1, totalPages) }));
@@ -458,10 +317,7 @@ const DataTablePagination = memo(({ totalCount, pagination, totalPages, setPagin
 DataTablePagination.displayName = 'DataTablePagination';
 
 const InteractiveExportModal = memo(({ isOpen, onClose, filters, formOptions }: {
-  isOpen: boolean;
-  onClose: () => void;
-  filters: HKIFilters;
-  formOptions: any;
+  isOpen: boolean; onClose: () => void; filters: HKIFilters; formOptions: FormOptions;
 }) => {
   const [format, setFormat] = useState<'xlsx' | 'csv'>('xlsx');
   const [isExporting, setIsExporting] = useState(false);
@@ -538,20 +394,11 @@ const InteractiveExportModal = memo(({ isOpen, onClose, filters, formOptions }: 
 });
 InteractiveExportModal.displayName = 'InteractiveExportModal';
 
-// =================================================================
-// SECTION 4: KOMPONEN UTAMA
-// =================================================================
+
 type DataTableProps = {
   data: HKIEntry[];
   totalCount: number;
-  formOptions: {
-    jenisOptions: JenisHKI[];
-    statusOptions: StatusHKI[];
-    // PERBAIKAN FINAL: Menggunakan `tahun` agar cocok dengan data dari RPC
-    tahunOptions: { tahun: number }[];
-    pengusulOptions: ComboboxOption[];
-    kelasOptions: ComboboxOption[];
-  };
+  formOptions: FormOptions;
   onEdit: (id: number) => void;
   onOpenCreateModal: () => void;
   onViewDetails: (entry: HKIEntry) => void;

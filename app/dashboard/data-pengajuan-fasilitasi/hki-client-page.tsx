@@ -1,3 +1,4 @@
+// app/dashboard/data-pengajuan-fasilitasi/hki-client-page.tsx
 'use client'
 
 import React, { useMemo } from 'react'
@@ -6,24 +7,15 @@ import { DataTable } from '@/components/hki/data-table'
 import { EditHKIModal } from '@/components/hki/edit-hki-modal'
 import { CreateHKIModal } from '@/components/hki/create-hki-modal'
 import { ViewHKIModal } from '@/components/hki/view-hki-modal'
-import { HKIEntry, JenisHKI, StatusHKI } from '@/lib/types'
+import { HKIEntry, FormOptions } from '@/lib/types'
 import { toast } from 'sonner'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-type ComboboxOption = { value: string; label: string }
-
-// PERBAIKAN FINAL: Menyelaraskan `tahunOptions` dengan `page.tsx`
 interface HKIClientPageProps {
   initialData: HKIEntry[]
   totalCount: number
-  formOptions: Readonly<{
-    jenisOptions: JenisHKI[]
-    statusOptions: StatusHKI[]
-    tahunOptions: { tahun_fasilitasi: number }[]
-    pengusulOptions: ComboboxOption[]
-    kelasOptions: ComboboxOption[]
-  }>
+  formOptions: Readonly<FormOptions>
   isFiltered: boolean
   error: string | null
 }
@@ -64,22 +56,6 @@ export function HKIClientPage({
     if (!viewingEntryId) return null;
     return initialData.find((item) => item.id_hki === viewingEntryId) || null;
   }, [viewingEntryId, initialData])
-
-  // PERBAIKAN FINAL: Transformasi data yang benar untuk komponen modal
-  const modalFormOptions = useMemo(() => ({
-      ...formOptions,
-      // Mengubah format agar sesuai dengan yang diharapkan oleh modal (`{ id_jenis, nama_jenis }`)
-      jenisOptions: formOptions.jenisOptions.map((j) => ({
-        id_jenis: j.id_jenis_hki,
-        nama_jenis: j.nama_jenis_hki,
-      })),
-      // Mengubah format agar sesuai dengan yang diharapkan oleh modal (`{ id_status, nama_status }`)
-      statusOptions: formOptions.statusOptions.map((s) => ({
-        id_status: s.id_status,
-        nama_status: s.nama_status,
-      })),
-      // Opsi lain diteruskan apa adanya karena sudah dalam format { value, label }
-  }), [formOptions]);
 
   const updateQueryString = (newParams: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -138,10 +114,9 @@ export function HKIClientPage({
         onViewDetails={handleViewDetails}
         isFiltered={isFiltered}
       />
-      
-      <EditHKIModal key={`edit-${editingHkiId}`} isOpen={!!editingHkiId} hkiId={editingHkiId} onClose={handleCloseModals} onSuccess={handleEditSuccess} onError={handleError} formOptions={modalFormOptions} />
-      <CreateHKIModal isOpen={isCreateModalOpen} onClose={handleCloseModals} onSuccess={handleCreateSuccess} onError={handleError} formOptions={modalFormOptions} />
-      
+
+      <EditHKIModal key={`edit-${editingHkiId}`} isOpen={!!editingHkiId} hkiId={editingHkiId} onClose={handleCloseModals} onSuccess={handleEditSuccess} onError={handleError} formOptions={formOptions} />
+      <CreateHKIModal isOpen={isCreateModalOpen} onClose={handleCloseModals} onSuccess={handleCreateSuccess} onError={handleError} formOptions={formOptions} />
       <ViewHKIModal isOpen={!!viewingEntry} onClose={handleCloseModals} entry={viewingEntry} />
     </div>
   )

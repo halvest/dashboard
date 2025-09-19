@@ -1,5 +1,4 @@
 // components/hki/view-hki-modal.tsx
-
 'use client'
 
 import React, { useCallback, memo } from 'react'
@@ -19,7 +18,6 @@ import { Download, Eye, Paperclip } from 'lucide-react'
 import { getStatusStyle } from './data-table'
 import { toast } from 'sonner'
 
-/* ======================== HELPER COMPONENT (MEMOIZED) ======================== */
 const DetailItem = memo(
   ({
     label,
@@ -44,7 +42,6 @@ const DetailItem = memo(
 )
 DetailItem.displayName = 'DetailItem'
 
-/* ======================== KOMPONEN MODAL UTAMA ======================== */
 interface ViewHKIModalProps {
   isOpen: boolean
   onClose: () => void
@@ -118,7 +115,6 @@ export function ViewHKIModal({ isOpen, onClose, entry }: ViewHKIModalProps) {
                 variant="outline"
                 className="font-medium bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 w-fit"
               >
-                {/* DIPERBAIKI: Menggunakan nama properti `nama_jenis_hki` yang benar */}
                 {entry.jenis?.nama_jenis_hki || '-'}
               </Badge>
             </DetailItem>
@@ -162,7 +158,6 @@ export function ViewHKIModal({ isOpen, onClose, entry }: ViewHKIModalProps) {
                 {entry.pemohon?.alamat || '-'}
               </p>
             </DetailItem>
-            {/* DIPERBAIKI: Menggunakan nama properti `nama_opd` yang benar */}
             <DetailItem
               label="Pengusul (OPD)"
               value={entry.pengusul?.nama_opd}

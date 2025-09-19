@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-// Impor ikon untuk tampilan yang lebih baik
 import { Loader2, ShieldCheck } from 'lucide-react'
 
 export default function LoginPage() {
@@ -37,14 +36,12 @@ export default function LoginPage() {
       })
 
       if (error) {
-        // Pesan error yang lebih ramah
         toast.error('Login Gagal: Email atau kata sandi salah.', {
           id: toastId,
         })
         return
       }
 
-      // Verifikasi peran admin (logika ini sudah sangat bagus)
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
@@ -112,7 +109,6 @@ export default function LoginPage() {
               />
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {/* -- PERUBAHAN 3: Indikator loading yang lebih jelas -- */}
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

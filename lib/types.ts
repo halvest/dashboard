@@ -1,6 +1,5 @@
 // lib/types.ts
 
-// Tipe data dasar dari Supabase (bisa digenerate)
 export interface Pemohon {
   id_pemohon: number
   nama_pemohon: string
@@ -63,7 +62,7 @@ export type SelectOption = {
 export type FormOptions = {
   jenisOptions: JenisHKI[]
   statusOptions: StatusHKI[]
-  tahunOptions: { tahun_fasilitasi: number }[]
+  tahunOptions: { tahun: number }[]
   pengusulOptions: SelectOption[]
   kelasOptions: SelectOption[]
 }

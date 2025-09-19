@@ -1,5 +1,4 @@
 // app/components/hki/export-modal.tsx
-
 'use client'
 
 import React, { useState, useMemo } from 'react'
@@ -81,25 +80,21 @@ export function ExportModal({
   }
 
   const canExport = filterValue !== ''
-
   const handleExport = async () => {
     if (!canExport) return
     setIsExporting(true)
 
-    // DIPERBAIKI: Membuat objek `filters` sesuai dengan format yang diharapkan oleh fungsi `downloadFilteredExport`.
     const filters = {
       search: '',
       jenisId: '',
-      // Mengisi nilai filter yang sesuai berdasarkan pilihan pengguna
       statusId: filterBy === 'status' ? filterValue : '',
       year: filterBy === 'year' ? filterValue : '',
       pengusulId: filterBy === 'pengusul' ? filterValue : '',
     }
 
-    // Memanggil fungsi ekspor dengan struktur objek yang benar.
     const exportPromise = downloadFilteredExport({
       format,
-      filters, // Menggunakan 'filters' (plural) bukan 'filter'
+      filters, 
     })
 
     toast.promise(exportPromise, {
@@ -112,7 +107,6 @@ export function ExportModal({
       await exportPromise
       onClose()
     } catch (e) {
-      // Biarkan modal terbuka jika gagal
     } finally {
       setIsExporting(false)
     }

@@ -30,9 +30,6 @@ import {
 } from 'lucide-react'
 import { Suspense } from 'react'
 
-// ============================================================================
-// Komponen UI (Helper)
-// ============================================================================
 const getInitials = (name?: string | null) => {
   if (!name) return 'A'
   return name
@@ -126,9 +123,6 @@ const EmptyStateDisplay = ({
   </div>
 )
 
-// ============================================================================
-// Komponen Server Terpisah untuk Data Fetching
-// ============================================================================
 async function WelcomeHeader() {
   const cookieStore = cookies()
   const supabase = createClient(cookieStore)
@@ -352,9 +346,6 @@ const RecentActivitySkeleton = () => (
   <Skeleton className="h-[350px] w-full rounded-xl animate-pulse" />
 )
 
-// ============================================================================
-// Komponen Halaman Utama
-// ============================================================================
 export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-8">

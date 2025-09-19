@@ -67,7 +67,6 @@ import { cn } from '@/lib/utils'
 import { useForm, Controller } from 'react-hook-form'
 import { Badge } from '@/components/ui/badge'
 
-// Tipe data untuk pengguna yang digabungkan
 type UserProfile = {
   id: string
   email?: string
@@ -296,8 +295,6 @@ function UserModal({
     )
     const url = isEditMode ? `/api/users/${user.id}` : '/api/users'
     const method = isEditMode ? 'PATCH' : 'POST'
-
-    // Jangan kirim password kosong saat edit jika tidak ingin diubah
     if (isEditMode && !formData.password) {
       delete formData.password
     }

@@ -1,5 +1,4 @@
 // app/components/hki/create-hki-modal.tsx
-
 'use client'
 
 import React, { useState, useCallback } from 'react'
@@ -13,26 +12,17 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { HKIForm } from '@/components/forms/hki-form'
-import { HKIEntry, JenisHKI } from '@/lib/types'
+import { HKIEntry, FormOptions } from '@/lib/types'
 import { PlusSquare, Loader2 } from 'lucide-react'
-
-type ComboboxOption = { value: string; label: string }
 
 interface CreateHKIModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess?: (newItem: HKIEntry) => void
   onError?: (message: string) => void
-  formOptions: {
-    // Tipe data yang diterima oleh modal ini
-    jenisOptions: { id_jenis: number; nama_jenis: string }[]
-    statusOptions: { id_status: number; nama_status: string }[]
-    pengusulOptions: ComboboxOption[]
-    kelasOptions: ComboboxOption[]
-  }
+  formOptions: Readonly<FormOptions>
 }
 
-// Konstanta untuk ID form, memastikan tombol footer terhubung dengan benar.
 const CREATE_FORM_ID = 'hki-create-form'
 
 export function CreateHKIModal({
@@ -41,14 +31,13 @@ export function CreateHKIModal({
   onSuccess,
   onError,
   formOptions,
-}: CreateHKIModalProps) {
+}: Readonly<CreateHKIModalProps>) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Modal akan otomatis ditutup saat sukses.
   const handleSuccess = useCallback(
     (newData: HKIEntry) => {
       onSuccess?.(newData)
-      onClose() // Tutup modal setelah sukses
+      onClose()
     },
     [onSuccess, onClose]
   )
@@ -58,15 +47,6 @@ export function CreateHKIModal({
       onClose()
     }
   }, [isSubmitting, onClose])
-
-  // DIPERBAIKI: Ubah (map) nama properti dari `jenisOptions` agar sesuai dengan yang diharapkan oleh HKIForm.
-  // HKIForm mengharapkan `id_jenis_hki` dan `nama_jenis_hki`.
-  const mappedJenisOptions: JenisHKI[] = formOptions.jenisOptions.map(
-    (option) => ({
-      id_jenis_hki: option.id_jenis,
-      nama_jenis_hki: option.nama_jenis,
-    })
-  )
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -86,13 +66,11 @@ export function CreateHKIModal({
           </div>
         </DialogHeader>
 
-        {/* Kontainer ini membuat konten form bisa di-scroll secara independen */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           <HKIForm
             id={CREATE_FORM_ID}
             mode="create"
-            // Gunakan data yang sudah di-map
-            jenisOptions={mappedJenisOptions}
+            jenisOptions={formOptions.jenisOptions}
             statusOptions={formOptions.statusOptions}
             pengusulOptions={formOptions.pengusulOptions}
             kelasOptions={formOptions.kelasOptions}

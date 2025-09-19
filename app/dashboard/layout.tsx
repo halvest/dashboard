@@ -11,20 +11,13 @@ export const metadata: Metadata = {
   description: 'Manajemen Pengajuan Data Hak Kekayaan Intelektual',
 }
 
-// Menjadikan layout ini dinamis untuk memastikan pengecekan otentikasi selalu dijalankan
 export const dynamic = 'force-dynamic'
-
-// ============================================================================
-// KONSTANTA & TIPE DATA
-// ============================================================================
 const PATHS = {
   LOGIN: '/login',
   DASHBOARD: '/dashboard',
 }
 
 const ALLOWED_ROLES = ['admin']
-
-// Tipe data untuk hasil dari fungsi keamanan, agar lebih terstruktur
 type AuthResult = {
   user: any
   errorType:
@@ -37,14 +30,6 @@ type AuthResult = {
   errorMessage?: string
 }
 
-// ============================================================================
-// FUNGSI HELPER KEAMANAN (PRINSIP DRY)
-// ============================================================================
-/**
- * Melindungi route dengan memeriksa otentikasi dan otorisasi peran admin.
- * Fungsi ini mengembalikan user jika berhasil, atau tipe error jika gagal.
- * Ini membuat komponen utama menjadi lebih bersih dan deklaratif.
- */
 async function protectAdminRoute(): Promise<AuthResult> {
   try {
     const cookieStore = cookies()
@@ -83,7 +68,6 @@ async function protectAdminRoute(): Promise<AuthResult> {
       return { user: null, errorType: 'profile_not_found' }
     }
 
-    // PERBAIKAN: Tambahkan pengecekan null untuk `profile.role` sebelum digunakan
     if (!profile.role || !ALLOWED_ROLES.includes(profile.role)) {
       console.warn(
         `Akses ditolak: User ID ${user.id} dengan role '${profile.role}' mencoba mengakses route admin.`
@@ -91,7 +75,6 @@ async function protectAdminRoute(): Promise<AuthResult> {
       return { user, errorType: 'unauthorized' }
     }
 
-    // Jika semua pengecekan berhasil
     return { user, errorType: null }
   } catch (error) {
     console.error(
@@ -109,9 +92,6 @@ async function protectAdminRoute(): Promise<AuthResult> {
   }
 }
 
-// ============================================================================
-// KOMPONEN UI UNTUK MENAMPILKAN ERROR
-// ============================================================================
 const ErrorDisplay = ({
   icon: Icon,
   title,
@@ -137,9 +117,6 @@ const ErrorDisplay = ({
   </div>
 )
 
-// ============================================================================
-// KOMPONEN LAYOUT UTAMA (SEKARANG JAUH LEBIH BERSIH)
-// ============================================================================
 export default async function HKILayout({
   children,
 }: {
@@ -147,13 +124,10 @@ export default async function HKILayout({
 }) {
   const { user, errorType, errorMessage } = await protectAdminRoute()
 
-  // Kasus 1: Tidak terautentikasi, lempar ke halaman login
   if (errorType === 'unauthenticated') {
     return redirect(PATHS.LOGIN)
   }
 
-  // Kasus 2: Terjadi error (tidak diizinkan, database error, dll.)
-  // Tampilkan UI error yang sesuai di dalam layout admin.
   if (errorType) {
     let errorContent
     switch (errorType) {
@@ -198,6 +172,5 @@ export default async function HKILayout({
     return <AdminLayout>{errorContent}</AdminLayout>
   }
 
-  // Kasus 3: Sukses, tampilkan konten halaman
   return <AdminLayout>{children}</AdminLayout>
 }
