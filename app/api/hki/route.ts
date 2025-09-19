@@ -3,7 +3,8 @@ import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
-import { Database } from '@/lib/database.types' // PERBAIKAN: Path impor yang benar
+import { Database } from '@/lib/database.types'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,7 +12,7 @@ const HKI_TABLE = 'hki'
 const PEMOHON_TABLE = 'pemohon'
 const HKI_BUCKET = 'sertifikat-hki'
 
-// PERBAIKAN: Alias disesuaikan dengan skema database yang benar
+// --- PERBAIKAN 1: Memperbaiki kesalahan sintaksis ---
 const ALIASED_SELECT_QUERY = `
   id_hki, nama_hki, jenis_produk, tahun_fasilitasi, sertifikat_pdf, keterangan, created_at,
   pemohon ( id_pemohon, nama_pemohon, alamat ),
@@ -21,8 +22,11 @@ const ALIASED_SELECT_QUERY = `
   kelas:kelas_hki ( id_kelas, nama_kelas, tipe )
 `
 
+/**
+ * Helper untuk mencari atau membuat pemohon baru.
+ */
 async function getPemohonId(
-  supabase: any,
+  supabase: SupabaseClient<Database>,
   nama: string,
   alamat: string | null
 ): Promise<number> {
@@ -31,7 +35,6 @@ async function getPemohonId(
     throw new Error('Nama pemohon tidak boleh kosong.')
   }
 
-  // PERBAIKAN: Menggunakan .eq() untuk pencocokan nama yang sama persis
   const { data: existingPemohon, error: findError } = await supabase
     .from(PEMOHON_TABLE)
     .select('id_pemohon')
@@ -40,9 +43,8 @@ async function getPemohonId(
     .single()
 
   if (findError && findError.code !== 'PGRST116') {
-    // PGRST116 = baris tidak ditemukan, ini normal
     console.error('Error saat mencari pemohon:', findError)
-    throw new Error('Gagal memeriksa data pemohon: ' + findError.message)
+    throw new Error(`Gagal memeriksa data pemohon: ${findError.message}`)
   }
 
   if (existingPemohon) {
@@ -57,99 +59,96 @@ async function getPemohonId(
 
   if (insertError) {
     if (insertError.code === '23505') {
-      // unique_violation
       throw new Error(`Nama pemohon "${trimmedNama}" sudah terdaftar.`)
     }
     console.error('Error saat membuat pemohon baru:', insertError)
-    throw new Error('Gagal menyimpan data pemohon baru: ' + insertError.message)
+    throw new Error(`Gagal menyimpan data pemohon baru: ${insertError.message}`)
   }
 
   if (!newPemohon) {
-    throw new Error('Gagal membuat atau menemukan pemohon setelah insert.')
+    throw new Error('Gagal mendapatkan ID pemohon setelah proses insert.')
   }
   return newPemohon.id_pemohon
 }
 
-// --- POST: Membuat entri HKI baru ---
+/**
+ * Helper terpusat untuk otentikasi dan otorisasi admin.
+ */
+async function authorizeAdmin(supabase: SupabaseClient<Database>) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        return { user: null, error: NextResponse.json({ success: false, message: 'Tidak terautentikasi' }, { status: 401 }) };
+    }
+
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    if (profileError || profile?.role !== 'admin') {
+        return { user: null, error: NextResponse.json({ success: false, message: 'Akses ditolak. Tindakan ini memerlukan hak admin.' }, { status: 403 }) };
+    }
+
+    return { user, error: null };
+}
+
+
+/**
+ * POST: Membuat entri HKI baru.
+ */
 export async function POST(request: NextRequest) {
   const cookieStore = cookies()
   const supabase = createClient(cookieStore)
   let newHkiId: number | null = null
+  let filePath: string | null = null
 
   try {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser()
-    if (userError || !user) {
-      return NextResponse.json(
-        { success: false, message: 'Tidak terautentikasi' },
-        { status: 401 }
-      )
-    }
-
-    // PERBAIKAN KEAMANAN: Pastikan hanya admin yang bisa membuat data baru
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-    if (profile?.role !== 'admin') {
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Akses ditolak. Hanya admin yang dapat membuat data.',
-        },
-        { status: 403 }
-      )
-    }
+    // --- PERBAIKAN 2: Menggunakan helper otorisasi terpusat ---
+    const { user, error: authError } = await authorizeAdmin(supabase);
+    if (authError) return authError;
 
     const formData = await request.formData()
-    const getVal = (key: string) => formData.get(key)
+    const getVal = (key: string) => formData.get(key) as string | null
 
-    const namaPemohon = getVal('nama_pemohon') as string | null
+    const namaPemohon = getVal('nama_pemohon')
     if (!namaPemohon) {
-      return NextResponse.json(
-        { success: false, message: 'Nama pemohon wajib diisi.' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, message: 'Nama pemohon wajib diisi.' }, { status: 400 })
     }
-    const alamatPemohon = getVal('alamat') as string | null
+    const alamatPemohon = getVal('alamat')
     const pemohonId = await getPemohonId(supabase, namaPemohon, alamatPemohon)
 
     const idKelas = getVal('id_kelas')
+    const tahunFasilitasi = getVal('tahun_fasilitasi')
+    const idJenisHki = getVal('id_jenis_hki')
+    const idStatus = getVal('id_status')
+    const idPengusul = getVal('id_pengusul')
+    
+    const requiredFields = {
+        'Nama HKI': getVal('nama_hki'),
+        'Jenis HKI': idJenisHki,
+        'Status': idStatus,
+        'Pengusul': idPengusul,
+        'Tahun Fasilitasi': tahunFasilitasi,
+    }
 
-    const hkiRecord: Omit<
-      Database['public']['Tables']['hki']['Insert'],
-      'id_hki' | 'created_at' | 'updated_at'
-    > = {
-      nama_hki: String(getVal('nama_hki') || '').trim(),
-      jenis_produk: (getVal('jenis_produk') as string | null) || null,
-      tahun_fasilitasi: Number(getVal('tahun_fasilitasi')),
-      keterangan: (getVal('keterangan') as string | null) || null,
-      id_jenis_hki: Number(getVal('id_jenis_hki')),
-      id_status: Number(getVal('id_status')),
-      id_pengusul: Number(getVal('id_pengusul')),
+    for (const [fieldName, value] of Object.entries(requiredFields)) {
+        if (!value) {
+            return NextResponse.json({ success: false, message: `${fieldName} wajib diisi.` }, { status: 400 });
+        }
+    }
+
+    const hkiRecord: Database['public']['Tables']['hki']['Insert'] = {
+      nama_hki: String(getVal('nama_hki')).trim(),
+      jenis_produk: getVal('jenis_produk') || null,
+      tahun_fasilitasi: Number(tahunFasilitasi),
+      keterangan: getVal('keterangan') || null,
+      id_jenis_hki: Number(idJenisHki),
+      id_status: Number(idStatus),
+      id_pengusul: Number(idPengusul),
       id_pemohon: pemohonId,
       sertifikat_pdf: null,
       id_kelas: idKelas ? Number(idKelas) : null,
-    }
-
-    if (
-      !hkiRecord.nama_hki ||
-      !hkiRecord.id_jenis_hki ||
-      !hkiRecord.id_status ||
-      !hkiRecord.id_pengusul ||
-      !hkiRecord.tahun_fasilitasi
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            'Data wajib tidak lengkap (Nama, Jenis, Status, Pengusul, Tahun).',
-        },
-        { status: 400 }
-      )
     }
 
     const { data: newHki, error: insertError } = await supabase
@@ -160,10 +159,9 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error('Error saat insert HKI:', insertError)
-      let message = `Database error: ${insertError.message}`
-      if (insertError.code === '23505') {
-        message = `Gagal menyimpan: Nama HKI "${hkiRecord.nama_hki}" sudah ada.`
-      }
+      const message = insertError.code === '23505'
+        ? `Gagal menyimpan: Nama HKI "${hkiRecord.nama_hki}" sudah ada.`
+        : `Database error: ${insertError.message}`
       return NextResponse.json({ success: false, message }, { status: 409 })
     }
 
@@ -175,15 +173,10 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File | null
     if (file && file.size > 0) {
       const fileExt = file.name.split('.').pop() || 'pdf'
-      const filePath = `public/${user.id}-${uuidv4()}.${fileExt}`
+      filePath = `public/${user.id}-${uuidv4()}.${fileExt}`
 
-      const { error: uploadError } = await supabase.storage
-        .from(HKI_BUCKET)
-        .upload(filePath, file)
-
+      const { error: uploadError } = await supabase.storage.from(HKI_BUCKET).upload(filePath, file)
       if (uploadError) {
-        console.error('Upload file gagal:', uploadError.message)
-        await supabase.from(HKI_TABLE).delete().eq('id_hki', newHkiId)
         throw new Error(`Upload file gagal: ${uploadError.message}`)
       }
 
@@ -193,11 +186,7 @@ export async function POST(request: NextRequest) {
         .eq('id_hki', newHkiId)
 
       if (updateFileError) {
-        await supabase.storage.from(HKI_BUCKET).remove([filePath])
-        await supabase.from(HKI_TABLE).delete().eq('id_hki', newHkiId)
-        throw new Error(
-          `Gagal memperbarui path file di database: ${updateFileError.message}`
-        )
+        throw new Error(`Gagal memperbarui path file di database: ${updateFileError.message}`)
       }
     }
 
@@ -211,17 +200,24 @@ export async function POST(request: NextRequest) {
       throw new Error('Gagal mengambil data baru setelah dibuat.')
     }
 
+    return NextResponse.json({ success: true, data: finalData }, { status: 201 })
+
+  } catch (err: unknown) { // --- PERBAIKAN 3: Menggunakan 'unknown' dan rollback logic ---
+    console.error(`[API POST HKI Error]:`, err)
+    
+    // Rollback logic jika terjadi error di tengah proses
+    if (newHkiId) {
+      console.log(`Menjalankan rollback untuk HKI ID: ${newHkiId}`)
+      await supabase.from(HKI_TABLE).delete().eq('id_hki', newHkiId)
+    }
+    if (filePath) {
+      console.log(`Menjalankan rollback untuk file: ${filePath}`)
+      await supabase.storage.from(HKI_BUCKET).remove([filePath])
+    }
+
+    const message = err instanceof Error ? err.message : 'Terjadi kesalahan tidak terduga.'
     return NextResponse.json(
-      { success: true, data: finalData },
-      { status: 201 }
-    )
-  } catch (err: any) {
-    console.error(`[API POST HKI Error]: ${err.message}`)
-    return NextResponse.json(
-      {
-        success: false,
-        message: `Terjadi kesalahan tak terduga: ${err.message}`,
-      },
+      { success: false, message },
       { status: 500 }
     )
   }

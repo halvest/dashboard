@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { createClient } from '@/utils/supabase/server'
 import { Database } from '@/lib/database.types'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,25 @@ const ALIASED_SELECT_QUERY = `
   pengusul ( id_pengusul, nama_opd ),
   kelas:kelas_hki ( id_kelas, nama_kelas, tipe )
 `
+async function authorizeAdmin(supabase: SupabaseClient<Database>): Promise<{ user?: any; error?: NextResponse }> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: NextResponse.json({ success: false, message: 'Tidak terautentikasi' }, { status: 401 }) }
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profileError || profile?.role !== 'admin') {
+    return { error: NextResponse.json({ success: false, message: 'Akses ditolak. Tindakan ini hanya untuk admin.' }, { status: 403 }) }
+  }
+
+  return { user }
+}
+
 
 export async function GET(
   request: NextRequest,
@@ -26,23 +46,20 @@ export async function GET(
 ) {
   const cookieStore = cookies()
   const supabase = createClient(cookieStore)
-  const hkiId = Number(params.id) // <-- PERBAIKAN DI SINI
+  
+  const hkiId = parseInt(params.id, 10)
+  if (isNaN(hkiId)) {
+    return NextResponse.json({ success: false, message: 'ID HKI tidak valid.' }, { status: 400 });
+  }
 
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: 'Tidak terautentikasi' },
-        { status: 401 }
-      )
-    }
+    const { error: authError } = await authorizeAdmin(supabase)
+    if (authError) return authError
 
     const { data, error } = await supabase
       .from(HKI_TABLE)
       .select(ALIASED_SELECT_QUERY)
-      .eq('id_hki', hkiId) // <-- Sekarang hkiId adalah number
+      .eq('id_hki', hkiId)
       .single()
 
     if (error) {
@@ -56,13 +73,11 @@ export async function GET(
     }
 
     return NextResponse.json({ success: true, data }, { status: 200 })
-  } catch (err: any) {
-    console.error(`[API GET HKI Error]: ${err.message}`)
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Terjadi kesalahan tidak terduga.'
+    console.error(`[API GET HKI Error]: ${message}`)
     return NextResponse.json(
-      {
-        success: false,
-        message: 'Terjadi kesalahan pada server saat mengambil data.',
-      },
+      { success: false, message: 'Terjadi kesalahan pada server saat mengambil data.' },
       { status: 500 }
     )
   }
@@ -74,18 +89,15 @@ export async function PATCH(
 ) {
   const cookieStore = cookies()
   const supabase = createClient(cookieStore)
-  const hkiId = Number(params.id) // <-- PERBAIKAN DI SINI
+  
+  const hkiId = parseInt(params.id, 10);
+  if (isNaN(hkiId)) {
+    return NextResponse.json({ success: false, message: 'ID HKI tidak valid.' }, { status: 400 });
+  }
 
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: 'Tidak terautentikasi' },
-        { status: 401 }
-      )
-    }
+    const { user, error: authError } = await authorizeAdmin(supabase)
+    if (authError) return authError
 
     const formData = await request.formData()
     const getVal = (key: string) => formData.get(key)
@@ -94,7 +106,7 @@ export async function PATCH(
     const { data: currentHki, error: findHkiError } = await supabase
       .from(HKI_TABLE)
       .select('id_pemohon, sertifikat_pdf')
-      .eq('id_hki', hkiId) // <-- Sekarang hkiId adalah number
+      .eq('id_hki', hkiId)
       .single()
 
     if (findHkiError || !currentHki) {
@@ -112,7 +124,6 @@ export async function PATCH(
       )
     }
     const alamatPemohon = getVal('alamat') as string | null
-
     const { error: pemohonUpdateError } = await supabase
       .from(PEMOHON_TABLE)
       .update({ nama_pemohon: namaPemohon, alamat: alamatPemohon })
@@ -120,19 +131,13 @@ export async function PATCH(
 
     if (pemohonUpdateError) {
       if (pemohonUpdateError.code === '23505') {
-        throw new Error(
-          `Nama pemohon "${namaPemohon}" sudah digunakan oleh entri lain.`
-        )
+        throw new Error(`Nama pemohon "${namaPemohon}" sudah digunakan oleh entri lain.`)
       }
-      throw new Error(
-        `Gagal memperbarui data pemohon: ${pemohonUpdateError.message}`
-      )
+      throw new Error(`Gagal memperbarui data pemohon: ${pemohonUpdateError.message}`)
     }
 
     const idKelas = getVal('id_kelas')
-    const hkiUpdateData: Partial<
-      Database['public']['Tables']['hki']['Update']
-    > = {
+    const hkiUpdateData: Partial<Database['public']['Tables']['hki']['Update']> = {
       nama_hki: String(getVal('nama_hki') || '').trim(),
       jenis_produk: (getVal('jenis_produk') as string | null) || null,
       tahun_fasilitasi: Number(getVal('tahun_fasilitasi')),
@@ -154,9 +159,10 @@ export async function PATCH(
       const { error: uploadError } = await supabase.storage
         .from(HKI_BUCKET)
         .upload(newFilePath, file)
-      if (uploadError)
-        throw new Error(`Upload file baru gagal: ${uploadError.message}`)
+      if (uploadError) throw new Error(`Upload file baru gagal: ${uploadError.message}`)
+      
       hkiUpdateData.sertifikat_pdf = newFilePath
+      
       if (oldFilePath) {
         await supabase.storage.from(HKI_BUCKET).remove([oldFilePath])
       }
@@ -164,15 +170,14 @@ export async function PATCH(
       const { error: removeError } = await supabase.storage
         .from(HKI_BUCKET)
         .remove([oldFilePath])
-      if (removeError)
-        throw new Error(`Gagal hapus file lama: ${removeError.message}`)
+      if (removeError) throw new Error(`Gagal hapus file lama: ${removeError.message}`)
       hkiUpdateData.sertifikat_pdf = null
     }
 
     const { error: hkiUpdateError } = await supabase
       .from(HKI_TABLE)
       .update(hkiUpdateData)
-      .eq('id_hki', hkiId) // <-- Sekarang hkiId adalah number
+      .eq('id_hki', hkiId)
 
     if (hkiUpdateError) {
       if (hkiUpdateError.code === '23505') {
@@ -184,23 +189,18 @@ export async function PATCH(
     const { data: updatedHki, error: finalFetchError } = await supabase
       .from(HKI_TABLE)
       .select(ALIASED_SELECT_QUERY)
-      .eq('id_hki', hkiId) // <-- Sekarang hkiId adalah number
+      .eq('id_hki', hkiId)
       .single()
 
     if (finalFetchError) {
       throw new Error('Gagal mengambil data terbaru setelah update.')
     }
 
-    return NextResponse.json(
-      { success: true, data: updatedHki },
-      { status: 200 }
-    )
-  } catch (err: any) {
-    console.error(`[API PATCH HKI Error]: ${err.message}`)
-    return NextResponse.json(
-      { success: false, message: `Terjadi kesalahan: ${err.message}` },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: true, data: updatedHki }, { status: 200 })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Terjadi kesalahan tidak terduga.';
+    console.error(`[API PATCH HKI Error]: ${message}`)
+    return NextResponse.json({ success: false, message: `Terjadi kesalahan: ${message}` }, { status: 500 })
   }
 }
 
@@ -210,23 +210,20 @@ export async function DELETE(
 ) {
   const cookieStore = cookies()
   const supabase = createClient(cookieStore)
-  const hkiId = Number(params.id) // <-- PERBAIKAN DI SINI
+  
+  const hkiId = parseInt(params.id, 10);
+  if (isNaN(hkiId)) {
+    return NextResponse.json({ success: false, message: 'ID HKI tidak valid.' }, { status: 400 });
+  }
 
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: 'Tidak terautentikasi' },
-        { status: 401 }
-      )
-    }
+    const { error: authError } = await authorizeAdmin(supabase)
+    if (authError) return authError
 
     const { data: hkiData, error: findError } = await supabase
       .from(HKI_TABLE)
       .select('sertifikat_pdf')
-      .eq('id_hki', hkiId) // <-- Sekarang hkiId adalah number
+      .eq('id_hki', hkiId)
       .single()
 
     if (findError || !hkiData) {
@@ -239,7 +236,7 @@ export async function DELETE(
     const { error: deleteError } = await supabase
       .from(HKI_TABLE)
       .delete()
-      .eq('id_hki', hkiId) // <-- Sekarang hkiId adalah number
+      .eq('id_hki', hkiId)
 
     if (deleteError) {
       throw new Error(`Gagal menghapus data HKI: ${deleteError.message}`)
@@ -258,13 +255,11 @@ export async function DELETE(
       { success: true, message: 'Data HKI berhasil dihapus' },
       { status: 200 }
     )
-  } catch (err: any) {
-    console.error(`[API DELETE HKI Error]: ${err.message}`)
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Terjadi kesalahan tidak terduga.';
+    console.error(`[API DELETE HKI Error]: ${message}`)
     return NextResponse.json(
-      {
-        success: false,
-        message: 'Terjadi kesalahan pada server saat menghapus data.',
-      },
+      { success: false, message: 'Terjadi kesalahan pada server saat menghapus data.' },
       { status: 500 }
     )
   }

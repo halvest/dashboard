@@ -1,14 +1,14 @@
+// app/dashboard/data-master/master-data-client.tsx
 'use client'
 
-import React from 'react'
+// --- PERBAIKAN: Mengimpor 'memo' dari React ---
+import React, { memo } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MasterCrudTable } from './master-crud-components'
 import { JenisHKI, KelasHKI, Pengusul } from '@/lib/types'
 import { Copyright, Building, FileText } from 'lucide-react'
 
 export type MasterDataType = 'jenis_hki' | 'kelas_hki' | 'pengusul'
-
-// Perbaikan: Menyesuaikan tipe agar lebih robust
 export type AnyMasterItem = JenisHKI | KelasHKI | Pengusul
 
 export const masterConfig = {
@@ -54,7 +54,8 @@ interface MasterDataClientProps {
   initialPengusul: Pengusul[]
 }
 
-export function MasterDataClient({
+// --- PERBAIKAN: Membungkus komponen dengan React.memo ---
+export const MasterDataClient = memo(function MasterDataClient({
   initialJenis,
   initialKelas,
   initialPengusul,
@@ -98,4 +99,7 @@ export function MasterDataClient({
       </TabsContent>
     </Tabs>
   )
-}
+})
+
+// Menambahkan displayName untuk kemudahan debugging
+MasterDataClient.displayName = 'MasterDataClient'

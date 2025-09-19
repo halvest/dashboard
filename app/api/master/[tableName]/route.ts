@@ -2,7 +2,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import type { Database } from '@/lib/database.types' // <-- Tambahkan impor ini
+import type { Database } from '@/lib/database.types'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 // Definisikan tipe TableName dari Supabase types
 type TableName = keyof Database['public']['Tables']
@@ -10,21 +11,25 @@ type TableName = keyof Database['public']['Tables']
 const TABLE_SAFELIST: TableName[] = ['jenis_hki', 'kelas_hki', 'pengusul']
 
 /**
- * Admin Guard Helper
+ * Helper terpusat untuk otentikasi dan otorisasi admin.
  */
-async function isAdmin(supabase: any): Promise<boolean> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return false
+async function authorizeAdmin(supabase: SupabaseClient<Database>) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { user: null, error: NextResponse.json({ message: 'Tidak terautentikasi' }, { status: 401 }) }
+  }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', user.id)
     .single()
 
-  return profile?.role === 'admin'
+  if (profileError || profile?.role !== 'admin') {
+    return { user: null, error: NextResponse.json({ message: 'Akses ditolak. Tindakan ini memerlukan hak admin.' }, { status: 403 }) }
+  }
+
+  return { user, error: null }
 }
 
 /**
@@ -35,37 +40,44 @@ export async function POST(
   { params }: { params: { tableName: string } }
 ) {
   const { tableName } = params
-  // Lakukan type assertion di sini untuk pengecekan
   if (!TABLE_SAFELIST.includes(tableName as TableName)) {
-    return NextResponse.json({ message: 'Tabel tidak valid' }, { status: 400 })
+    return NextResponse.json({ message: 'Tabel tidak valid atau tidak diizinkan.' }, { status: 400 })
   }
 
   const cookieStore = cookies()
   const supabase = createClient(cookieStore)
 
-  if (!(await isAdmin(supabase))) {
-    return NextResponse.json({ message: 'Akses ditolak' }, { status: 403 })
-  }
-
   try {
+    const { error: authError } = await authorizeAdmin(supabase)
+    if (authError) return authError
+
     const body = await request.json()
 
-    // Validasi sederhana untuk mencegah duplikat ID di kelas_hki
+    if (!body || Object.keys(body).length === 0) {
+      return NextResponse.json({ message: 'Request body tidak boleh kosong.' }, { status: 400 })
+    }
+
+    // Validasi duplikat ID khusus untuk tabel 'kelas_hki'
     if (tableName === 'kelas_hki' && body.id_kelas) {
-      const { data: existing } = await supabase
+      // --- PERBAIKAN: Destructuring 'count' dengan benar ---
+      const { count, error: countError } = await supabase
         .from('kelas_hki')
-        .select('id_kelas')
+        .select('id_kelas', { count: 'exact', head: true })
         .eq('id_kelas', body.id_kelas)
-        .single()
-      if (existing) {
+      
+      if (countError) {
+        throw new Error(`Gagal memeriksa duplikasi: ${countError.message}`);
+      }
+      
+      if (count && count > 0) {
         return NextResponse.json(
           { message: `ID Kelas ${body.id_kelas} sudah digunakan.` },
-          { status: 409 }
+          { status: 409 } // 409 Conflict
         )
       }
     }
 
-    // Gunakan type assertion saat memanggil .from()
+    // Insert data baru
     const { data, error } = await supabase
       .from(tableName as TableName)
       .insert(body)
@@ -74,11 +86,9 @@ export async function POST(
 
     if (error) {
       console.error('Error membuat data master:', error)
-      // Tangani error spesifik jika ada, misalnya duplikasi
-      if (error.code === '23505') {
-        // unique_violation
+      if (error.code === '23505') { // unique_violation
         return NextResponse.json(
-          { message: 'Data dengan nama/ID tersebut sudah ada.' },
+          { message: 'Data dengan nama atau ID tersebut sudah ada.' },
           { status: 409 }
         )
       }
@@ -89,7 +99,9 @@ export async function POST(
       { message: 'Data berhasil dibuat', data },
       { status: 201 }
     )
-  } catch (error: any) {
-    return NextResponse.json({ message: error.message }, { status: 500 })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Terjadi kesalahan tidak terduga.'
+    console.error('Error di API Master POST:', message)
+    return NextResponse.json({ message }, { status: 500 })
   }
 }

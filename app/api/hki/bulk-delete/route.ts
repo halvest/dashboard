@@ -13,7 +13,6 @@ export async function POST(request: NextRequest) {
   const supabase = createClient(cookieStore)
 
   try {
-    // 1. Validasi Sesi dan Peran Admin
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -24,7 +23,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // PERBAIKAN KRUSIAL: Tambahkan pengecekan peran admin
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
@@ -38,7 +36,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 2. Validasi Input
     const { ids } = await request.json()
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json(
@@ -47,7 +44,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 3. Ambil path file yang akan dihapus dari storage
     const { data: entriesToDelete, error: fetchError } = await supabase
       .from(HKI_TABLE)
       .select('sertifikat_pdf')
@@ -56,12 +52,11 @@ export async function POST(request: NextRequest) {
     if (fetchError) {
       console.error('Supabase fetch error (bulk-delete):', fetchError)
       return NextResponse.json(
-        { error: 'Gagal mengambil data HKI untuk dihapus.' },
+        { error: 'Gagal mengambil data untuk dihapus.' },
         { status: 500 }
       )
     }
 
-    // 4. Hapus entri dari tabel database
     const { error: deleteError } = await supabase
       .from(HKI_TABLE)
       .delete()
@@ -69,12 +64,11 @@ export async function POST(request: NextRequest) {
     if (deleteError) {
       console.error('Supabase delete error (bulk-delete):', deleteError)
       return NextResponse.json(
-        { error: 'Gagal menghapus entri HKI dari database.' },
+        { error: 'Gagal menghapus data dari database.' },
         { status: 500 }
       )
     }
 
-    // 5. Hapus file terkait dari storage jika ada
     if (entriesToDelete && entriesToDelete.length > 0) {
       const filePaths = entriesToDelete
         .map((e) => e.sertifikat_pdf)
@@ -84,8 +78,6 @@ export async function POST(request: NextRequest) {
           .from(HKI_BUCKET)
           .remove(filePaths)
         if (storageError) {
-          // Log error ini untuk maintenance, tapi jangan gagalkan request
-          // karena data utama di database sudah berhasil dihapus.
           console.warn(
             'Gagal menghapus beberapa file dari storage:',
             storageError
@@ -94,7 +86,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 6. Kembalikan respons sukses
     return NextResponse.json(
       {
         message: `${ids.length} entri berhasil dihapus.`,
@@ -104,7 +95,6 @@ export async function POST(request: NextRequest) {
     )
   } catch (error: any) {
     console.error('Unexpected bulk delete error:', error)
-    // Tangani error parsing JSON atau error tak terduga lainnya
     if (error.name === 'SyntaxError') {
       return NextResponse.json(
         { error: 'Request body tidak valid (bukan JSON).' },

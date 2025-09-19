@@ -4,16 +4,22 @@ import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const cookieStore = cookies()
   const supabase = createClient(cookieStore)
-  const hkiId = Number(params.id) // <-- PERBAIKAN DI SINI
+  const hkiId = parseInt(params.id, 10)
+  if (isNaN(hkiId)) {
+    return NextResponse.json(
+      { success: false, message: 'ID HKI tidak valid.' },
+      { status: 400 }
+    )
+  }
 
   try {
-    // 1. Validasi Autentikasi & Admin (Perlu cek profil)
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -24,7 +30,6 @@ export async function PATCH(
       )
     }
 
-    // Cek apakah user adalah admin
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -33,51 +38,63 @@ export async function PATCH(
 
     if (profile?.role !== 'admin') {
       return NextResponse.json(
-        { success: false, message: 'Akses ditolak' },
+        { success: false, message: 'Akses ditolak. Hanya admin yang dapat melakukan tindakan ini.' },
         { status: 403 }
       )
     }
 
-    // 2. Ambil data dari body
     const { statusId } = await request.json()
-    if (!statusId || typeof statusId !== 'number') {
+    if (typeof statusId !== 'number') {
       return NextResponse.json(
-        { success: false, message: 'ID Status tidak valid' },
+        { success: false, message: 'ID Status tidak valid atau tidak ditemukan.' },
         { status: 400 }
       )
     }
 
-    // 3. Jalankan query UPDATE sesuai permintaan
     const { data: updatedData, error } = await supabase
       .from('hki')
       .update({
         id_status: statusId,
-        updated_at: new Date().toISOString(), // Set updated_at ke 'now'
+        updated_at: new Date().toISOString(),
       })
-      .eq('id_hki', hkiId) // <-- Sekarang hkiId adalah number
-      .select('id_hki, status_hki(nama_status)') // Kembalikan data baru untuk konfirmasi
+      .eq('id_hki', hkiId)
+      .select('id_hki, status_hki(nama_status)')
       .single()
 
     if (error) {
       console.error('Gagal update status inline:', error)
+      if (error.code === 'PGRST116') { // Kode error untuk "no rows returned"
+        return NextResponse.json(
+          { success: false, message: `Data HKI dengan ID ${hkiId} tidak ditemukan.` },
+          { status: 404 }
+        )
+      }
       return NextResponse.json(
-        { success: false, message: error.message },
+        { success: false, message: 'Terjadi kesalahan pada database.' },
         { status: 500 }
       )
+    }
+
+    if (!updatedData || !updatedData.status_hki) {
+        return NextResponse.json(
+            { success: false, message: 'Gagal mendapatkan data terbaru setelah pembaruan.' },
+            { status: 500 }
+        );
     }
 
     return NextResponse.json(
       {
         success: true,
-        message: `Status berhasil diperbarui ke "${updatedData.status_hki?.nama_status}"`,
+        message: `Status berhasil diperbarui ke "${updatedData.status_hki.nama_status}"`,
         data: updatedData,
       },
       { status: 200 }
     )
-  } catch (err: any) {
+  } catch (err: unknown) { 
     console.error('Error di API update status:', err)
+    const message = err instanceof Error ? err.message : 'Terjadi kesalahan internal.'
     return NextResponse.json(
-      { success: false, message: `Terjadi kesalahan: ${err.message}` },
+      { success: false, message },
       { status: 500 }
     )
   }
