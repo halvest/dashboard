@@ -464,18 +464,32 @@ export function DataTable({ data, totalCount, formOptions, onEdit, isLoading = f
   }, [tableState.selectedRows]);
 
   const handleStatusUpdate = useCallback(async (entryId: number, newStatusId: number) => {
-    const promise = fetch(`/api/hki/${entryId}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ statusId: newStatusId }) })
-      .then(async (res) => {
-        if (!res.ok) { const errorData = await res.json().catch(() => ({ message: 'Gagal memproses respons server.' })); throw new Error(errorData.message || 'Gagal memperbarui status.'); }
-        return res.json();
-      });
+    const promise = fetch(`/api/hki/${entryId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ statusId: newStatusId }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: 'Gagal memproses respons server.' }));
+        throw new Error(errorData.message || 'Gagal memperbarui status.');
+      }
+      return res.json();
+    });
+  
     toast.promise(promise, {
       loading: 'Memperbarui status...',
-      success: (data) => { router.refresh(); setFlashingRowId(entryId); setTimeout(() => setFlashingRowId(null), 1500); return data.message || 'Status berhasil diperbarui!'; },
-      error: (err) => { return err instanceof Error ? err.message : 'Terjadi kesalahan tidak diketahui.'; },
+      success: (data) => { // ✅ PERBAIKAN: Menggunakan 'data' sebagai nama parameter
+        router.refresh();
+        setFlashingRowId(entryId);
+        setTimeout(() => setFlashingRowId(null), 1500);
+        return data.message || 'Status berhasil diperbarui!'; // ✅ PERBAIKAN: Mengakses 'data.message'
+      },
+      error: (err) => {
+        return err instanceof Error ? err.message : 'Terjadi kesalahan tidak diketahui.';
+      },
     });
   }, [router]);
-
+  
   const showCheckboxColumn = enableBulkActions && selectionModeActive;
   const columnsCount = 8 + (showCheckboxColumn ? 1 : 0);
 
