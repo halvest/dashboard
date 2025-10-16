@@ -35,7 +35,6 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-// --- PERBAIKAN: Impor komponen Button ---
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HKIEntry, JenisHKI, StatusHKI } from '@/lib/types'
@@ -71,7 +70,8 @@ const fileSchema = z
 
 const hkiSchema = z
   .object({
-    nama_hki: z.string().min(3, 'Nama HKI harus memiliki minimal 3 karakter.'),
+    // ✅ PERBAIKAN: Validasi .min(3, ...) diubah menjadi .min(1, ...)
+    nama_hki: z.string().min(1, 'Nama HKI wajib diisi.'),
     nama_pemohon: z
       .string()
       .min(3, 'Nama pemohon harus memiliki minimal 3 karakter.'),
@@ -332,10 +332,9 @@ export const HKIForm = memo(
           if (!response.ok) {
             throw new Error(result.message || `Gagal ${actionText} data.`)
           }
-          
+
           toast.dismiss(toastId)
           onSuccess?.(result.data)
-
         } catch (err: unknown) {
           const errorMessage =
             err instanceof Error

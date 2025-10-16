@@ -12,15 +12,32 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
 import { HKIEntry } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { Eye, Paperclip, Loader2, ChevronUp, ChevronDown } from 'lucide-react'
+import {
+  Eye,
+  Paperclip,
+  Loader2,
+  ChevronUp,
+  ChevronDown,
+  User,
+  Building,
+  Calendar,
+  FileText,
+  Copyright,
+  BookText,
+  type LucideIcon,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { getStatusStyle } from './hki-utils'
 import { useMutation } from '@tanstack/react-query'
 import { motion, Variants, AnimatePresence } from 'framer-motion'
 
-interface DetailItemProps {
+// --- Tipe dan Komponen Helper ---
+
+interface IconDetailItemProps {
+  icon: LucideIcon
   label: string
   value?: string | number | null
   children?: ReactNode
@@ -33,22 +50,24 @@ interface ViewHKIModalProps {
   entry: HKIEntry | null
 }
 
-const DetailItem = memo(
-  ({ label, value, children, className }: DetailItemProps) => {
+const IconDetailItem = memo(
+  ({ icon: Icon, label, value, children, className }: IconDetailItemProps) => {
     const content =
       children ??
       (value === null || value === undefined || value === '' ? '-' : value)
     return (
-      <div className={cn('flex flex-col gap-1', className)}>
-        <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
-        <dd className="text-base text-foreground break-words">{content}</dd>
+      <div className={cn('flex items-start gap-3', className)}>
+        <Icon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-sm font-medium text-muted-foreground">{label}</dt>
+          <dd className="text-base text-foreground break-words">{content}</dd>
+        </div>
       </div>
     )
   }
 )
-DetailItem.displayName = 'DetailItem'
+IconDetailItem.displayName = 'IconDetailItem'
 
-// ✅ FIX: Service diubah untuk secara eksplisit meminta URL 'inline'
 const getCertificateUrl = async ({
   hkiId,
   disposition,
@@ -64,6 +83,8 @@ const getCertificateUrl = async ({
   }
   return data
 }
+
+// --- Komponen Utama ---
 
 export const ViewHKIModal = memo(
   ({ isOpen, onClose, entry }: ViewHKIModalProps) => {
@@ -88,7 +109,6 @@ export const ViewHKIModal = memo(
         return
       }
       if (entry?.id_hki) {
-        // ✅ FIX: Memastikan kita meminta versi 'inline' untuk ditampilkan
         fetchPdfUrl({ hkiId: entry.id_hki, disposition: 'inline' })
       }
     }, [entry, fetchPdfUrl, pdfUrl])
@@ -121,30 +141,40 @@ export const ViewHKIModal = memo(
 
     return (
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-3xl p-0 flex flex-col max-h-[90vh]">
+        <DialogContent className="sm:max-w-4xl p-0 flex flex-col max-h-[90vh]">
           <motion.div
             variants={itemVariants}
             initial="hidden"
             animate="visible"
           >
-            <DialogHeader className="flex flex-row items-start gap-4 px-6 py-4 border-b">
-              <div className="bg-primary/10 p-2.5 rounded-lg flex-shrink-0">
-                <Eye className="h-6 w-6 text-primary" />
+            <DialogHeader className="flex flex-col gap-2 px-6 py-4 border-b">
+              <div className="flex items-center gap-4">
+                <div className="bg-primary/10 p-2.5 rounded-lg flex-shrink-0">
+                  <Eye className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <DialogTitle className="text-xl font-bold break-words leading-tight">
+                    {entry.nama_hki}
+                  </DialogTitle>
+                  <DialogDescription className="text-sm text-muted-foreground mt-1">
+                    Detail lengkap untuk data pengajuan HKI.
+                  </DialogDescription>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <DialogTitle className="text-xl font-semibold break-words">
-                  {entry.nama_hki}
-                </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground mt-1">
-                  Detail lengkap untuk data pengajuan HKI. Data tahun{' '}
-                  {entry.tahun_fasilitasi || 'N/A'}.
-                </DialogDescription>
-              </div>
+              <Badge
+                className={cn(
+                  'text-base font-semibold gap-2 px-3 py-1.5 w-fit mt-2',
+                  statusStyle.className
+                )}
+              >
+                <StatusIcon className="h-4 w-4" />
+                {entry.status_hki?.nama_status ?? 'N/A'}
+              </Badge>
             </DialogHeader>
           </motion.div>
 
           <motion.div
-            className="flex-1 overflow-y-auto"
+            className="flex-1 overflow-y-auto px-6 py-4 space-y-6"
             variants={{
               hidden: { opacity: 0 },
               visible: {
@@ -155,19 +185,26 @@ export const ViewHKIModal = memo(
             initial="hidden"
             animate="visible"
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 p-6">
-              <motion.dl className="space-y-6" variants={itemVariants}>
-                <DetailItem label="Nama HKI" value={entry.nama_hki} />
-                <DetailItem label="Jenis Produk" value={entry.jenis_produk} />
-                <DetailItem label="Jenis HKI">
+            {/* --- GRUP 1: Detail Properti HKI --- */}
+            <motion.div variants={itemVariants} className="space-y-4">
+              <h3 className="text-lg font-semibold text-foreground">
+                Detail Properti HKI
+              </h3>
+              <dl className="space-y-4">
+                <IconDetailItem
+                  icon={FileText}
+                  label="Jenis Produk"
+                  value={entry.jenis_produk ?? '-'}
+                />
+                <IconDetailItem icon={Copyright} label="Jenis HKI">
                   <Badge
                     variant="outline"
                     className="font-medium bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 w-fit"
                   >
-                    {entry.jenis?.nama_jenis_hki || '-'}
+                    {entry.jenis?.nama_jenis_hki ?? '-'}
                   </Badge>
-                </DetailItem>
-                <DetailItem label="Kelas HKI (Nice)">
+                </IconDetailItem>
+                <IconDetailItem icon={BookText} label="Kelas HKI (Nice)">
                   {entry.kelas ? (
                     <div className="flex flex-col items-start gap-1.5">
                       <Badge
@@ -185,110 +222,116 @@ export const ViewHKIModal = memo(
                       - Tidak diatur -
                     </span>
                   )}
-                </DetailItem>
-              </motion.dl>
+                </IconDetailItem>
+              </dl>
+            </motion.div>
 
-              <motion.dl className="space-y-6" variants={itemVariants}>
-                <DetailItem
-                  label="Pemohon"
-                  value={entry.pemohon?.nama_pemohon}
+            <Separator />
+
+            {/* --- GRUP 2: Informasi Pemohon --- */}
+            <motion.div variants={itemVariants} className="space-y-4">
+              <h3 className="text-lg font-semibold text-foreground">
+                Informasi Pemohon
+              </h3>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                <IconDetailItem
+                  icon={User}
+                  label="Nama Pemohon"
+                  value={entry.pemohon?.nama_pemohon ?? '-'}
                 />
-                <DetailItem label="Alamat Pemohon">
+                <IconDetailItem label="Alamat Pemohon" icon={Building}>
                   <p className="text-base text-foreground whitespace-pre-wrap">
-                    {entry.pemohon?.alamat || '-'}
+                    {entry.pemohon?.alamat ?? '-'}
                   </p>
-                </DetailItem>
-                <DetailItem
+                </IconDetailItem>
+              </dl>
+            </motion.div>
+
+            <Separator />
+
+            {/* --- GRUP 3: Administrasi --- */}
+            <motion.div variants={itemVariants} className="space-y-4">
+              <h3 className="text-lg font-semibold text-foreground">
+                Administrasi
+              </h3>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                <IconDetailItem
                   label="Pengusul (OPD)"
-                  value={entry.pengusul?.nama_opd}
+                  icon={Building}
+                  value={entry.pengusul?.nama_opd ?? '-'}
                 />
-                <DetailItem label="Status Saat Ini">
-                  <Badge
-                    className={cn(
-                      'text-base font-medium gap-2 px-3 py-1 w-fit',
-                      statusStyle.className
-                    )}
-                  >
-                    <StatusIcon className="h-4 w-4" />
-                    {entry.status_hki?.nama_status || 'N/A'}
-                  </Badge>
-                </DetailItem>
-              </motion.dl>
-
-              <motion.dl
-                className="md:col-span-2 grid grid-cols-1 gap-x-8 gap-y-6"
-                variants={itemVariants}
-              >
-                <DetailItem label="Keterangan Tambahan">
-                  <p className="text-base text-foreground whitespace-pre-wrap">
-                    {entry.keterangan || '-'}
-                  </p>
-                </DetailItem>
-              </motion.dl>
-            </div>
+                <IconDetailItem
+                  label="Tahun Fasilitasi"
+                  icon={Calendar}
+                  value={entry.tahun_fasilitasi ?? 'N/A'}
+                />
+              </dl>
+              <IconDetailItem label="Keterangan Tambahan" icon={BookText}>
+                <p className="text-base text-foreground whitespace-pre-wrap">
+                  {entry.keterangan ?? '-'}
+                </p>
+              </IconDetailItem>
+            </motion.div>
 
             {/* Bagian Sertifikat PDF */}
-            <div className="px-6 pb-6">
-              <div className="border-t pt-6">
-                <DetailItem label="Sertifikat PDF">
-                  {entry.sertifikat_pdf ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2 w-fit"
-                      onClick={handleTogglePdfView}
-                      disabled={isLoadingPdf}
-                    >
-                      {isLoadingPdf ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : pdfUrl ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                      {isLoadingPdf
-                        ? 'Memuat...'
-                        : pdfUrl
-                          ? 'Sembunyikan Sertifikat'
-                          : 'Lihat Sertifikat'}
-                    </Button>
-                  ) : (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground italic">
-                      <Paperclip className="h-4 w-4" />
-                      <span>Tidak ada file terlampir.</span>
-                    </div>
-                  )}
-                </DetailItem>
+            <div className="border-t pt-6">
+              <IconDetailItem label="Sertifikat PDF" icon={Paperclip}>
+                {entry.sertifikat_pdf ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 w-fit"
+                    onClick={handleTogglePdfView}
+                    disabled={isLoadingPdf}
+                  >
+                    {isLoadingPdf ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : pdfUrl ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                    {isLoadingPdf
+                      ? 'Memuat...'
+                      : pdfUrl
+                        ? 'Sembunyikan Sertifikat'
+                        : 'Lihat Sertifikat'}
+                  </Button>
+                ) : (
+                  <span className="text-sm text-muted-foreground italic">
+                    Tidak ada file terlampir.
+                  </span>
+                )}
+              </IconDetailItem>
 
-                <AnimatePresence>
-                  {(isLoadingPdf || pdfUrl) && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0, marginTop: 0 }}
-                      animate={{
-                        height: '70vh',
-                        opacity: 1,
-                        marginTop: '1.5rem',
-                      }}
-                      exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                      transition={{ duration: 0.3, ease: 'easeInOut' }}
-                      className="overflow-hidden"
-                    >
-                      {isLoadingPdf ? (
-                        <div className="flex flex-col items-center justify-center h-full text-muted-foreground rounded-lg border bg-muted/50">
-                          <Loader2 className="h-8 w-8 animate-spin mb-4" />
-                          <p>Memuat pratinjau sertifikat...</p>
-                        </div>
-                      ) : pdfUrl ? (
-                        <iframe
-                          src={pdfUrl}
-                          className="w-full h-full rounded-md border"
-                          title={`Sertifikat untuk ${entry.nama_hki}`}
-                        />
-                      ) : null}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <AnimatePresence>
+                {(isLoadingPdf || pdfUrl) && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                    animate={{
+                      height: '70vh',
+                      opacity: 1,
+                      marginTop: '1.5rem',
+                    }}
+                    exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                    className="overflow-hidden"
+                  >
+                    {isLoadingPdf ? (
+                      <div className="flex flex-col items-center justify-center h-full text-muted-foreground rounded-lg border bg-muted/50">
+                        <Loader2 className="h-8 w-8 animate-spin mb-4" />
+                        <p>Memuat pratinjau sertifikat...</p>
+                      </div>
+                    ) : pdfUrl ? (
+                      <iframe
+                        src={pdfUrl}
+                        className="w-full h-full rounded-md border"
+                        title={`Sertifikat untuk ${entry.nama_hki}`}
+                      />
+                    ) : null}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
 

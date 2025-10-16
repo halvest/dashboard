@@ -293,7 +293,7 @@ const DataTableToolbar = memo(
             <div className="relative w-full md:max-w-md">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
-                placeholder="Cari HKI, produk, atau nama pemohon..."
+                placeholder="Cari nama HKI atau nama pemohon..."
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
                 className="pl-11 pr-10 h-10 rounded-lg text-base md:text-sm"

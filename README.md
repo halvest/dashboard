@@ -1,30 +1,28 @@
 # Dashboard Admin - Manajemen Data HKI
 
-Selamat datang di Dashboard Admin untuk Manajemen Hak Kekayaan Intelektual (HKI). Aplikasi ini adalah solusi lengkap yang dirancang untuk memusatkan, mengelola, dan menganalisis data pengajuan HKI secara efisien dan aman. Dibangun dengan tumpukan teknologi modern, dasbor ini menawarkan antarmuka yang profesional, fitur-fitur canggih, dan alur kerja yang dioptimalkan untuk administrasi.
-
----
+Dasbor Admin untuk Manajemen Hak Kekayaan Intelektual (HKI). Aplikasi ini adalah solusi lengkap yang dirancang untuk memusatkan, mengelola, dan menganalisis data pengajuan HKI secara efisien dan aman.
 
 ## ✨ Fitur Utama
 
 - **Otentikasi & Keamanan:** Sistem login aman berbasis email/password dengan verifikasi peran. Hanya pengguna dengan peran **admin** yang dapat mengakses fungsionalitas dasbor.
 - **Manajemen Data HKI (CRUD):** Kemampuan penuh untuk **Membuat, Membaca, Memperbarui, dan Menghapus (CRUD)** data HKI melalui formulir yang intuitif dan tervalidasi.
-- **Tabel Data Interaktif & Responsif:** Menampilkan data dengan fitur **pencarian _real-time_**, **penyortiran (sorting)** kolom, **filter** multi-kriteria, dan **paginasi** yang efisien. Tampilan tabel secara otomatis beradaptasi menjadi **tampilan kartu (card view)** pada perangkat mobile untuk pengalaman pengguna yang optimal.
+- **Tabel Data Interaktif & Responsif:** Menampilkan data dengan fitur **pencarian _real-time_**, **penyortiran (sorting)** kolom, **filter** multi-kriteria, dan **paginasi** yang efisien.
 - **Fitur Ekspor Data:** Admin dapat mengekspor data yang telah difilter ke dalam format **CSV** dan **Excel (.xlsx)**, lengkap dengan nama file yang deskriptif dan dinamis.
 - **Manajemen File Aman:** Kemampuan untuk mengunggah sertifikat HKI dalam format **PDF**. File disimpan dengan aman di Supabase Storage dan diakses melalui **URL sementara (signed URL)** untuk mencegah akses tidak sah.
 - **Manajemen Pengguna:** Halaman khusus admin untuk mengelola pengguna lain, termasuk menambah admin baru dan mengubah peran (jika memiliki hak akses _super admin_).
-- **Validasi Formulir Modern:** Validasi data di sisi klien yang tangguh menggunakan **Zod** dan **React Hook Form** untuk memastikan integritas dan akurasi data sebelum dikirim ke server.
-- **Antarmuka Profesional:** Didesain dengan **shadcn/ui** dan **TailwindCSS** untuk tampilan yang bersih, modern, dan sepenuhnya responsif, termasuk dukungan untuk **Dark Mode**.
+- **Validasi Formulir Modern:** Validasi data di sisi klien dan server yang tangguh menggunakan **Zod** dan **React Hook Form** untuk memastikan integritas dan akurasi data.
+- **Antarmuka Profesional:** Didesain dengan **shadcn/ui** dan **TailwindCSS** untuk tampilan yang bersih, modern, dan sepenuhnya responsif.
+
+### Fitur Tambahan
+
+- **Pembaruan _Real-time_:** Tabel data akan secara otomatis diperbarui ketika ada perubahan dari pengguna lain berkat integrasi dengan Supabase Realtime.
+- **Tampilan Mobile Adaptif:** Tampilan tabel secara otomatis beradaptasi menjadi **tampilan kartu (card view)** pada perangkat mobile untuk pengalaman pengguna yang optimal.
+- **Dukungan _Dark Mode_:** Antarmuka mendukung tema terang dan gelap yang dapat disesuaikan dengan preferensi sistem pengguna.
+- **Laporan & Visualisasi:** Halaman laporan dengan grafik interaktif untuk menganalisis tren data HKI berdasarkan tahun dan status.
 
 ---
 
 ## 🛠️ Teknologi yang Digunakan
-
-![Next.js](https://img.shields.io/badge/Next.js-13.5-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.2-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-2.43-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.3-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
-![Vercel](https://img.shields.io/badge/Vercel-Ready-000000?style=for-the-badge&logo=vercel&logoColor=white)
-![Zod](https://img.shields.io/badge/Zod-Validation-3E67B1?style=for-the-badge&logo=zod&logoColor=white)
 
 ---
 
@@ -32,13 +30,13 @@ Selamat datang di Dashboard Admin untuk Manajemen Hak Kekayaan Intelektual (HKI)
 
 Ikuti langkah-langkah berikut untuk menjalankan proyek ini di lingkungan lokal Anda.
 
-### 1. ⚙️ Konfigurasi Variabel Lingkungan
+### 1\. ⚙️ Konfigurasi Variabel Lingkungan
 
 Buat file bernama `.env.local` di direktori utama proyek. Salin konten dari `.env.example` dan isi dengan kredensial Supabase Anda.
 
 ```bash
 # URL proyek Supabase Anda
-NEXT_PUBLIC_SUPABASE_URL="[https://xxxxxxxxxxxx.supabase.co](https://xxxxxxxxxxxx.supabase.co)"
+NEXT_PUBLIC_SUPABASE_URL="https://xxxxxxxxxxxx.supabase.co"
 
 # Kunci Anon (public) Supabase Anda
 NEXT_PUBLIC_SUPABASE_ANON_KEY="your_supabase_anon_key"
@@ -50,174 +48,19 @@ SUPABASE_SERVICE_ROLE_KEY="your_supabase_service_role_key"
 SUPER_ADMIN_EMAIL="super.admin@example.com"
 ```
 
-### 2. 🗄️ Konfigurasi Database & Storage Supabase
+### 2\. 🗄️ Konfigurasi Database & Storage Supabase
 
-Aplikasi ini memerlukan beberapa tabel, fungsi, _trigger_, dan sebuah _bucket_ penyimpanan. Jalankan semua skrip SQL berikut di **SQL Editor** pada dasbor Supabase Anda.
+Aplikasi ini memerlukan beberapa tabel, fungsi, dan _trigger_. Pastikan skema database Anda sesuai dengan yang dibutuhkan oleh aplikasi.
 
-<details>
-<summary><strong>Klik untuk melihat Skema SQL Lengkap</strong></summary>
+**Penting:**
 
-```sql
--- 1. TABEL REFERENSI
-CREATE TABLE public.pemohon (
-  id_pemohon BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-  nama_pemohon VARCHAR NOT NULL UNIQUE,
-  alamat TEXT
-);
+- Pastikan semua tabel yang diperlukan (`hki`, `pemohon`, `pengusul`, `jenis_hki`, `status_hki`, `kelas_hki`, `profiles`) telah dibuat.
+- Aktifkan **Row Level Security (RLS)** pada semua tabel tersebut.
+- Buat _policy_ RLS yang sesuai untuk memberikan akses `ALL` kepada peran `admin`.
+- Siapkan _trigger_ dan _function_ `handle_new_user` untuk sinkronisasi data dari `auth.users` ke tabel `public.profiles`.
+- Buat _bucket_ di Supabase Storage dengan nama `sertifikat-hki` dan pastikan **"Public bucket" tidak dicentang**. Atur _policy_ agar hanya admin yang dapat melakukan operasi pada _bucket_ ini.
 
-CREATE TABLE public.pengusul (
-  id_pengusul BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-  nama_opd VARCHAR NOT NULL
-);
-
-CREATE TABLE public.jenis_hki (
-  id_jenis_hki BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-  nama_jenis_hki TEXT NOT NULL UNIQUE
-);
-
-CREATE TABLE public.status_hki (
-  id_status BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-  nama_status TEXT NOT NULL UNIQUE
-);
-
-CREATE TABLE public.kelas_hki (
-  id_kelas BIGINT PRIMARY KEY,
-  nama_kelas TEXT NOT NULL,
-  tipe TEXT NOT NULL CHECK (tipe IN ('Barang', 'Jasa'))
-);
-
--- 2. TABEL PROFIL PENGGUNA (MENAMBAHKAN ROLE)
-CREATE TABLE public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  full_name TEXT,
-  role TEXT NOT NULL DEFAULT 'user',
-  email TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 3. TABEL UTAMA HKI
-CREATE TABLE public.hki (
-  id_hki BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-  id_pemohon BIGINT NOT NULL REFERENCES public.pemohon(id_pemohon),
-  id_jenis_hki BIGINT NOT NULL REFERENCES public.jenis_hki(id_jenis_hki),
-  id_status BIGINT NOT NULL REFERENCES public.status_hki(id_status),
-  id_pengusul BIGINT NOT NULL REFERENCES public.pengusul(id_pengusul),
-  id_kelas BIGINT REFERENCES public.kelas_hki(id_kelas),
-  nama_hki VARCHAR NOT NULL UNIQUE,
-  jenis_produk VARCHAR,
-  tahun_fasilitasi INT CHECK (tahun_fasilitasi >= 2000 AND tahun_fasilitasi <= 2100),
-  sertifikat_pdf TEXT,
-  keterangan TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 4. AKTIFKAN ROW LEVEL SECURITY (PENTING!)
-ALTER TABLE public.pemohon ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pengusul ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.jenis_hki ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.status_hki ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.kelas_hki ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.hki ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-
--- 5. KEBIJAKAN RLS (Hanya admin yang bisa akses data)
-CREATE POLICY "Allow admin full access" ON public.hki FOR ALL
-  USING ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin')
-  WITH CHECK ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
-
--- Ulangi kebijakan serupa untuk tabel referensi lain (pemohon, pengusul, jenis_hki, status_hki, kelas_hki)
--- Contoh untuk tabel 'pemohon':
-CREATE POLICY "Allow admin full access on pemohon" ON public.pemohon FOR ALL
-  USING ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin')
-  WITH CHECK ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
-
--- Kebijakan untuk tabel 'profiles'
-CREATE POLICY "Users can view their own profile" ON public.profiles FOR SELECT
-  USING (auth.uid() = id);
-CREATE POLICY "Admins can manage all profiles" ON public.profiles FOR ALL
-  USING ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin')
-  WITH CHECK ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
-
-
--- 6. FUNGSI DAN TRIGGER (untuk auto-update `updated_at` dan sinkronisasi profil)
-CREATE OR REPLACE FUNCTION public.handle_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE TRIGGER on_hki_updated
-BEFORE UPDATE ON public.hki
-FOR EACH ROW EXECUTE PROCEDURE public.handle_updated_at();
-
--- Trigger untuk membuat profil baru setiap kali user baru mendaftar
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO public.profiles (id, full_name, email, role)
-  VALUES (
-    NEW.id,
-    NEW.raw_user_meta_data->>'full_name',
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'role', 'user') -- Ambil peran dari metadata
-  );
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE TRIGGER on_auth_user_created
-AFTER INSERT ON auth.users
-FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
-
-
--- 7. FUNGSI RPC (Untuk Optimasi Performa)
-CREATE OR REPLACE FUNCTION get_users_with_profiles()
-RETURNS TABLE (
-  id uuid,
-  email text,
-  full_name text,
-  role text,
-  created_at timestamptz
-) AS $$
-BEGIN
-  IF (SELECT public.profiles.role FROM public.profiles WHERE public.profiles.id = auth.uid()) <> 'admin' THEN
-    RAISE EXCEPTION 'Hanya admin yang dapat mengakses data ini.';
-  END IF;
-
-  RETURN QUERY
-  SELECT
-    u.id,
-    u.email,
-    p.full_name,
-    p.role,
-    u.created_at
-  FROM
-    auth.users u
-  LEFT JOIN
-    public.profiles p ON u.id = p.id
-  ORDER BY
-    u.created_at DESC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-```
-
-</details>
-
-#### Konfigurasi Supabase Storage:
-
-1.  Buka dasbor Supabase Anda, lalu navigasi ke menu **Storage**.
-2.  Klik **"Create a new bucket"**.
-3.  Beri nama bucket `sertifikat-hki`.
-4.  Pastikan opsi **"Public bucket"** **tidak dicentang**.
-5.  Setelah bucket dibuat, navigasi ke **Storage** > **Policies**.
-6.  Buat kebijakan (_policy_) baru untuk bucket `sertifikat-hki` agar admin dapat mengunggah dan mengakses file.
-    - **Allow admin access (`SELECT`, `INSERT`, `UPDATE`, `DELETE`):** Izinkan semua operasi untuk _role_ `authenticated` jika profil pengguna adalah `admin`. Gunakan _template_ "Enable access to all users for admins" dan sesuaikan jika perlu.
-
-### 3. 📦 Instalasi Dependensi
+### 3\. 📦 Instalasi Dependensi
 
 Jalankan perintah berikut untuk menginstal semua paket yang dibutuhkan.
 
@@ -225,7 +68,7 @@ Jalankan perintah berikut untuk menginstal semua paket yang dibutuhkan.
 npm install
 ```
 
-### 4. ධ Lari di Mode Development
+### 4\. 🌐 Mode Development
 
 Jalankan server pengembangan lokal.
 
@@ -235,11 +78,11 @@ npm run dev
 
 Aplikasi akan tersedia di `http://localhost:3000`.
 
-### 5. 🌐 Deploy ke Vercel
+### 5\. 🌐 Deploy ke Vercel
 
 1.  Hubungkan repositori GitHub Anda ke Vercel.
 2.  Tambahkan semua variabel dari `.env.local` ke pengaturan **Environment Variables** di dasbor proyek Vercel Anda.
-3.  Deploy!
+3.  Deploy\!
 
 ---
 
@@ -247,15 +90,18 @@ Aplikasi akan tersedia di `http://localhost:3000`.
 
 ```
 app/
-├── (auth)/                  # Grup route untuk otentikasi
+├── (auth)/                  # Grup rute untuk otentikasi
 │   └── login/page.tsx       # Halaman login
-├── dashboard/               # Grup route untuk area yang dilindungi
-│   ├── layout.tsx           # Layout utama dashboard (Sidebar, Header)
+├── dashboard/               # Grup rute untuk area yang dilindungi
+│   ├── layout.tsx           # Layout utama dasbor (Sidebar, Header)
 │   ├── page.tsx             # Halaman utama dasbor
 │   ├── data-pengajuan-fasilitasi/ # Modul utama manajemen HKI
+│   ├── data-master/         # Modul manajemen data referensi
+│   ├── laporan/             # Halaman laporan dan statistik
 │   └── manajemen-pengguna/  # Modul manajemen pengguna
-├── api/                     # Route API backend
-│   ├── hki/                 # Endpoint untuk HKI (CRUD, export, bulk-delete)
+├── api/                     # Rute API backend
+│   ├── hki/                 # Endpoint untuk HKI (CRUD, ekspor, hapus massal)
+│   ├── master/              # Endpoint untuk data master
 │   └── users/               # Endpoint untuk manajemen pengguna
 └── layout.tsx               # Root layout aplikasi
 
@@ -269,13 +115,20 @@ lib/
 ├── utils.ts                 # Fungsi utilitas umum (e.g., cn)
 ├── types.ts                 # Definisi tipe TypeScript global
 └── supabase-browser.ts      # Klien Supabase untuk sisi klien
-└── supabase-server.ts       # Klien Supabase untuk sisi server
 
 hooks/
-└── use-*.ts                 # Hooks kustom (useDebounce, useDataTable)
+└── use-*.ts                 # Hooks kustom (useDebounce, useHkiEntry, dll.)
 
 services/
-└── *-service.ts             # Logika terpusat untuk interaksi API
+└── hki-service.ts           # Logika terpusat untuk interaksi API
 
 middleware.ts                # Middleware untuk refresh sesi Supabase
 ```
+
+---
+
+## 📝 Catatan Tambahan
+
+- **Performa:** Proyek ini memanfaatkan fitur-fitur modern React dan Next.js seperti **React Server Components (RSC)**, `React.lazy`, dan `React.memo` untuk optimasi performa. Pengambilan data di sisi server digabungkan dengan **React Query** di sisi klien untuk manajemen state data yang efisien.
+- **Klien Supabase:** Terdapat dua utilitas utama untuk membuat klien Supabase: `createClient` dari `utils/supabase/server` untuk komponen server dan `createClient` dari `lib/supabase-browser` untuk komponen klien.
+- **Real-time:** Hook `useHkiRealtime` digunakan untuk mendengarkan perubahan pada tabel `hki` dan secara otomatis memperbarui data yang ditampilkan di tabel.

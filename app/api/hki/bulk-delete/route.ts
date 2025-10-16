@@ -1,3 +1,4 @@
+// app/api/hki/bulk-delete/route.ts
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
     const { error: deleteError } = await supabase
       .from(HKI_TABLE)
       .delete()
-      .in('id_hki', ids) // ✅ Menggunakan .in() untuk efisiensi
+      .in('id_hki', ids) 
 
     if (deleteError) {
       console.error('Supabase delete error (bulk-delete):', deleteError)

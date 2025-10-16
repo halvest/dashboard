@@ -1,6 +1,6 @@
+// components/hki/create-hki-modal.tsx
 'use client'
 
-// ✨ OPTIMASI: Tambahkan import 'lazy' dan 'Suspense'
 import React, { useState, useCallback, memo, lazy, Suspense } from 'react'
 import {
   Dialog,

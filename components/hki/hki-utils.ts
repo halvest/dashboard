@@ -1,3 +1,4 @@
+// components/hki/hki-utils.ts
 'use client'
 
 import {
@@ -8,8 +9,6 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-// ✨ REFACTOR: Gunakan 'as const' untuk membuat object ini read-only
-// dan memungkinkan kita mengambil tipenya secara otomatis.
 const STATUS_STYLES = {
   Diterima: {
     className:
@@ -36,18 +35,12 @@ const STATUS_STYLES = {
       'border-gray-300 bg-gray-50 text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300',
     icon: Clock,
   },
-} as const // `as const` adalah kuncinya
+} as const
 
-// ✨ REFACTOR: Tipe `KnownStatus` sekarang diambil secara otomatis dari keys object di atas.
-// Jika Anda menambah status baru di STATUS_STYLES, tipe ini akan otomatis ter-update.
-// Ini adalah "Single Source of Truth".
 type KnownStatus = keyof typeof STATUS_STYLES
 
-// ✨ REFACTOR: Fungsi ini sekarang lebih type-safe tanpa 'as'.
-// Ia memeriksa apakah statusName ada di dalam object sebelum mengaksesnya.
-export const getStatusStyle = (statusName?: string) => {
+export const getStatusStyle = (statusName?: string | null) => {
   if (statusName && statusName in STATUS_STYLES) {
-    // TypeScript sekarang tahu bahwa statusName adalah key yang valid.
     return STATUS_STYLES[statusName as KnownStatus]
   }
   return STATUS_STYLES.Default

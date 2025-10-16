@@ -1,3 +1,4 @@
+// app/api/hki/[id]/route.ts
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
@@ -17,7 +18,8 @@ const HKI_BUCKET = 'sertifikat-hki'
 const idSchema = z.coerce.number().int().positive('ID tidak valid.')
 
 const hkiUpdateSchema = z.object({
-  nama_hki: z.string().min(3, 'Nama HKI minimal 3 karakter.'),
+  // ✅ PERBAIKAN: Validasi .min(3, ...) diubah menjadi .min(1, ...)
+  nama_hki: z.string().min(1, 'Nama HKI wajib diisi.'),
   nama_pemohon: z.string().min(3, 'Nama pemohon minimal 3 karakter.'),
   alamat: z.string().optional().nullable(),
   jenis_produk: z.string().optional().nullable(),
@@ -144,9 +146,6 @@ export async function PATCH(
       finalFilePath = null
     }
 
-    // ✅ PERBAIKAN UTAMA: HAPUS RPC, GUNAKAN TRANSAKSI MANUAL
-
-    // 1. Upsert data pemohon untuk mendapatkan ID-nya
     const { data: pemohonData, error: pemohonError } = await supabase
       .from(PEMOHON_TABLE)
       .upsert(
@@ -161,27 +160,23 @@ export async function PATCH(
     if (!pemohonData)
       throw new Error('Tidak dapat menemukan atau membuat data pemohon.')
 
-    // 2. Siapkan data HKI untuk diupdate
     const hkiUpdatePayload = {
       ...hkiFields,
       id_pemohon: pemohonData.id_pemohon,
       sertifikat_pdf: finalFilePath,
     }
 
-    // 3. Update data HKI
     const { error: hkiUpdateError } = await supabase
       .from(HKI_TABLE)
       .update(hkiUpdatePayload)
       .eq('id_hki', hkiId)
 
     if (hkiUpdateError) {
-      // Rollback manual jika update HKI gagal: hapus file yang baru diupload
       if (newFilePath)
         await supabase.storage.from(HKI_BUCKET).remove([newFilePath])
       throw new Error(`Gagal memperbarui data HKI: ${hkiUpdateError.message}`)
     }
 
-    // 4. Hapus file lama jika transaksi berhasil dan ada file baru/dihapus
     if (oldFilePath && oldFilePath !== finalFilePath) {
       const { error: removeError } = await supabase.storage
         .from(HKI_BUCKET)
@@ -193,7 +188,6 @@ export async function PATCH(
         )
     }
 
-    // 5. Ambil data final yang sudah diperbarui untuk dikirim kembali ke client
     const { data: finalData, error: finalFetchError } = await supabase
       .from(HKI_TABLE)
       .select(

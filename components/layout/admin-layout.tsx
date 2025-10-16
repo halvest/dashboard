@@ -1,20 +1,19 @@
-// app/components/layout/admin-layout.tsx
+// components/layout/admin-layout.tsx
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, ReactNode } from 'react'
 import { Sidebar } from './sidebar'
 import { Topbar } from './navbar'
 import { Footer } from './footer'
 import { Button } from '@/components/ui/button'
 import { ServerCrash } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 // --- Error Boundary dengan UI yang Ditingkatkan ---
 class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
+  { children: ReactNode },
   { hasError: boolean; error: Error | null }
 > {
-  constructor(props: { children: React.ReactNode }) {
+  constructor(props: { children: ReactNode }) {
     super(props)
     this.state = { hasError: false, error: null }
   }
@@ -54,7 +53,7 @@ class ErrorBoundary extends React.Component<
               hubungi administrator jika masalah berlanjut.
             </p>
             {/* Menampilkan detail error teknis HANYA di mode development.
-              Ini sangat membantu saat debugging, namun aman di production.
+                Ini sangat membantu saat debugging, namun aman di production.
             */}
             {process.env.NODE_ENV === 'development' && this.state.error && (
               <pre className="mt-4 w-full overflow-x-auto rounded-md bg-muted p-3 text-left text-xs text-muted-foreground">
@@ -79,7 +78,7 @@ class ErrorBoundary extends React.Component<
 }
 
 // --- Komponen Layout Utama ---
-function AdminLayoutComponent({ children }: React.PropsWithChildren) {
+function AdminLayoutComponent({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Memoize fungsi untuk stabilitas referensi
@@ -88,7 +87,6 @@ function AdminLayoutComponent({ children }: React.PropsWithChildren) {
   }, [])
 
   return (
-    // PERBAIKAN: Menggunakan variabel tema dari globals.css untuk mendukung dark mode secara penuh.
     <div className="flex min-h-screen bg-muted/40 text-foreground">
       <Sidebar
         sidebarOpen={sidebarOpen}
@@ -122,12 +120,14 @@ function AdminLayoutComponent({ children }: React.PropsWithChildren) {
 }
 
 // Komponen akhir yang diekspor, sudah dibungkus ErrorBoundary dan di-memoize.
-export const AdminLayout = React.memo(function AdminLayout(
-  props: React.PropsWithChildren
-) {
+export const AdminLayout = React.memo(function AdminLayout({
+  children,
+}: {
+  children: ReactNode
+}) {
   return (
     <ErrorBoundary>
-      <AdminLayoutComponent {...props} />
+      <AdminLayoutComponent>{children}</AdminLayoutComponent>
     </ErrorBoundary>
   )
 })

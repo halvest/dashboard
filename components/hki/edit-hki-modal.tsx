@@ -1,15 +1,7 @@
 // components/hki/edit-hki-modal.tsx
-// FIX: Menambahkan 'AnimatePresence' ke dalam import dari framer-motion.
 'use client'
 
-import React, {
-  useState,
-  useCallback,
-  memo,
-  useMemo,
-  lazy,
-  Suspense,
-} from 'react'
+import React, { useState, useCallback, memo, lazy, Suspense } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -24,7 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, PencilLine, Loader2 } from 'lucide-react'
 import { useHKIEntry } from '@/hooks/use-hki-entry'
-import { motion, AnimatePresence } from 'framer-motion' // <-- FIX: 'AnimatePresence' ditambahkan
+import { motion, AnimatePresence } from 'framer-motion'
 
 const HKIForm = lazy(() =>
   import('@/components/forms/hki-form').then((module) => ({

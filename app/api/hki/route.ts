@@ -1,6 +1,6 @@
 // app/api/hki/route.ts
 import { createClient } from '@/utils/supabase/server'
-import { SupabaseClient } from '@supabase/supabase-js' // <-- PERBAIKAN: Impor tipe dari pustaka Supabase langsung
+import { SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
@@ -28,7 +28,7 @@ const getParamsSchema = z.object({
 })
 
 const hkiCreateSchema = z.object({
-  nama_hki: z.string().min(3, 'Nama HKI minimal 3 karakter.'),
+  nama_hki: z.string().min(1, 'Nama HKI wajib diisi.'),
   nama_pemohon: z.string().min(3, 'Nama pemohon minimal 3 karakter.'),
   alamat: z.string().optional().nullable(),
   jenis_produk: z.string().optional().nullable(),
@@ -55,7 +55,6 @@ class AuthError extends Error {
 }
 
 async function authorizeAdmin(supabase: SupabaseClient<Database>) {
-  // <-- Tipe ini sekarang dikenali dengan benar
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -90,7 +89,6 @@ export async function GET(request: NextRequest) {
       )
 
     if (params.search) {
-      // 1. Dapatkan ID pemohon yang cocok secara terpisah
       const { data: pemohonData, error: pemohonError } = await supabase
         .from('pemohon')
         .select('id_pemohon')
@@ -101,8 +99,7 @@ export async function GET(request: NextRequest) {
 
       const pemohonIds = pemohonData?.map((p) => p.id_pemohon) || []
 
-      // 2. Bangun klausa .or() yang hanya berlaku pada tabel HKI
-      let orFilter = `nama_hki.ilike.%${params.search}%`
+      let orFilter = `nama_hki.ilike.%${params.search}%,jenis_produk.ilike.%${params.search}%`
       if (pemohonIds.length > 0) {
         orFilter += `,id_pemohon.in.(${pemohonIds.join(',')})`
       }
@@ -110,7 +107,6 @@ export async function GET(request: NextRequest) {
       query = query.or(orFilter)
     }
 
-    // Filter lainnya
     if (params.jenisId) query = query.eq('id_jenis_hki', params.jenisId)
     if (params.statusId) query = query.eq('id_status', params.statusId)
     if (params.year) query = query.eq('tahun_fasilitasi', params.year)
