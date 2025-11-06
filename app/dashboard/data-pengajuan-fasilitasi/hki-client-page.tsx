@@ -151,7 +151,6 @@ export function HKIClientPage({
           throw new Error(result.error || 'Gagal menghapus entri.')
         return result
       },
-      // ✅ PERBAIKAN: onMutate sekarang menyimpan nama data yang akan dihapus
       onMutate: async (idsToDelete: number[]) => {
         await queryClient.cancelQueries({ queryKey })
         const previousData = queryClient.getQueryData<HkiQueryData>(queryKey)
@@ -175,7 +174,6 @@ export function HKIClientPage({
         )
         return { previousData, deletedNames }
       },
-      // ✅ PERBAIKAN: onSuccess sekarang menampilkan notifikasi yang lebih spesifik
       onSuccess: (data, _variables, context) => {
         if (context?.deletedNames && context.deletedNames.length === 1) {
           toast.success(`Data "${context.deletedNames[0]}" berhasil dihapus.`)
@@ -286,13 +284,6 @@ export function HKIClientPage({
 
   return (
     <div className="space-y-6">
-      {/* --- UI FEEDBACK: PROGRESS BAR --- */}
-      {isFetching && !isLoading && (
-        <div className="fixed top-0 left-0 right-0 h-1 z-50">
-          <div className="h-full bg-primary/50 animate-pulse w-full" />
-        </div>
-      )}
-
       <PageHeader
         totalCount={totalCount}
         pageSize={pagination.pageSize}
@@ -310,6 +301,7 @@ export function HKIClientPage({
         onDelete={deleteMutation.mutate}
         isDeleting={deleteMutation.isPending}
         isLoading={isLoading}
+        isFetching={isFetching}
       />
 
       {/* Gunakan Suspense untuk lazy loading modal agar tidak memperlambat render awal */}

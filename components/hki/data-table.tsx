@@ -580,7 +580,6 @@ const DataTableRow = memo(
         return
       }
       const toastId = toast.loading('Mempersiapkan unduhan...')
-      // ✅ FIX: Tambahkan parameter `?disposition=attachment` untuk memaksa unduhan
       fetch(`/api/hki/${entry.id_hki}/signed-url?disposition=attachment`)
         .then((res) => {
           if (!res.ok) {
@@ -591,8 +590,6 @@ const DataTableRow = memo(
           return res.json()
         })
         .then(({ signedUrl, fileName }) => {
-          // Karena API sudah mengatur header Content-Disposition,
-          // kita hanya perlu mengarahkan browser ke URL tersebut.
           window.location.href = signedUrl
           toast.success(`'${fileName}' mulai diunduh.`, { id: toastId })
         })
@@ -1123,6 +1120,15 @@ const InteractiveExportModal = memo(
 )
 InteractiveExportModal.displayName = 'InteractiveExportModal'
 
+const LoadingOverlay = () => (
+  <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+    <div className="flex items-center gap-3 rounded-lg bg-card p-4 shadow-lg">
+      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <span className="font-semibold text-foreground">Memuat data...</span>
+    </div>
+  </div>
+)
+
 type DataTableProps = {
   data: HKIEntry[]
   totalCount: number
@@ -1134,6 +1140,7 @@ type DataTableProps = {
   onDelete: (ids: number[]) => void
   isDeleting: boolean
   isLoading: boolean
+  isFetching: boolean
 }
 
 export function DataTable({
@@ -1147,6 +1154,7 @@ export function DataTable({
   onDelete,
   isDeleting,
   isLoading,
+  isFetching,
 }: DataTableProps) {
   const tableState = useDataTable(totalCount)
   const [deleteAlert, setDeleteAlert] = useState<{
@@ -1242,7 +1250,8 @@ export function DataTable({
         toggleSelectionMode={toggleSelectionMode}
         onOpenExportModal={() => setIsExportModalOpen(true)}
       />
-      <div className="rounded-lg border dark:border-slate-800 bg-white dark:bg-slate-950">
+      <div className="relative rounded-lg border dark:border-slate-800 bg-white dark:bg-slate-950">
+        {isFetching && !isLoading && <LoadingOverlay />}
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-slate-50 dark:bg-slate-900/50 hidden md:table-header-group">
