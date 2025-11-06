@@ -82,7 +82,7 @@ export default function LoginPage() {
               alt="Logo Sleman"
               width={56}
               height={56}
-              className="h-14 w-14"
+              className="h-20 w-auto"
             />
           </div>
           <CardTitle className="text-2xl font-bold">
