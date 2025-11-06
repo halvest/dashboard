@@ -15,7 +15,8 @@ import {
 } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import { Loader2, ShieldCheck } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import Image from 'next/image'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -70,18 +71,24 @@ export default function LoginPage() {
     <div className="relative min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/candi-prambanan.jpg')" }}
+        style={{ backgroundImage: "url('/bappeda.png')" }}
       />
-      <div className="absolute inset-0 bg-black/60" />
+      <div className="absolute inset-0 bg-black/60" />{' '}
       <Card className="relative z-10 w-full max-w-md shadow-2xl">
         <CardHeader className="text-center space-y-2">
           <div className="flex justify-center">
-            <ShieldCheck className="h-10 w-10 text-primary" />
+            <Image
+              src="/logo_sleman.png"
+              alt="Logo Sleman"
+              width={56}
+              height={56}
+              className="h-14 w-14"
+            />
           </div>
           <CardTitle className="text-2xl font-bold">
-            Manajemen Data Pengajuan HKI
+            Manajemen Data Fasilitasi HKI Bappeda
           </CardTitle>
-          <CardDescription>Silakan masuk terlebih dahulu!</CardDescription>
+          <CardDescription>Silahkan masuk terlebih dahulu!</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-6">
