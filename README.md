@@ -1,38 +1,39 @@
 # Dashboard Admin - Manajemen Data HKI
 
-Dasbor Admin untuk Manajemen Hak Kekayaan Intelektual (HKI). Aplikasi ini adalah solusi lengkap yang dirancang untuk memusatkan, mengelola, dan menganalisis data pengajuan HKI secara efisien dan aman.
+Repositori ini berisi kode sumber untuk aplikasi **Dasbor Admin Manajemen HKI**. Aplikasi ini berfungsi sebagai panel terpusat untuk mengelola (CRUD), menganalisis, dan mengekspor data pengajuan Hak Kekayaan Intelektual (HKI).
 
 ## ✨ Fitur Utama
 
-- **Otentikasi & Keamanan:** Sistem login aman berbasis email/password dengan verifikasi peran. Hanya pengguna dengan peran **admin** yang dapat mengakses fungsionalitas dasbor.
-- **Manajemen Data HKI (CRUD):** Kemampuan penuh untuk **Membuat, Membaca, Memperbarui, dan Menghapus (CRUD)** data HKI melalui formulir yang intuitif dan tervalidasi.
-- **Tabel Data Interaktif & Responsif:** Menampilkan data dengan fitur **pencarian _real-time_**, **penyortiran (sorting)** kolom, **filter** multi-kriteria, dan **paginasi** yang efisien.
-- **Fitur Ekspor Data:** Admin dapat mengekspor data yang telah difilter ke dalam format **CSV** dan **Excel (.xlsx)**, lengkap dengan nama file yang deskriptif dan dinamis.
-- **Manajemen File Aman:** Kemampuan untuk mengunggah sertifikat HKI dalam format **PDF**. File disimpan dengan aman di Supabase Storage dan diakses melalui **URL sementara (signed URL)** untuk mencegah akses tidak sah.
-- **Manajemen Pengguna:** Halaman khusus admin untuk mengelola pengguna lain, termasuk menambah admin baru dan mengubah peran (jika memiliki hak akses _super admin_).
-- **Validasi Formulir Modern:** Validasi data di sisi klien dan server yang tangguh menggunakan **Zod** dan **React Hook Form** untuk memastikan integritas dan akurasi data.
-- **Antarmuka Profesional:** Didesain dengan **shadcn/ui** dan **TailwindCSS** untuk tampilan yang bersih, modern, dan sepenuhnya responsif.
+  * **Otentikasi & Manajemen Pengguna:** Sistem login aman berbasis email/password dengan verifikasi peran. Hanya **admin** yang dapat mengakses dasbor. Terdapat halaman khusus untuk mengelola pengguna (tambah/edit/hapus).
+  * **Manajemen Data (CRUD) Interaktif:** Kemampuan penuh untuk **Membuat, Membaca, Memperbarui, dan Menghapus (CRUD)** data HKI.
+  * **Tabel Data Modern:** Tabel data utama dilengkapi dengan **pencarian**, **filter** multi-kriteria, **penyortiran** kolom, dan **paginasi** sisi server. Tabel ini juga responsif dan berubah menjadi **tampilan kartu (card view)** di perangkat mobile.
+  * **Ekspor Data:** Admin dapat mengekspor data yang telah difilter ke dalam format **CSV** dan **Excel (.xlsx)**.
+  * **Manajemen File Aman:** Kemampuan untuk mengunggah sertifikat PDF ke **Supabase Storage**. File diakses menggunakan **URL sementara (signed URL)** untuk keamanan.
+  * **Visualisasi Laporan:** Halaman laporan dengan **grafik interaktif** untuk menganalisis tren data HKI berdasarkan tahun dan status.
+  * **Pembaruan Real-time:** Tabel data utama akan otomatis diperbarui jika ada perubahan dari pengguna lain berkat **Supabase Realtime**.
 
-### Fitur Tambahan
+## 🛠️ Teknologi Utama
 
-- **Pembaruan _Real-time_:** Tabel data akan secara otomatis diperbarui ketika ada perubahan dari pengguna lain berkat integrasi dengan Supabase Realtime.
-- **Tampilan Mobile Adaptif:** Tampilan tabel secara otomatis beradaptasi menjadi **tampilan kartu (card view)** pada perangkat mobile untuk pengalaman pengguna yang optimal.
-- **Dukungan _Dark Mode_:** Antarmuka mendukung tema terang dan gelap yang dapat disesuaikan dengan preferensi sistem pengguna.
-- **Laporan & Visualisasi:** Halaman laporan dengan grafik interaktif untuk menganalisis tren data HKI berdasarkan tahun dan status.
+Proyek ini dibangun menggunakan tumpukan teknologi modern yang berfokus pada kinerja dan pengalaman pengembang:
 
----
+  * **Framework:** **Next.js 13** (menggunakan App Router)
+  * **Bahasa:** **TypeScript**
+  * **Database & Backend:** **Supabase** (Auth, PostgreSQL, Storage, Realtime)
+  * **Styling:** **TailwindCSS** & **shadcn/ui**
+  * **Manajemen State (Client):** **React Query** (`@tanstack/react-query`)
+  * **Formulir & Validasi:** **React Hook Form** & **Zod**
+  * **Visualisasi Data:** **Recharts**
+  * **Ekspor File:** **ExcelJS**
 
-## 🛠️ Teknologi yang Digunakan
-
----
+-----
 
 ## 🚀 Panduan Instalasi & Konfigurasi
 
-Ikuti langkah-langkah berikut untuk menjalankan proyek ini di lingkungan lokal Anda.
+Ikuti langkah-langkah ini untuk menjalankan proyek secara lokal.
 
-### 1\. ⚙️ Konfigurasi Variabel Lingkungan
+### 1\. Konfigurasi Variabel Lingkungan
 
-Buat file bernama `.env.local` di direktori utama proyek. Salin konten dari `.env.example` dan isi dengan kredensial Supabase Anda.
+Salin file `.env.example` menjadi `.env.local` dan isi dengan kredensial Supabase Anda.
 
 ```bash
 # URL proyek Supabase Anda
@@ -48,29 +49,22 @@ SUPABASE_SERVICE_ROLE_KEY="your_supabase_service_role_key"
 SUPER_ADMIN_EMAIL="super.admin@example.com"
 ```
 
-### 2\. 🗄️ Konfigurasi Database & Storage Supabase
+### 2\. Konfigurasi Database & Storage Supabase
 
-Aplikasi ini memerlukan beberapa tabel, fungsi, dan _trigger_. Pastikan skema database Anda sesuai dengan yang dibutuhkan oleh aplikasi.
+Aplikasi ini memerlukan pengaturan spesifik di Supabase:
 
-**Penting:**
+  * **Tabel:** Pastikan semua tabel yang diperlukan telah dibuat (termasuk `hki`, `pemohon`, `pengusul`, `jenis_hki`, `status_hki`, `kelas_hki`, dan `profiles`).
+  * **Keamanan (RLS):** Aktifkan **Row Level Security (RLS)** pada semua tabel. Buat *policy* RLS yang sesuai untuk memberikan akses penuh (`ALL`) kepada pengguna dengan peran `admin`.
+  * **Sinkronisasi Auth:** Siapkan *trigger* dan *function* di database (misalnya `handle_new_user`) untuk menyinkronkan data dari `auth.users` ke tabel `public.profiles` setiap kali ada pengguna baru mendaftar.
+  * **Storage:** Buat *bucket* di Supabase Storage dengan nama `sertifikat-hki`. Pastikan **"Public bucket" TIDAK dicentang**. Atur *policy* Storage agar hanya admin yang dapat melakukan unggah (`insert`) dan lihat (`select`).
 
-- Pastikan semua tabel yang diperlukan (`hki`, `pemohon`, `pengusul`, `jenis_hki`, `status_hki`, `kelas_hki`, `profiles`) telah dibuat.
-- Aktifkan **Row Level Security (RLS)** pada semua tabel tersebut.
-- Buat _policy_ RLS yang sesuai untuk memberikan akses `ALL` kepada peran `admin`.
-- Siapkan _trigger_ dan _function_ `handle_new_user` untuk sinkronisasi data dari `auth.users` ke tabel `public.profiles`.
-- Buat _bucket_ di Supabase Storage dengan nama `sertifikat-hki` dan pastikan **"Public bucket" tidak dicentang**. Atur _policy_ agar hanya admin yang dapat melakukan operasi pada _bucket_ ini.
-
-### 3\. 📦 Instalasi Dependensi
-
-Jalankan perintah berikut untuk menginstal semua paket yang dibutuhkan.
+### 3\. Instalasi Dependensi
 
 ```bash
 npm install
 ```
 
-### 4\. 🌐 Mode Development
-
-Jalankan server pengembangan lokal.
+### 4\. Menjalankan Server Development
 
 ```bash
 npm run dev
@@ -78,57 +72,51 @@ npm run dev
 
 Aplikasi akan tersedia di `http://localhost:3000`.
 
-### 5\. 🌐 Deploy ke Vercel
-
-1.  Hubungkan repositori GitHub Anda ke Vercel.
-2.  Tambahkan semua variabel dari `.env.local` ke pengaturan **Environment Variables** di dasbor proyek Vercel Anda.
-3.  Deploy\!
-
----
+-----
 
 ## 📂 Struktur Proyek
 
+Struktur folder utama proyek ini adalah sebagai berikut:
+
 ```
 app/
-├── (auth)/                  # Grup rute untuk otentikasi
-│   └── login/page.tsx       # Halaman login
-├── dashboard/               # Grup rute untuk area yang dilindungi
+├── (auth)/                  # Grup rute untuk otentikasi (cth: /login)
+├── dashboard/               # Grup rute untuk area admin yang dilindungi
 │   ├── layout.tsx           # Layout utama dasbor (Sidebar, Header)
-│   ├── page.tsx             # Halaman utama dasbor
+│   ├── page.tsx             # Halaman utama dasbor (statistik)
 │   ├── data-pengajuan-fasilitasi/ # Modul utama manajemen HKI
-│   ├── data-master/         # Modul manajemen data referensi
+│   ├── data-master/         # Modul manajemen data referensi (Jenis, Kelas, etc)
 │   ├── laporan/             # Halaman laporan dan statistik
 │   └── manajemen-pengguna/  # Modul manajemen pengguna
-├── api/                     # Rute API backend
-│   ├── hki/                 # Endpoint untuk HKI (CRUD, ekspor, hapus massal)
+├── api/                     # Rute API backend (Route Handlers)
+│   ├── hki/                 # Endpoint untuk HKI (CRUD, ekspor)
 │   ├── master/              # Endpoint untuk data master
 │   └── users/               # Endpoint untuk manajemen pengguna
 └── layout.tsx               # Root layout aplikasi
 
 components/
-├── ui/                      # Komponen dari shadcn/ui
+├── ui/                      # Komponen UI inti dari shadcn/ui
 ├── hki/                     # Komponen spesifik HKI (data-table, modals)
-├── forms/                   # Komponen formulir (hki-form, file-uploader)
+├── forms/                   # Komponen formulir (hki-form)
 └── layout/                  # Komponen layout (Sidebar, Topbar, Footer)
 
 lib/
-├── utils.ts                 # Fungsi utilitas umum (e.g., cn)
 ├── types.ts                 # Definisi tipe TypeScript global
-└── supabase-browser.ts      # Klien Supabase untuk sisi klien
+├── supabase-browser.ts      # Klien Supabase untuk sisi klien ('use client')
+└── utils/supabase/server.ts # Klien Supabase untuk sisi server (RSC, Actions, API)
 
 hooks/
-└── use-*.ts                 # Hooks kustom (useDebounce, useHkiEntry, dll.)
+├── useDebounce.ts           # Hook untuk menunda input pencarian
+├── useHkiEntry.ts           # Hook untuk mengambil satu data HKI (untuk edit)
+└── useHkiRealtime.ts        # Hook untuk mendengarkan perubahan data
 
-services/
-└── hki-service.ts           # Logika terpusat untuk interaksi API
-
-middleware.ts                # Middleware untuk refresh sesi Supabase
+middleware.ts                # Middleware Next.js untuk me-refresh sesi Supabase
 ```
 
----
+## 📝 Prinsip Utama Proyek
 
-## 📝 Catatan Tambahan
-
-- **Performa:** Proyek ini memanfaatkan fitur-fitur modern React dan Next.js seperti **React Server Components (RSC)**, `React.lazy`, dan `React.memo` untuk optimasi performa. Pengambilan data di sisi server digabungkan dengan **React Query** di sisi klien untuk manajemen state data yang efisien.
-- **Klien Supabase:** Terdapat dua utilitas utama untuk membuat klien Supabase: `createClient` dari `utils/supabase/server` untuk komponen server dan `createClient` dari `lib/supabase-browser` untuk komponen klien.
-- **Real-time:** Hook `useHkiRealtime` digunakan untuk mendengarkan perubahan pada tabel `hki` dan secara otomatis memperbarui data yang ditampilkan di tabel.
+  * **Pemisahan Komponen:** Proyek ini memanfaatkan **React Server Components (RSC)** untuk pengambilan data awal (seperti di `app/dashboard/page.tsx`) dan **Client Components** (`'use client'`) untuk interaktivitas (seperti di `app/dashboard/data-pengajuan-fasilitasi/hki-client-page.tsx`).
+  * **Manajemen Data:**
+      * Data statis (seperti opsi filter) diambil di sisi server menggunakan RSC dan dibungkus `React.cache`.
+      * Data dinamis (seperti tabel HKI) diambil di sisi klien menggunakan **React Query** (`useQuery`) untuk caching, refetching, dan optimistic updates.
+  * **Optimasi:** **`React.lazy`** digunakan untuk memuat komponen modal yang berat (seperti `HKIForm`) hanya saat dibutuhkan, sehingga mempercepat *load* halaman awal.
