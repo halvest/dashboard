@@ -654,23 +654,21 @@ const DataTableRow = memo(
               <span className="font-medium text-foreground leading-snug break-words">
                 {entry.pemohon?.nama_pemohon || '-'}
               </span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="text-sm text-muted-foreground line-clamp-2 break-words">
-                      {entry.pemohon?.alamat || ''}
-                    </span>
-                  </TooltipTrigger>
-                  {entry.pemohon?.alamat && (
-                    <TooltipContent
-                      align="start"
-                      className="max-w-xs whitespace-pre-line"
-                    >
-                      <p>{entry.pemohon.alamat}</p>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-              </TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="text-sm text-muted-foreground line-clamp-2 break-words">
+                    {entry.pemohon?.alamat || ''}
+                  </span>
+                </TooltipTrigger>
+                {entry.pemohon?.alamat && (
+                  <TooltipContent
+                    align="start"
+                    className="max-w-xs whitespace-pre-line"
+                  >
+                    <p>{entry.pemohon.alamat}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
             </div>
           </TableCell>
           <TableCell className="p-2 align-middle">
@@ -682,21 +680,19 @@ const DataTableRow = memo(
                 {entry.jenis?.nama_jenis_hki || '-'}
               </Badge>
               {entry.kelas && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge
-                        variant="secondary"
-                        className="cursor-default font-normal bg-blue-50 text-blue-800 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 line-clamp-1"
-                      >
-                        Kelas {entry.kelas.id_kelas}: {entry.kelas.tipe}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent align="start">
-                      <p className="max-w-xs">{entry.kelas.nama_kelas}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge
+                      variant="secondary"
+                      className="cursor-default font-normal bg-blue-50 text-blue-800 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 line-clamp-1"
+                    >
+                      Kelas {entry.kelas.id_kelas}: {entry.kelas.tipe}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent align="start">
+                    <p className="max-w-xs">{entry.kelas.nama_kelas}</p>
+                  </TooltipContent>
+                </Tooltip>
               )}
             </div>
           </TableCell>
@@ -707,23 +703,21 @@ const DataTableRow = memo(
             {entry.tahun_fasilitasi || '-'}
           </TableCell>
           <TableCell className="p-2 align-middle">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <p className="line-clamp-2 text-sm text-muted-foreground break-words">
-                    {entry.keterangan || '-'}
-                  </p>
-                </TooltipTrigger>
-                {entry.keterangan && (
-                  <TooltipContent
-                    align="start"
-                    className="max-w-sm whitespace-pre-line"
-                  >
-                    <p>{entry.keterangan}</p>
-                  </TooltipContent>
-                )}
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="line-clamp-2 text-sm text-muted-foreground break-words">
+                  {entry.keterangan || '-'}
+                </p>
+              </TooltipTrigger>
+              {entry.keterangan && (
+                <TooltipContent
+                  align="start"
+                  className="max-w-sm whitespace-pre-line"
+                >
+                  <p>{entry.keterangan}</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
           </TableCell>
           <TableCell className="p-2 align-middle">
             <DropdownMenu>
@@ -1240,7 +1234,8 @@ export function DataTable({
   const columnsCount = 9 + (showCheckboxColumn ? 1 : 0)
 
   return (
-    <div className="space-y-4">
+    <TooltipProvider delayDuration={300}>
+      <div className="space-y-4">
       <DataTableToolbar
         tableState={tableState}
         formOptions={formOptions}
@@ -1442,6 +1437,7 @@ export function DataTable({
         filters={tableState.filters}
         formOptions={formOptions}
       />
-    </div>
+      </div>
+    </TooltipProvider>
   )
 }

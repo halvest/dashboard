@@ -1,50 +1,56 @@
 // middleware.ts
 
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // Buat respons yang akan kita modifikasi
-  const response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
+  let supabaseResponse = NextResponse.next({
+    request,
   })
 
-  // Buat Supabase client di dalam middleware
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
+        getAll() {
+          return request.cookies.getAll()
         },
-        set(name: string, value: string, options: CookieOptions) {
-          // Middleware hanya boleh memodifikasi cookies pada 'response' yang keluar
-          response.cookies.set({
-            name,
-            value,
-            ...options,
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          supabaseResponse = NextResponse.next({
+            request,
           })
-        },
-        remove(name: string, options: CookieOptions) {
-          // Middleware hanya boleh memodifikasi cookies pada 'response' yang keluar
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
         },
       },
     }
   )
 
-  // Perintah ini penting untuk menyegarkan sesi pengguna
-  await supabase.auth.getUser()
+  const path = request.nextUrl.pathname
+  const isDashboardRoute = path.startsWith('/dashboard')
+  const isAuthRoute = path.startsWith('/login') || path === '/'
 
-  // Kembalikan 'response' yang sudah dimodifikasi (jika ada)
-  return response
+  // Hanya memanggil getUser pada rute yang membutuhkan otentikasi (protected/auth)
+  if (isDashboardRoute || isAuthRoute) {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (isDashboardRoute && !user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      return NextResponse.redirect(url)
+    }
+
+    if (isAuthRoute && user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/dashboard'
+      return NextResponse.redirect(url)
+    }
+  }
+
+  return supabaseResponse
 }
 
 export const config = {
@@ -54,8 +60,9 @@ export const config = {
      * - _next/static (file statis)
      * - _next/image (file optimasi gambar)
      * - favicon.ico (file favicon)
+     * - api (hindari middleware intercept API internal jika ada)
      * - file gambar lainnya
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|api|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

@@ -105,8 +105,14 @@ export function Topbar({ sidebarOpen, setSidebarOpen }: TopbarProps) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'INITIAL_SESSION') return // Dihandle oleh fetchInitialUser
+      if (event === 'SIGNED_OUT') {
+        setUser(null)
+      } else if (session) {
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        setUser(currentUser)
+      }
     })
 
     return () => {

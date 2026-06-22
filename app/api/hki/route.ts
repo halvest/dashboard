@@ -89,6 +89,9 @@ export async function GET(request: NextRequest) {
       )
 
     if (params.search) {
+      // Supabase (PostgREST) tidak mendukung operasi .or() melintasi tabel (cross-table OR)
+      // secara langsung dari client. Solusinya adalah melakukan query terpisah untuk mendapatkan IDs,
+      // ATAU menggunakan RPC / Database View. Kita kembali menggunakan pendekatan awal.
       const { data: pemohonData, error: pemohonError } = await supabase
         .from('pemohon')
         .select('id_pemohon')

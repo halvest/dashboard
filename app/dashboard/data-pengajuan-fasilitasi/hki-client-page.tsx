@@ -11,6 +11,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useHkiRealtime } from '@/hooks/useHkiRealtime'
+import { bulkDeleteHKI } from '@/app/actions/hki-actions'
 
 // Gunakan dynamic import untuk komponen berat (Modal) agar tidak membebani loading awal
 const EditHKIModal = dynamic(() =>
@@ -141,15 +142,8 @@ export function HKIClientPage({
 
     const deleteMutation = useMutation({
       mutationFn: async (ids: number[]) => {
-        const response = await fetch('/api/hki/bulk-delete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ids }),
-        })
-        const result = await response.json()
-        if (!response.ok)
-          throw new Error(result.error || 'Gagal menghapus entri.')
-        return result
+        // Panggil Server Action langsung, tidak perlu fetch API endpoint
+        return await bulkDeleteHKI(ids)
       },
       onMutate: async (idsToDelete: number[]) => {
         await queryClient.cancelQueries({ queryKey })

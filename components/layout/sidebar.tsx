@@ -22,6 +22,7 @@ import {
   BarChart3,
   Users,
   Database,
+  Gauge, // <-- 1. ICON BARU DITAMBAHKAN
   type LucideIcon,
 } from 'lucide-react'
 import { User } from '@supabase/supabase-js'
@@ -73,7 +74,6 @@ const managementNavigation: NavItem[] = [
     href: '/dashboard/manajemen-pengguna',
     icon: Users,
   },
-  // PERBAIKAN: Mengarahkan ke /dashboard/pengaturan agar konsisten
   { name: 'Pengaturan', href: '/dashboard/pengaturan', icon: Settings },
 ]
 
@@ -87,12 +87,7 @@ const SidebarLink = memo(({ item }: { item: NavItem }) => {
       : pathname.startsWith(item.href)
 
   return (
-    <motion.li
-      // IMPROVE: Animasi masuk untuk setiap item menu
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
-    >
+    <li>
       <Link
         href={item.href}
         className={cn(
@@ -105,15 +100,10 @@ const SidebarLink = memo(({ item }: { item: NavItem }) => {
         <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
         <span className="truncate">{item.name}</span>
         {isActive && (
-          // IMPROVE: Indikator aktif dianimasikan dengan `framer-motion`
-          <motion.span
-            layoutId="active-sidebar-indicator"
-            className="absolute left-0 top-0 h-full w-1 rounded-r-md bg-blue-300"
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          />
+          <span className="absolute left-0 top-0 h-full w-1 rounded-r-md bg-blue-300" />
         )}
       </Link>
-    </motion.li>
+    </li>
   )
 })
 SidebarLink.displayName = 'SidebarLink'
@@ -136,9 +126,14 @@ const UserProfileSection = memo(function UserProfileSection() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null)
-      if (!session) setIsLoading(false)
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'INITIAL_SESSION') return // Dihandle oleh fetchUser
+      if (event === 'SIGNED_OUT') {
+        setUser(null)
+      } else if (session) {
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        setUser(currentUser)
+      }
     })
     return () => subscription.unsubscribe()
   }, [supabase])
