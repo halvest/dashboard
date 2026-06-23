@@ -1,7 +1,6 @@
 // app/api/hki/route.ts
 import { createClient } from '@/utils/supabase/server'
 import { SupabaseClient } from '@supabase/supabase-js'
-import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { z } from 'zod'
@@ -17,7 +16,7 @@ const PEMOHON_TABLE = 'pemohon'
 // --- SKEMA VALIDASI ZOD ---
 const getParamsSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
   sortBy: z.string().default('created_at'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
   search: z.string().optional(),
@@ -73,8 +72,7 @@ async function authorizeAdmin(supabase: SupabaseClient<Database>) {
 
 // --- API HANDLERS ---
 export async function GET(request: NextRequest) {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+  const supabase = await createClient()
 
   try {
     await authorizeAdmin(supabase)
@@ -143,7 +141,7 @@ export async function GET(request: NextRequest) {
 }
 
 async function getPemohonId(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Awaited<ReturnType<typeof createClient>>,
   nama: string,
   alamat: string | null
 ): Promise<number> {
@@ -176,8 +174,7 @@ async function getPemohonId(
 }
 
 export async function POST(request: NextRequest) {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+  const supabase = await createClient()
 
   try {
     const user = await authorizeAdmin(supabase)

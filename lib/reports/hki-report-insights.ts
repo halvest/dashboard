@@ -34,11 +34,11 @@ export function generateTrendInsight(summary: HKIReportSummary, filters: ReportF
   const { by_year, total_pengajuan } = summary
 
   if (by_year.length === 0) {
-    return 'Tidak terdapat data pengajuan HKI untuk periode yang dipilih.'
+    return 'Tidak terdapat akumulasi data pengajuan HKI pada periode yang ditinjau.'
   }
 
   const topYear = getTopItem(by_year)
-  const filterDesc = filters.year ? `tahun ${filters.year}` : 'seluruh periode'
+  const filterDesc = filters.year ? `Tahun Anggaran ${filters.year}` : 'akumulasi seluruh periode'
   const trend = getTrend(by_year)
 
   let trendText = ''
@@ -47,33 +47,33 @@ export function generateTrendInsight(summary: HKIReportSummary, filters: ReportF
     const last = sorted[sorted.length - 1]
     const prev = sorted[sorted.length - 2]
     const selisih = last.total - prev.total
-    trendText = ` Terdapat peningkatan sebesar ${formatNumber(selisih)} pengajuan dari tahun ${prev.tahun} ke tahun ${last.tahun}.`
+    trendText = ` Terpantau adanya eskalasi capaian sebesar ${formatNumber(selisih)} pengajuan dari tahun ${prev.tahun} ke tahun ${last.tahun}.`
   } else if (trend === 'turun') {
     const sorted = [...by_year].sort((a, b) => a.tahun - b.tahun)
     const last = sorted[sorted.length - 1]
     const prev = sorted[sorted.length - 2]
     const selisih = prev.total - last.total
-    trendText = ` Terdapat penurunan sebesar ${formatNumber(selisih)} pengajuan dari tahun ${prev.tahun} ke tahun ${last.tahun}.`
+    trendText = ` Terpantau adanya penurunan capaian sebesar ${formatNumber(selisih)} pengajuan dari tahun ${prev.tahun} ke tahun ${last.tahun}.`
   } else if (trend === 'stabil') {
-    trendText = ' Jumlah pengajuan relatif stabil dibandingkan tahun sebelumnya.'
+    trendText = ' Tingkat pengajuan terpantau stabil secara fluktuatif dibandingkan tahun sebelumnya.'
   }
 
-  return `Total ${formatNumber(total_pengajuan)} pengajuan HKI tercatat untuk ${filterDesc}.${topYear ? ` Tahun dengan pengajuan terbanyak adalah ${topYear.tahun} dengan ${formatNumber(topYear.total)} data.` : ''}${trendText}`
+  return `Secara kumulatif, tercatat ${formatNumber(total_pengajuan)} pengajuan HKI untuk ${filterDesc}.${topYear ? ` Puncak intensitas pengajuan direpresentasikan pada tahun ${topYear.tahun} dengan total capaian ${formatNumber(topYear.total)} berkas.` : ''}${trendText}`
 }
 
 export function generateStatusInsight(summary: HKIReportSummary): string {
   const { by_status } = summary
   const topStatus = getTopItem(by_status)
   if (!topStatus || topStatus.total === 0) {
-    return 'Belum terdapat data distribusi status pengajuan HKI.'
+    return 'Belum terdapat data rekapitulasi distribusi status pengajuan HKI.'
   }
   const total = by_status.reduce((s, i) => s + i.total, 0)
   const persen = total > 0 ? Math.round((topStatus.total / total) * 100) : 0
-  return `Status yang paling dominan adalah "${topStatus.nama_status}" dengan ${formatNumber(topStatus.total)} pengajuan (${persen}% dari total). ${
+  return `Status administrasi yang mendominasi portofolio adalah "${topStatus.nama_status}" dengan proporsi ${formatNumber(topStatus.total)} pengajuan (${persen}% dari total). ${
     topStatus.nama_status.toLowerCase().includes('proses') ||
     topStatus.nama_status.toLowerCase().includes('diajukan')
-      ? 'Masih terdapat pengajuan yang sedang dalam proses dan membutuhkan tindak lanjut segera.'
-      : 'Sebagian besar pengajuan telah mencapai tahap akhir penyelesaian.'
+      ? 'Hal ini mengindikasikan terdapat residu pengajuan yang masih dalam proses evaluasi dan menuntut akselerasi tindak lanjut segera.'
+      : 'Hal ini merepresentasikan bahwa mayoritas berkas pengajuan telah tuntas hingga tahap finalisasi.'
   }`
 }
 
@@ -81,28 +81,28 @@ export function generateJenisInsight(summary: HKIReportSummary): string {
   const { by_jenis_hki } = summary
   const topJenis = getTopItem(by_jenis_hki)
   if (!topJenis || topJenis.total === 0) {
-    return 'Belum terdapat data distribusi jenis HKI.'
+    return 'Belum terdapat data distribusi jenis HKI pada database.'
   }
-  return `Jenis HKI yang paling banyak diajukan adalah "${topJenis.nama_jenis_hki}" dengan ${formatNumber(topJenis.total)} pengajuan. Hal ini mengindikasikan fokus utama kegiatan fasilitasi HKI di Kabupaten Sleman.`
+  return `Kategori HKI dengan tingkat urgensi tertinggi yang diajukan adalah "${topJenis.nama_jenis_hki}" mencapai ${formatNumber(topJenis.total)} pengajuan. Indikator ini mendefinisikan fokus arah kegiatan fasilitasi kekayaan intelektual di lingkup Pemerintah Kabupaten Sleman.`
 }
 
 export function generatePengusulInsight(summary: HKIReportSummary): string {
   const { by_pengusul } = summary
   const topPengusul = getTopItem(by_pengusul)
   if (!topPengusul || topPengusul.total === 0) {
-    return 'Belum terdapat data pengusul HKI.'
+    return 'Belum terdapat data entitas pengusul HKI.'
   }
   const activeCount = by_pengusul.filter((p) => p.total > 0).length
-  return `Pengusul paling aktif adalah "${topPengusul.nama_opd}" dengan ${formatNumber(topPengusul.total)} pengajuan. Dari ${by_pengusul.length} pengusul yang terdaftar, sebanyak ${activeCount} pengusul memiliki data pengajuan aktif.`
+  return `Entitas pengusul paling proaktif pada periode ini dipegang oleh "${topPengusul.nama_opd}" dengan volume ${formatNumber(topPengusul.total)} pengajuan. Dari total ${by_pengusul.length} entitas (OPD/Instansi) yang terekapitulasi, sebanyak ${activeCount} entitas tercatat menorehkan partisipasi aktif.`
 }
 
 export function generateConclusion(summary: HKIReportSummary, filters: ReportFilters): string {
   const { total_pengajuan, by_status, by_year } = summary
   const topStatus = getTopItem(by_status)
   const topYear = getTopItem(by_year)
-  const filterDesc = filters.year ? `tahun ${filters.year}` : 'seluruh periode yang tercatat'
-  const statusDesc = topStatus && topStatus.total > 0 ? `Status yang paling dominan adalah "${topStatus.nama_status}"` : 'belum terdapat data status yang signifikan'
-  const tahunDesc = topYear ? `pengajuan terbanyak terjadi pada tahun ${topYear.tahun} dengan ${formatNumber(topYear.total)} entri` : 'data tahunan belum tersedia'
+  const filterDesc = filters.year ? `Tahun Anggaran ${filters.year}` : 'keseluruhan tahun pelaporan'
+  const statusDesc = topStatus && topStatus.total > 0 ? `Status administratif pengajuan terpusat secara signifikan pada tahap "${topStatus.nama_status}"` : 'belum terdapat kecenderungan status yang signifikan'
+  const tahunDesc = topYear ? `fluktuasi tertinggi tercatat pada tahun ${topYear.tahun} (mengakomodir ${formatNumber(topYear.total)} entri)` : 'rekapitulasi data historis tahunan belum memadai'
 
   const belumSelesaiCount = by_status
     .filter((s) => s.nama_status.toLowerCase().includes('proses') || s.nama_status.toLowerCase().includes('diajukan'))
@@ -110,10 +110,10 @@ export function generateConclusion(summary: HKIReportSummary, filters: ReportFil
 
   const monitoringNote =
     belumSelesaiCount > 0
-      ? ` Terdapat ${formatNumber(belumSelesaiCount)} pengajuan yang masih dalam proses dan memerlukan pemantauan berkelanjutan agar dapat ditindaklanjuti secara tepat waktu.`
-      : ' Seluruh pengajuan yang tercatat telah diproses dengan baik.'
+      ? ` Terdapat sisa beban kerja (backlog) sebanyak ${formatNumber(belumSelesaiCount)} pengajuan yang berada pada fase progresif dan sangat memerlukan pengawasan (monitoring) komprehensif agar tahapan penyelesaian dapat diakselerasi sesuai standar waktu yang ditetapkan.`
+      : ' Secara keseluruhan, instrumen pelayanan fasilitasi yang masuk telah dieksekusi dengan tingkat penyelesaian yang optimal.'
 
-  return `Berdasarkan data pengajuan HKI yang dianalisis untuk ${filterDesc}, jumlah pengajuan tercatat sebanyak ${formatNumber(total_pengajuan)} data. ${statusDesc}, sementara ${tahunDesc}. Hal ini menunjukkan bahwa kegiatan fasilitasi Hak Kekayaan Intelektual di Kabupaten Sleman telah berjalan dengan cukup aktif.${monitoringNote}`
+  return `Berdasarkan hasil rekapitulasi data analitik fasilitasi HKI untuk ${filterDesc}, telah direkam capaian kumulatif sebanyak ${formatNumber(total_pengajuan)} data pengajuan. ${statusDesc}, sementara dari sisi temporalitas, ${tahunDesc}. Konklusi logis dari indikator-indikator tersebut menunjukan bahwa implementasi program fasilitasi Hak Kekayaan Intelektual di wilayah Kabupaten Sleman telah terlaksana dengan determinasi tinggi dan performa yang proaktif.${monitoringNote}`
 }
 
 export function generateRecommendations(summary: HKIReportSummary): string[] {
@@ -124,30 +124,30 @@ export function generateRecommendations(summary: HKIReportSummary): string[] {
     (s) => s.nama_status.toLowerCase().includes('proses') || s.nama_status.toLowerCase().includes('diajukan')
   )
   if (belumSelesai.length > 0 && belumSelesai.reduce((s, i) => s + i.total, 0) > 0) {
-    recommendations.push('Melakukan monitoring berkala dan tindak lanjut terhadap pengajuan HKI yang masih berstatus dalam proses atau belum selesai.')
+    recommendations.push('Menyelenggarakan fungsi pengawasan (monitoring) berkelanjutan dan mengeksekusi percepatan tindak lanjut administratif terhadap berkas HKI yang saat ini masih terhambat dalam proses pendaftaran.')
   }
 
   const activePengusul = by_pengusul.filter((p) => p.total > 0)
   const inactivePengusul = by_pengusul.filter((p) => p.total === 0)
   if (inactivePengusul.length > 0) {
-    recommendations.push(`Mengoptimalkan sosialisasi dan pendampingan kepada ${inactivePengusul.length} pengusul/OPD yang belum memiliki pengajuan HKI agar partisipasi lebih merata.`)
+    recommendations.push(`Mengintensifkan upaya sosialisasi, advokasi, dan pendampingan teknis secara persuasif kepada ${inactivePengusul.length} entitas OPD/Instansi yang belum mendaftarkan diri guna mewujudkan asas pemerataan inovasi daerah.`)
   } else if (activePengusul.length > 1) {
     const topPengusul = getTopItem(by_pengusul)
     const totalPengusulSubmissions = by_pengusul.reduce((s, p) => s + p.total, 0)
     if (topPengusul && totalPengusulSubmissions > 0 && topPengusul.total / totalPengusulSubmissions > 0.5) {
-      recommendations.push(`Mendorong pemerataan pengajuan HKI ke seluruh OPD karena saat ini pengajuan masih didominasi oleh satu pengusul (${topPengusul.nama_opd}).`)
+      recommendations.push(`Mendorong distribusi kuota fasilitasi HKI secara lebih proporsional ke seluruh OPD terkait, menimbang bahwasanya realisasi pengajuan pada periode saat ini masih didominasi kuat oleh partisipasi tunggal dari ${topPengusul.nama_opd}.`)
     }
   }
 
   if (by_year.length >= 2) {
-    recommendations.push('Melakukan evaluasi tren tahunan pengajuan HKI sebagai dasar perencanaan program fasilitasi pada tahun-tahun berikutnya.')
+    recommendations.push('Melaksanakan kajian dan evaluasi tren fluktuasi tahunan sebagai landasan empiris dalam merumuskan kebijakan serta penyusunan Rencana Kerja Anggaran (RKA) program fasilitasi di tahun-tahun berikutnya.')
   }
 
   if (total_pengajuan < 50) {
-    recommendations.push('Meningkatkan program pendampingan dan sosialisasi pengajuan HKI kepada masyarakat dan pelaku usaha di Kabupaten Sleman untuk mendorong pertumbuhan jumlah pengajuan.')
+    recommendations.push('Memperluas cakupan program diseminasi informasi dan bimbingan teknis HKI secara komprehensif kepada target masyarakat dan elemen pelaku bisnis lokal guna mendongkrak capaian kuantitas pengajuan.')
   }
 
-  recommendations.push('Menyusun rekap laporan berkala (bulanan/triwulanan) sebagai bahan pelaporan kepada pimpinan dan mendukung fungsi koordinasi Bidang Litbang dan Inovasi.')
+  recommendations.push('Menyusun rekapitulasi laporan progres secara periodik (bulanan/triwulanan) sebagai instrumen pelaporan formal kepada Pimpinan Daerah dan fasilitasi fungsi koordinasi strategis di Bidang Penelitian, Pengembangan, dan Inovasi.')
 
   return recommendations
 }

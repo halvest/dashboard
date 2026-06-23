@@ -1,6 +1,5 @@
 // app/api/master/[tableName]/[id]/route.ts
 import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types' // <-- Tambahkan impor ini
 
@@ -36,16 +35,15 @@ async function isAdmin(supabase: any): Promise<boolean> {
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { tableName: string; id: string } }
+  { params }: { params: Promise<{ tableName: string; id: string }> }
 ) {
-  const { tableName, id } = params
+  const { tableName, id } = await params
   // Lakukan type assertion di sini untuk pengecekan
   if (!TABLE_SAFELIST.includes(tableName as TableName)) {
     return NextResponse.json({ message: 'Tabel tidak valid' }, { status: 400 })
   }
 
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+  const supabase = await createClient()
 
   if (!(await isAdmin(supabase))) {
     return NextResponse.json({ message: 'Akses ditolak' }, { status: 403 })
@@ -87,16 +85,15 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { tableName: string; id: string } }
+  { params }: { params: Promise<{ tableName: string; id: string }> }
 ) {
-  const { tableName, id } = params
+  const { tableName, id } = await params
   // Lakukan type assertion di sini untuk pengecekan
   if (!TABLE_SAFELIST.includes(tableName as TableName)) {
     return NextResponse.json({ message: 'Tabel tidak valid' }, { status: 400 })
   }
 
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+  const supabase = await createClient()
 
   if (!(await isAdmin(supabase))) {
     return NextResponse.json({ message: 'Akses ditolak' }, { status: 403 })

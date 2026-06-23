@@ -7,8 +7,7 @@ const HKI_TABLE = 'hki'
 const HKI_BUCKET = 'sertifikat-hki'
 
 export async function bulkDeleteHKI(ids: number[]) {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+  const supabase = await createClient()
 
   try {
     // 1. Validasi Sesi dan Peran Admin

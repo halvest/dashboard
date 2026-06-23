@@ -31,9 +31,8 @@ async function getMasterData(supabase: SupabaseClient<Database>) {
   }
 }
 
-export default async function MasterDataPage() {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+export default async function DataMasterPage() {
+  const supabase = await createClient()
 
   // --- PERBAIKAN: Menyederhanakan logika otorisasi ---
   const { data: { user } } = await supabase.auth.getUser()

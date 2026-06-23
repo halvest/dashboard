@@ -59,9 +59,8 @@ const getFormOptions = cache(async (supabase: SupabaseClient<Database>): Promise
  * Bertugas untuk melakukan data fetching di sisi server dan meneruskannya
  * ke komponen klien yang akan menangani semua interaktivitas.
  */
-export default async function HKIPage() {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+export default async function DataPengajuanPage() {
+  const supabase = await createClient();
 
   let formOptions: FormOptions = {
     jenisOptions: [],

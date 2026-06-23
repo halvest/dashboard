@@ -64,17 +64,19 @@ export function LaporanInsightSummary({ insights, activeFilterLabel }: LaporanIn
 
       {/* Kesimpulan & Rekomendasi */}
       <div className="space-y-6">
-        <Card className="shadow-sm dark:border-gray-800">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <FileCheck2 className="h-5 w-5 text-blue-600" />
-              Kesimpulan
+        <Card className="shadow-sm dark:border-gray-800 bg-blue-50/50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/50 h-full">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-xl font-bold text-blue-900 dark:text-blue-100">
+              <FileCheck2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              Executive Summary
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-foreground leading-relaxed text-justify">
-              {insights.conclusion}
-            </p>
+            <div className="prose prose-sm dark:prose-invert max-w-none">
+              <p className="text-[15px] text-slate-700 dark:text-slate-300 leading-loose text-justify font-medium">
+                {insights.conclusion}
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

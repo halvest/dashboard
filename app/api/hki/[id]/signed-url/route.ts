@@ -1,6 +1,5 @@
 // app/api/hki/[id]/signed-url/route.ts
 import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
@@ -9,11 +8,11 @@ const HKI_BUCKET = 'sertifikat-hki'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
-  const id = parseInt(params.id, 10)
+  const { id: rawId } = await params
+  const supabase = await createClient()
+  const id = parseInt(rawId, 10)
   const { searchParams } = request.nextUrl
   const disposition = searchParams.get('disposition') // 'inline' or 'attachment'
 

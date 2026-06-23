@@ -89,8 +89,8 @@ const PageHeader = ({
 
   return (
     <div>
-      <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-        Manajemen Data Pengajuan Fasilitasi HKI
+      <h1 className="text-3xl font-bold tracking-tight mb-2 text-foreground">
+        Arsip Data Pengajuan Fasilitasi HKI
       </h1>
       {totalCount > 0 && (
         <p className="mt-2 text-muted-foreground">
@@ -251,7 +251,7 @@ export function HKIClientPage({
   const pagination = useMemo(
     () => ({
       pageIndex: Number(searchParams.get('page') ?? 1) - 1,
-      pageSize: Number(searchParams.get('pageSize') ?? 50),
+      pageSize: Number(searchParams.get('pageSize') ?? 20),
     }),
     [searchParams]
   )

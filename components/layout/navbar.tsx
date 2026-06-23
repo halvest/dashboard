@@ -34,6 +34,7 @@ import {
 interface TopbarProps {
   sidebarOpen: boolean
   setSidebarOpen: (val: boolean) => void
+  user?: User | null
 }
 
 /**
@@ -86,9 +87,9 @@ const TopbarBreadcrumbs = memo(function TopbarBreadcrumbs() {
 })
 TopbarBreadcrumbs.displayName = 'TopbarBreadcrumbs'
 
-export function Topbar({ sidebarOpen, setSidebarOpen }: TopbarProps) {
-  const [user, setUser] = useState<User | null>(null)
-  const [loadingUser, setLoadingUser] = useState(true)
+export function Topbar({ sidebarOpen, setSidebarOpen, user: initialUser }: TopbarProps) {
+  const [user, setUser] = useState<User | null>(initialUser || null)
+  const [loadingUser, setLoadingUser] = useState(false)
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
 

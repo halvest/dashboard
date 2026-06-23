@@ -12,6 +12,7 @@ import React, {
 } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
+import { useMediaQuery } from '@/hooks/use-media-query'
 import {
   ArrowDown,
   ArrowUp,
@@ -114,7 +115,7 @@ type HKIFilters = {
 }
 const DEFAULTS = {
   page: 1,
-  pageSize: 50,
+  pageSize: 20,
   sortBy: 'created_at',
   sortOrder: 'desc' as const,
 }
@@ -258,6 +259,7 @@ const DataTableToolbar = memo(
     onOpenExportModal,
     selectionModeActive,
     toggleSelectionMode,
+    isFetching,
   }: {
     tableState: UseDataTableReturn
     formOptions: FormOptions
@@ -266,10 +268,25 @@ const DataTableToolbar = memo(
     onOpenExportModal: () => void
     selectionModeActive: boolean
     toggleSelectionMode: () => void
+    isFetching?: boolean
   }) => {
     const { filters, selectedRows, handleFilterChange, clearFilters } =
       tableState
     const activeFiltersCount = Object.values(filters).filter(Boolean).length
+
+    // State lokal untuk search agar tabel tidak di-render setiap ada ketikan
+    const [localSearch, setLocalSearch] = useState(filters.search)
+    const debouncedLocalSearch = useDebounce(localSearch, 400)
+
+    useEffect(() => {
+      setLocalSearch(filters.search)
+    }, [filters.search])
+
+    useEffect(() => {
+      if (debouncedLocalSearch !== filters.search) {
+        handleFilterChange('search', debouncedLocalSearch)
+      }
+    }, [debouncedLocalSearch, filters.search, handleFilterChange])
 
     const selectedJenisLabel = useMemo(
       () =>
@@ -286,28 +303,38 @@ const DataTableToolbar = memo(
       [formOptions.statusOptions, filters.statusId]
     )
 
+    const isCurrentlyLoading = isFetching || localSearch !== filters.search
+
     return (
       <Card className="border shadow-sm dark:border-slate-800">
         <CardHeader className="border-b dark:border-slate-800 p-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="relative w-full md:max-w-md">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                placeholder="Cari nama HKI atau nama pemohon..."
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="pl-11 pr-10 h-10 rounded-lg text-base md:text-sm"
-              />
-              {filters.search && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                  onClick={() => handleFilterChange('search', '')}
-                  aria-label="Clear search"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+            <div className="relative w-full md:max-w-md flex items-center gap-2">
+              <div className="relative w-full">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  placeholder="Cari nama HKI atau nama pemohon..."
+                  value={localSearch}
+                  onChange={(e) => setLocalSearch(e.target.value)}
+                  className="pl-11 pr-10 h-10 rounded-lg text-base md:text-sm"
+                />
+                {localSearch && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      setLocalSearch('')
+                      handleFilterChange('search', '')
+                    }}
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              {isCurrentlyLoading && (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
               )}
             </div>
             <div className="flex flex-col sm:flex-row w-full sm:w-auto items-center justify-end gap-3">
@@ -567,6 +594,12 @@ const DataTableRow = memo(
   }) => {
     const [isPending, startTransition] = useTransition()
     const [isFlashing, setIsFlashing] = useState(false)
+    const [isMounted, setIsMounted] = useState(false)
+    const isDesktop = useMediaQuery('(min-width: 768px)')
+
+    useEffect(() => {
+      setIsMounted(true)
+    }, [])
 
     useEffect(() => {
       setIsFlashing(true)
@@ -618,271 +651,275 @@ const DataTableRow = memo(
     return (
       <React.Fragment>
         {/* Desktop View */}
-        <TableRow
-          data-state={isSelected ? 'selected' : ''}
-          className={cn(
-            'dark:border-slate-800 transition-colors',
-            'hidden md:table-row',
-            isFlashing && 'bg-emerald-50 dark:bg-emerald-900/30',
-            isSelected && 'bg-primary/5 dark:bg-primary/10'
-          )}
-        >
-          {showCheckboxColumn && (
-            <TableCell className="sticky left-0 bg-inherit z-10 px-2 py-2 border-r dark:border-slate-800 align-middle">
-              <Checkbox
-                checked={isSelected}
-                onCheckedChange={(c) => onSelectRow(entry.id_hki, !!c)}
-                aria-label={`Select row ${index + 1}`}
-              />
+        {(!isMounted || isDesktop) && (
+          <TableRow
+            data-state={isSelected ? 'selected' : ''}
+            className={cn(
+              'dark:border-slate-800 transition-colors',
+              !isMounted && 'hidden md:table-row',
+              isFlashing && 'bg-emerald-50 dark:bg-emerald-900/30',
+              isSelected && 'bg-primary/5 dark:bg-primary/10'
+            )}
+          >
+            {showCheckboxColumn && (
+              <TableCell className="sticky left-0 bg-inherit z-10 px-2 py-2 border-r dark:border-slate-800 align-middle">
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={(c) => onSelectRow(entry.id_hki, !!c)}
+                  aria-label={`Select row ${index + 1}`}
+                />
+              </TableCell>
+            )}
+            <TableCell className="text-center font-mono text-sm text-muted-foreground p-2 align-middle">
+              {(pagination.page - 1) * pagination.pageSize + index + 1}
             </TableCell>
-          )}
-          <TableCell className="text-center font-mono text-sm text-muted-foreground p-2 align-middle">
-            {(pagination.page - 1) * pagination.pageSize + index + 1}
-          </TableCell>
-          <TableCell className="p-2 align-middle">
-            <div className="flex flex-col justify-center">
-              <span className="font-semibold text-foreground leading-snug break-words">
-                {entry.nama_hki}
-              </span>
-              <span className="text-sm text-muted-foreground break-words">
-                {entry.jenis_produk || '-'}
-              </span>
-            </div>
-          </TableCell>
-          <TableCell className="p-2 align-middle">
-            <div className="flex flex-col justify-center">
-              <span className="font-medium text-foreground leading-snug break-words">
-                {entry.pemohon?.nama_pemohon || '-'}
-              </span>
+            <TableCell className="p-2 align-middle">
+              <div className="flex flex-col justify-center">
+                <span className="font-semibold text-foreground leading-snug break-words">
+                  {entry.nama_hki}
+                </span>
+                <span className="text-sm text-muted-foreground break-words">
+                  {entry.jenis_produk || '-'}
+                </span>
+              </div>
+            </TableCell>
+            <TableCell className="p-2 align-middle">
+              <div className="flex flex-col justify-center">
+                <span className="font-medium text-foreground leading-snug break-words">
+                  {entry.pemohon?.nama_pemohon || '-'}
+                </span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-sm text-muted-foreground line-clamp-2 break-words">
+                      {entry.pemohon?.alamat || ''}
+                    </span>
+                  </TooltipTrigger>
+                  {entry.pemohon?.alamat && (
+                    <TooltipContent
+                      align="start"
+                      className="max-w-xs whitespace-pre-line"
+                    >
+                      <p>{entry.pemohon.alamat}</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </div>
+            </TableCell>
+            <TableCell className="p-2 align-middle">
+              <div className="flex flex-col justify-center gap-1 items-start">
+                <Badge
+                  variant="outline"
+                  className="font-medium bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
+                >
+                  {entry.jenis?.nama_jenis_hki || '-'}
+                </Badge>
+                {entry.kelas && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="secondary"
+                        className="cursor-default font-normal bg-blue-50 text-blue-800 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 line-clamp-1"
+                      >
+                        Kelas {entry.kelas.id_kelas}: {entry.kelas.tipe}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent align="start">
+                      <p className="max-w-xs">{entry.kelas.nama_kelas}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            </TableCell>
+            <TableCell className="text-sm text-muted-foreground break-words p-2 align-middle">
+              {entry.pengusul?.nama_opd || '-'}
+            </TableCell>
+            <TableCell className="text-center font-mono text-sm text-foreground p-2 align-middle">
+              {entry.tahun_fasilitasi || '-'}
+            </TableCell>
+            <TableCell className="p-2 align-middle">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="text-sm text-muted-foreground line-clamp-2 break-words">
-                    {entry.pemohon?.alamat || ''}
-                  </span>
+                  <p className="line-clamp-2 text-sm text-muted-foreground break-words">
+                    {entry.keterangan || '-'}
+                  </p>
                 </TooltipTrigger>
-                {entry.pemohon?.alamat && (
+                {entry.keterangan && (
                   <TooltipContent
                     align="start"
-                    className="max-w-xs whitespace-pre-line"
+                    className="max-w-sm whitespace-pre-line"
                   >
-                    <p>{entry.pemohon.alamat}</p>
+                    <p>{entry.keterangan}</p>
                   </TooltipContent>
                 )}
               </Tooltip>
-            </div>
-          </TableCell>
-          <TableCell className="p-2 align-middle">
-            <div className="flex flex-col justify-center gap-1 items-start">
-              <Badge
-                variant="outline"
-                className="font-medium bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
-              >
-                {entry.jenis?.nama_jenis_hki || '-'}
-              </Badge>
-              {entry.kelas && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Badge
-                      variant="secondary"
-                      className="cursor-default font-normal bg-blue-50 text-blue-800 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 line-clamp-1"
-                    >
-                      Kelas {entry.kelas.id_kelas}: {entry.kelas.tipe}
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent align="start">
-                    <p className="max-w-xs">{entry.kelas.nama_kelas}</p>
-                  </TooltipContent>
-                </Tooltip>
-              )}
-            </div>
-          </TableCell>
-          <TableCell className="text-sm text-muted-foreground break-words p-2 align-middle">
-            {entry.pengusul?.nama_opd || '-'}
-          </TableCell>
-          <TableCell className="text-center font-mono text-sm text-foreground p-2 align-middle">
-            {entry.tahun_fasilitasi || '-'}
-          </TableCell>
-          <TableCell className="p-2 align-middle">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <p className="line-clamp-2 text-sm text-muted-foreground break-words">
-                  {entry.keterangan || '-'}
-                </p>
-              </TooltipTrigger>
-              {entry.keterangan && (
-                <TooltipContent
-                  align="start"
-                  className="max-w-sm whitespace-pre-line"
-                >
-                  <p>{entry.keterangan}</p>
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TableCell>
-          <TableCell className="p-2 align-middle">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild disabled={isPending}>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    'h-auto px-2 py-1 text-sm font-medium disabled:opacity-100 justify-start gap-2 disabled:cursor-wait',
-                    statusStyle.className
-                  )}
-                >
-                  {isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <statusStyle.icon className="h-4 w-4" />
-                  )}
-                  <span className="truncate">
-                    {entry.status_hki?.nama_status || 'N/A'}
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuLabel>Ubah Status</DropdownMenuLabel>
-                <DropdownMenuRadioGroup
-                  value={String(entry.status_hki?.id_status)}
-                  onValueChange={handleSelectStatus}
-                >
-                  {statusOptions.map((status) => {
-                    const StatusIcon = getStatusStyle(status.nama_status).icon
-                    return (
-                      <DropdownMenuRadioItem
-                        key={status.id_status}
-                        value={String(status.id_status)}
-                        className="gap-2 text-sm"
-                        disabled={isPending}
-                      >
-                        <StatusIcon className="h-4 w-4" />
-                        <span>{status.nama_status}</span>
-                      </DropdownMenuRadioItem>
-                    )
-                  })}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </TableCell>
-          <TableCell className="text-right sticky right-0 bg-inherit z-10 px-2 py-2 border-l dark:border-slate-800 align-middle">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 data-[state=open]:bg-muted"
-                >
-                  <span className="sr-only">Menu</span>
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onViewDetails(entry)}>
-                  <Eye className="mr-2 h-4 w-4" /> Detail
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onEdit(entry.id_hki)}>
-                  <Edit className="mr-2 h-4 w-4" /> Edit Data
-                </DropdownMenuItem>
-                {entry.sertifikat_pdf && (
-                  <DropdownMenuItem onClick={handleDownloadPDF}>
-                    <Download className="mr-2 h-4 w-4" /> Unduh Sertifikat
+            </TableCell>
+            <TableCell className="p-2 align-middle">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild disabled={isPending}>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'h-auto px-2 py-1 text-sm font-medium disabled:opacity-100 justify-start gap-2 disabled:cursor-wait',
+                      statusStyle.className
+                    )}
+                  >
+                    {isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <statusStyle.icon className="h-4 w-4" />
+                    )}
+                    <span className="truncate">
+                      {entry.status_hki?.nama_status || 'N/A'}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuLabel>Ubah Status</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={String(entry.status_hki?.id_status)}
+                    onValueChange={handleSelectStatus}
+                  >
+                    {statusOptions.map((status) => {
+                      const StatusIcon = getStatusStyle(status.nama_status).icon
+                      return (
+                        <DropdownMenuRadioItem
+                          key={status.id_status}
+                          value={String(status.id_status)}
+                          className="gap-2 text-sm"
+                          disabled={isPending}
+                        >
+                          <StatusIcon className="h-4 w-4" />
+                          <span>{status.nama_status}</span>
+                        </DropdownMenuRadioItem>
+                      )
+                    })}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+            <TableCell className="text-right sticky right-0 bg-inherit z-10 px-2 py-2 border-l dark:border-slate-800 align-middle">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 data-[state=open]:bg-muted"
+                  >
+                    <span className="sr-only">Menu</span>
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onViewDetails(entry)}>
+                    <Eye className="mr-2 h-4 w-4" /> Detail
                   </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
-                  onClick={() => onDelete(entry)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" /> Hapus Entri
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </TableCell>
-        </TableRow>
+                  <DropdownMenuItem onClick={() => onEdit(entry.id_hki)}>
+                    <Edit className="mr-2 h-4 w-4" /> Edit Data
+                  </DropdownMenuItem>
+                  {entry.sertifikat_pdf && (
+                    <DropdownMenuItem onClick={handleDownloadPDF}>
+                      <Download className="mr-2 h-4 w-4" /> Unduh Sertifikat
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
+                    onClick={() => onDelete(entry)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" /> Hapus Entri
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+          </TableRow>
+        )}
 
         {/* Mobile View */}
-        <tr className="md:hidden border-b dark:border-slate-800">
-          <td colSpan={showCheckboxColumn ? 10 : 9} className="p-0">
-            <Card
-              className={cn(
-                'm-2 border-l-4 rounded-lg shadow-none',
-                statusStyle.className.replace(/border-(?!l)/g, 'border-'),
-                isFlashing && 'bg-emerald-50 dark:bg-emerald-900/30',
-                isSelected && 'ring-2 ring-primary/50 dark:ring-primary'
-              )}
-            >
-              <CardHeader className="flex flex-row items-start justify-between p-4">
-                <div className="flex items-start gap-4">
-                  {showCheckboxColumn && (
-                    <Checkbox
-                      className="mt-1"
-                      checked={isSelected}
-                      onCheckedChange={(c) => onSelectRow(entry.id_hki, !!c)}
-                      aria-label={`Select row ${index + 1}`}
-                    />
-                  )}
-                  <div className="space-y-1">
-                    <CardTitle className="text-base leading-tight">
-                      {entry.nama_hki}
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {entry.pemohon?.nama_pemohon || '-'}
-                    </p>
-                  </div>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="-mr-2 -mt-2 h-8 w-8 data-[state=open]:bg-muted"
-                    >
-                      <span className="sr-only">Menu</span>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onViewDetails(entry)}>
-                      <Eye className="mr-2 h-4 w-4" /> Detail
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onEdit(entry.id_hki)}>
-                      <Edit className="mr-2 h-4 w-4" /> Edit Data
-                    </DropdownMenuItem>
-                    {entry.sertifikat_pdf && (
-                      <DropdownMenuItem onClick={handleDownloadPDF}>
-                        <Download className="mr-2 h-4 w-4" /> Unduh Sertifikat
-                      </DropdownMenuItem>
+        {(!isMounted || !isDesktop) && (
+          <tr className={cn("border-b dark:border-slate-800", !isMounted && "md:hidden")}>
+            <td colSpan={showCheckboxColumn ? 10 : 9} className="p-0">
+              <Card
+                className={cn(
+                  'm-2 border-l-4 rounded-lg shadow-none',
+                  statusStyle.className.replace(/border-(?!l)/g, 'border-'),
+                  isFlashing && 'bg-emerald-50 dark:bg-emerald-900/30',
+                  isSelected && 'ring-2 ring-primary/50 dark:ring-primary'
+                )}
+              >
+                <CardHeader className="flex flex-row items-start justify-between p-4">
+                  <div className="flex items-start gap-4">
+                    {showCheckboxColumn && (
+                      <Checkbox
+                        className="mt-1"
+                        checked={isSelected}
+                        onCheckedChange={(c) => onSelectRow(entry.id_hki, !!c)}
+                        aria-label={`Select row ${index + 1}`}
+                      />
                     )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
-                      onClick={() => onDelete(entry)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" /> Hapus Entri
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </CardHeader>
-              <CardContent className="p-4 pt-0 space-y-3 text-sm">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Jenis:</span>
-                  <Badge variant="outline" className="text-right">
-                    {entry.jenis?.nama_jenis_hki || '-'}
-                  </Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Pengusul:</span>
-                  <span className="font-medium text-right">
-                    {entry.pengusul?.nama_opd || '-'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Tahun:</span>
-                  <span className="font-mono">{entry.tahun_fasilitasi}</span>
-                </div>
-              </CardContent>
-            </Card>
-          </td>
-        </tr>
+                    <div className="space-y-1">
+                      <CardTitle className="text-base leading-tight">
+                        {entry.nama_hki}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        {entry.pemohon?.nama_pemohon || '-'}
+                      </p>
+                    </div>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="-mr-2 -mt-2 h-8 w-8 data-[state=open]:bg-muted"
+                      >
+                        <span className="sr-only">Menu</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onViewDetails(entry)}>
+                        <Eye className="mr-2 h-4 w-4" /> Detail
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onEdit(entry.id_hki)}>
+                        <Edit className="mr-2 h-4 w-4" /> Edit Data
+                      </DropdownMenuItem>
+                      {entry.sertifikat_pdf && (
+                        <DropdownMenuItem onClick={handleDownloadPDF}>
+                          <Download className="mr-2 h-4 w-4" /> Unduh Sertifikat
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
+                        onClick={() => onDelete(entry)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" /> Hapus Entri
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-3 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Jenis:</span>
+                    <Badge variant="outline" className="text-right">
+                      {entry.jenis?.nama_jenis_hki || '-'}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Pengusul:</span>
+                    <span className="font-medium text-right">
+                      {entry.pengusul?.nama_opd || '-'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Tahun:</span>
+                    <span className="font-mono">{entry.tahun_fasilitasi}</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </td>
+          </tr>
+        )}
       </React.Fragment>
     )
   }
@@ -1244,9 +1281,9 @@ export function DataTable({
         selectionModeActive={selectionModeActive}
         toggleSelectionMode={toggleSelectionMode}
         onOpenExportModal={() => setIsExportModalOpen(true)}
+        isFetching={isFetching}
       />
-      <div className="relative rounded-lg border dark:border-slate-800 bg-white dark:bg-slate-950">
-        {isFetching && !isLoading && <LoadingOverlay />}
+      <div className="relative rounded-lg border dark:border-slate-800 bg-white dark:bg-slate-950 transition-opacity duration-300" style={{ opacity: isFetching && !isLoading ? 0.6 : 1 }}>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-slate-50 dark:bg-slate-900/50 hidden md:table-header-group">

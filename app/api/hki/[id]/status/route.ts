@@ -1,7 +1,6 @@
 // app/api/hki/[id]/status/route.ts
 
 import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { authorizeAdmin, AuthError } from '@/lib/auth/server' // ✅ Impor sekarang akan berhasil
@@ -22,17 +21,18 @@ function apiError(message: string, status: number, errors?: object) {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createClient(cookies())
+    const { id: rawId } = await params
+    const supabase = await createClient()
 
     // Otorisasi admin sekarang ditangani oleh satu fungsi helper.
     await authorizeAdmin(supabase)
 
     const body = await request.json()
     const validationResult = updateStatusSchema.safeParse({
-      id: params.id,
+      id: rawId,
       statusId: body.statusId,
     })
 

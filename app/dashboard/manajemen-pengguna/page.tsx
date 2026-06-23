@@ -82,8 +82,7 @@ const ErrorDisplay = ({ error }: { error: Error }) => (
 )
 
 export default async function UserManagementPage() {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()

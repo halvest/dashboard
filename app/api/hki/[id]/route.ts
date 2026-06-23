@@ -1,5 +1,4 @@
 // app/api/hki/[id]/route.ts
-import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { createClient } from '@/utils/supabase/server'
@@ -65,13 +64,13 @@ async function authorizeAdmin(supabase: SupabaseClient<Database>) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+  const { id: rawId } = await params
+  const supabase = await createClient()
 
   try {
-    const hkiId = idSchema.parse(params.id)
+    const hkiId = idSchema.parse(rawId)
     await authorizeAdmin(supabase)
 
     const { data, error } = await supabase
@@ -102,13 +101,13 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+  const { id: rawId } = await params
+  const supabase = await createClient()
 
   try {
-    const hkiId = idSchema.parse(params.id)
+    const hkiId = idSchema.parse(rawId)
     const user = await authorizeAdmin(supabase)
 
     const formData = await request.formData()
@@ -212,13 +211,13 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+  const { id: rawId } = await params
+  const supabase = await createClient()
 
   try {
-    const hkiId = idSchema.parse(params.id)
+    const hkiId = idSchema.parse(rawId)
     await authorizeAdmin(supabase)
 
     const { data: hkiData, error: findError } = await supabase

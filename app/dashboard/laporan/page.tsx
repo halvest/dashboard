@@ -9,13 +9,14 @@ import { GeneratePdfButton } from '@/components/laporan/GeneratePdfButton'
 export const dynamic = 'force-dynamic'
 
 interface PageProps {
-  searchParams: { year?: string; status?: string }
+  searchParams: Promise<{ year?: string; status?: string }>
 }
 
 export default async function LaporanPage({ searchParams }: PageProps) {
   // Parsing search parameters
-  const rawYear = searchParams.year
-  const rawStatus = searchParams.status
+  const resolvedSearchParams = await searchParams
+  const rawYear = resolvedSearchParams.year
+  const rawStatus = resolvedSearchParams.status
 
   const year = rawYear ? parseInt(rawYear, 10) : null
   const statusId = rawStatus ? parseInt(rawStatus, 10) : null
@@ -69,7 +70,7 @@ export default async function LaporanPage({ searchParams }: PageProps) {
       </div>
 
       {/* Konten Utama (Cards, Charts, Summary) */}
-      <Suspense key={`${rawYear}-${rawStatus}`} fallback={<LaporanContentSkeleton />}>
+      <Suspense fallback={<LaporanContentSkeleton />}>
         <LaporanContent year={year} statusId={statusId} statusName={statusName} />
       </Suspense>
     </div>

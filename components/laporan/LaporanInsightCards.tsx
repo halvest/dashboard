@@ -26,17 +26,17 @@ function InsightCard({ title, value, sub, icon: Icon, bgClass, textClass }: Insi
   return (
     <Card className="shadow-sm border dark:border-gray-800 hover:shadow-md transition-all hover:-translate-y-0.5 overflow-hidden relative group">
       {/* Decorative gradient blur in background */}
-      <div className={cn("absolute -right-4 -top-4 w-24 h-24 rounded-full opacity-20 blur-2xl group-hover:opacity-30 transition-opacity", bgClass)} />
+      <div className={cn("absolute -right-4 -top-4 w-28 h-28 rounded-full opacity-20 blur-3xl group-hover:opacity-40 transition-all duration-500", bgClass)} />
       
       <CardContent className="p-5 flex items-start gap-4 relative z-10">
         <div
           className={cn(
-            'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
+            'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 shadow-sm',
             bgClass,
             textClass
           )}
         >
-          <Icon className="h-6 w-6" />
+          <Icon className="h-6 w-6 transition-transform duration-300 group-hover:scale-110" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">

@@ -17,10 +17,20 @@ interface LaporanContentProps {
 
 export async function LaporanContent({ year, statusId, statusName }: LaporanContentProps) {
   let summary
+  let chartSummary
   let errorMessage: string | null = null
 
   try {
     summary = await getHKIReportSummary(year, statusId)
+    chartSummary = { ...summary }
+    
+    // Bypass: Hanya untuk grafik (chartSummary), ambil data tren penuh 
+    // agar grafik Pengajuan per Tahun tidak menyempit menjadi 1 titik.
+    // Sementara `summary` utama dibiarkan terfilter agar Insight Cards & Teks tetap akurat.
+    if (year !== null) {
+      const unfilteredTrend = await getHKIReportSummary(null, statusId)
+      chartSummary.by_year = unfilteredTrend.by_year
+    }
   } catch (err: unknown) {
     errorMessage = err instanceof Error ? err.message : 'Gagal memuat data laporan.'
     summary = {
@@ -30,6 +40,7 @@ export async function LaporanContent({ year, statusId, statusName }: LaporanCont
       by_jenis_hki: [],
       by_pengusul: [],
     }
+    chartSummary = summary
   }
 
   const filters: ReportFilters = { year, statusId, statusName }
@@ -68,7 +79,7 @@ export async function LaporanContent({ year, statusId, statusName }: LaporanCont
       <Separator className="dark:border-gray-800" />
 
       {/* Charts */}
-      <LaporanCharts summary={summary} />
+      <LaporanCharts summary={chartSummary} />
 
       <Separator className="dark:border-gray-800" />
 

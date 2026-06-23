@@ -6,7 +6,8 @@ import { Database } from '@/lib/database.types'
  * ✅ Utility untuk membuat Supabase client di Server Component, API Routes, atau Server Actions.
  * Pastikan variabel environment sudah terdefinisi di .env.local
  */
-export function createClient(cookieStore: ReturnType<typeof cookies>) {
+export async function createClient() {
+  const cookieStore = await cookies()
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -18,27 +19,18 @@ export function createClient(cookieStore: ReturnType<typeof cookies>) {
 
   return createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value
+      getAll() {
+        return cookieStore.getAll()
       },
-      set(name: string, value: string, options: CookieOptions) {
+      setAll(cookiesToSet) {
         try {
-          cookieStore.set({ name, value, ...options })
-        } catch (error) {
-          console.warn(`⚠️ Failed to set cookie "${name}":`, error)
-          // Dibiarkan kosong jika tidak bisa set cookie (misalnya di Route Handler)
-        }
-      },
-      remove(name: string, options: CookieOptions) {
-        try {
-          cookieStore.set({
-            name,
-            value: '',
-            ...options,
-            maxAge: 0, // Hapus cookie dengan benar
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set({ name, value, ...options })
           })
         } catch (error) {
-          console.warn(`⚠️ Failed to remove cookie "${name}":`, error)
+          // The `set` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
         }
       },
     },

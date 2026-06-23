@@ -2,7 +2,7 @@
 
 // components/laporan/LaporanFilter.tsx
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { useCallback } from 'react'
+import { useCallback, useTransition } from 'react'
 import {
   Select,
   SelectContent,
@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { CalendarDays, BookCheck, X } from 'lucide-react'
+import { CalendarDays, BookCheck, X, Loader2 } from 'lucide-react'
 import type { ReportFilterOptions } from '@/lib/reports/hki-report-types'
 
 interface LaporanFilterProps {
@@ -31,6 +31,8 @@ export function LaporanFilter({
 
   const isFiltered = currentYear !== 'all' || currentStatusId !== 'all'
 
+  const [isPending, startTransition] = useTransition()
+
   const updateFilter = useCallback(
     (key: string, value: string) => {
       const params = new URLSearchParams(searchParams.toString())
@@ -39,13 +41,17 @@ export function LaporanFilter({
       } else {
         params.set(key, value)
       }
-      router.push(`${pathname}?${params.toString()}`)
+      startTransition(() => {
+        router.push(`${pathname}?${params.toString()}`, { scroll: false })
+      })
     },
     [router, pathname, searchParams]
   )
 
   const resetFilters = useCallback(() => {
-    router.push(pathname)
+    startTransition(() => {
+      router.push(pathname, { scroll: false })
+    })
   }, [router, pathname])
 
   return (
@@ -98,6 +104,14 @@ export function LaporanFilter({
           <X className="h-4 w-4" />
           Reset Filter
         </Button>
+      )}
+
+      {/* Indikator Loading */}
+      {isPending && (
+        <div className="flex items-center gap-2 text-muted-foreground sm:ml-auto">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="text-sm font-medium">Memperbarui...</span>
+        </div>
       )}
     </div>
   )

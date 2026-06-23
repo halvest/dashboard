@@ -70,25 +70,31 @@ const StatCard = ({
   Icon: LucideIcon
   className: string
 }) => (
-  <Card className="shadow-sm transition-all hover:shadow-md dark:border-gray-800">
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium text-muted-foreground">
+  <Card className="group relative overflow-hidden shadow-sm transition-all duration-300 hover:shadow-lg hover:-translate-y-1 dark:border-gray-800">
+    <div
+      className={cn(
+        'absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full opacity-10 transition-transform duration-500 group-hover:scale-150',
+        className
+      )}
+    />
+    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
+      <CardTitle className="text-sm font-semibold text-muted-foreground">
         {title}
       </CardTitle>
       <div
         className={cn(
-          'flex items-center justify-center h-8 w-8 rounded-full text-white',
+          'flex items-center justify-center h-10 w-10 rounded-xl text-white shadow-inner',
           className
         )}
       >
-        <Icon className="h-4 w-4" />
+        <Icon className="h-5 w-5" />
       </div>
     </CardHeader>
-    <CardContent>
-      <div className="text-4xl font-bold text-gray-900 dark:text-gray-50">
+    <CardContent className="relative z-10">
+      <div className="text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-50">
         {value}
       </div>
-      <p className="text-xs text-muted-foreground pt-1">{description}</p>
+      <p className="text-xs font-medium text-muted-foreground pt-2">{description}</p>
     </CardContent>
   </Card>
 )
@@ -124,8 +130,7 @@ const EmptyStateDisplay = ({
 )
 
 const WelcomeHeader = cache(async () => {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -133,23 +138,24 @@ const WelcomeHeader = cache(async () => {
   const userName = user?.user_metadata?.full_name || 'Admin'
 
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-6 sm:p-8 rounded-xl border border-blue-100 dark:border-blue-900/50 shadow-sm relative overflow-hidden">
+      <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-white/40 dark:from-black/40 to-transparent pointer-events-none" />
+      <div className="relative z-10">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-blue-950 dark:text-blue-50">
           {greeting}, {userName}!
         </h1>
-        <p className="text-muted-foreground mt-1">
-          Ini ringkasan data fasilitasi HKI untuk Anda.
+        <p className="text-blue-800/80 dark:text-blue-200/80 mt-1.5 text-sm sm:text-base font-medium max-w-xl">
+          Berikut adalah ringkasan operasional dan status terkini dari seluruh pengajuan Hak Kekayaan Intelektual (HKI) hari ini.
         </p>
       </div>
       <Button
         asChild
-        className="gap-2 w-full sm:w-auto shadow-sm h-10 font-semibold"
+        className="gap-2 w-full sm:w-auto shadow-sm h-11 font-semibold relative z-10 hover:shadow-md transition-shadow"
         variant="default"
       >
         <Link href="/dashboard/data-pengajuan-fasilitasi">
           <Database className="h-4 w-4" />
-          Kelola Data HKI
+          Kelola Arsip HKI
         </Link>
       </Button>
     </div>
@@ -158,8 +164,7 @@ const WelcomeHeader = cache(async () => {
 
 const StatsCards = cache(async () => {
   try {
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
+    const supabase = await createClient()
 
     const { data: statsData, error } = await supabase.rpc('get_dashboard_stats')
     if (error) throw new Error(`Gagal mengambil statistik: ${error.message}`)
@@ -209,8 +214,7 @@ const StatsCards = cache(async () => {
 
 const RecentActivity = cache(async () => {
   try {
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
+    const supabase = await createClient()
     const { data: recentEntries, error } = await supabase
       .from('hki')
       .select(
@@ -245,23 +249,23 @@ const RecentActivity = cache(async () => {
         </CardHeader>
         <CardContent>
           {recentEntries && recentEntries.length > 0 ? (
-            <div className="space-y-5">
+            <div className="space-y-3">
               {recentEntries.map((entry) => (
-                <div key={entry.id_hki} className="flex items-center gap-4">
-                  <Avatar className="h-10 w-10 border dark:border-gray-700">
-                    <AvatarFallback className="font-semibold">
+                <div key={entry.id_hki} className="group flex items-center gap-4 p-3 -mx-3 rounded-xl transition-all duration-200 hover:bg-muted/50 hover:shadow-sm">
+                  <Avatar className="h-11 w-11 border shadow-sm dark:border-gray-700 transition-transform duration-200 group-hover:scale-105">
+                    <AvatarFallback className="bg-primary/10 text-primary font-bold">
                       {getInitials(entry.pemohon?.nama_pemohon)}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 grid gap-0.5 min-w-0">
+                  <div className="flex-1 grid gap-1 min-w-0">
                     <p className="font-semibold leading-none truncate text-gray-900 dark:text-gray-100">
                       {entry.nama_hki}
                     </p>
-                    <p className="text-sm text-muted-foreground truncate">
+                    <p className="text-sm font-medium text-muted-foreground truncate">
                       {entry.pemohon?.nama_pemohon || 'N/A'}
                     </p>
                   </div>
-                  <Badge variant="outline" className="font-normal shrink-0">
+                  <Badge variant="outline" className="font-medium shrink-0 bg-background/50">
                     {entry.status_hki?.nama_status || 'N/A'}
                   </Badge>
                 </div>
@@ -292,12 +296,12 @@ const RecentActivity = cache(async () => {
 
 // --- SKELETONS ---
 const WelcomeHeaderSkeleton = () => (
-  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-    <div>
+  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-muted/30 p-6 sm:p-8 rounded-xl border border-border/50">
+    <div className="space-y-3 w-full max-w-xl">
       <Skeleton className="h-9 w-64 rounded-lg" />
-      <Skeleton className="h-5 w-72 rounded-md mt-2" />
+      <Skeleton className="h-5 w-full rounded-md" />
     </div>
-    <Skeleton className="h-10 w-full sm:w-40 rounded-md" />
+    <Skeleton className="h-11 w-full sm:w-44 rounded-md shrink-0" />
   </div>
 )
 
@@ -306,12 +310,12 @@ const StatsCardsSkeleton = () => (
     {Array.from({ length: 4 }).map((_, i) => (
       <Card key={i} className="shadow-sm dark:border-gray-800">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <Skeleton className="h-4 w-2/3" />
-          <Skeleton className="h-8 w-8 rounded-full" />
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-10 w-10 rounded-xl" />
         </CardHeader>
         <CardContent>
           <Skeleton className="h-10 w-1/3 mt-1" />
-          <Skeleton className="h-3 w-3/4 mt-2" />
+          <Skeleton className="h-3 w-2/3 mt-3" />
         </CardContent>
       </Card>
     ))}
@@ -324,15 +328,15 @@ const RecentActivitySkeleton = () => (
       <Skeleton className="h-6 w-1/3" />
       <Skeleton className="h-4 w-1/2 mt-1" />
     </CardHeader>
-    <CardContent className="space-y-5">
+    <CardContent className="space-y-3">
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4">
-          <Skeleton className="h-10 w-10 rounded-full" />
+        <div key={i} className="flex items-center gap-4 p-3 -mx-3">
+          <Skeleton className="h-11 w-11 rounded-full shrink-0" />
           <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-3 w-2/3" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
           </div>
-          <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="h-6 w-20 rounded-full shrink-0" />
         </div>
       ))}
     </CardContent>

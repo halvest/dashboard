@@ -1,7 +1,6 @@
 // components/layout/sidebar.tsx
 'use client'
 
-// PERBAIKAN: Menambahkan 'memo', 'useRef', dan 'useCallback' ke dalam import dari React
 import React, {
   useEffect,
   useMemo,
@@ -22,7 +21,7 @@ import {
   BarChart3,
   Users,
   Database,
-  Gauge, // <-- 1. ICON BARU DITAMBAHKAN
+  Gauge, 
   type LucideIcon,
 } from 'lucide-react'
 import { User } from '@supabase/supabase-js'
@@ -50,7 +49,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
-// --- Tipe & Data Navigasi ---
 interface NavItem {
   name: string
   href: string
@@ -77,8 +75,6 @@ const managementNavigation: NavItem[] = [
   { name: 'Pengaturan', href: '/dashboard/pengaturan', icon: Settings },
 ]
 
-// --- Komponen Anak yang Dioptimalkan ---
-
 const SidebarLink = memo(({ item }: { item: NavItem }) => {
   const pathname = usePathname()
   const isActive =
@@ -92,7 +88,7 @@ const SidebarLink = memo(({ item }: { item: NavItem }) => {
         href={item.href}
         className={cn(
           'relative flex items-center gap-3 rounded-md px-4 py-2.5 font-medium transition-all duration-200',
-          'text-slate-400 hover:bg-slate-800/80 hover:text-white', // Tema yang Anda sukai dipertahankan
+          'text-slate-400 hover:bg-slate-800/80 hover:text-white', 
           isActive &&
             'rounded-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30'
         )}
@@ -108,11 +104,11 @@ const SidebarLink = memo(({ item }: { item: NavItem }) => {
 })
 SidebarLink.displayName = 'SidebarLink'
 
-const UserProfileSection = memo(function UserProfileSection() {
+const UserProfileSection = memo(function UserProfileSection({ user: initialUser }: { user?: User | null }) {
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(initialUser || null)
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -127,7 +123,7 @@ const UserProfileSection = memo(function UserProfileSection() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'INITIAL_SESSION') return // Dihandle oleh fetchUser
+      if (event === 'INITIAL_SESSION') return 
       if (event === 'SIGNED_OUT') {
         setUser(null)
       } else if (session) {
@@ -223,23 +219,32 @@ const UserProfileSection = memo(function UserProfileSection() {
 })
 UserProfileSection.displayName = 'UserProfileSection'
 
-const SidebarContent = memo(function SidebarContent() {
+const SidebarContent = memo(function SidebarContent({ user }: { user?: User | null }) {
   return (
     <div className="flex h-full flex-col bg-gradient-to-b from-slate-900 to-slate-950 text-white">
       <div className="flex h-20 items-center border-b border-slate-700/50 px-4">
         <Link
           href="/dashboard"
-          className="flex items-center gap-3 font-semibold transition-transform hover:scale-105"
+          className="flex items-center gap-3 transition-transform hover:scale-105"
         >
-          <Image
-            src="/logo_sleman.png"
-            alt="Logo Sleman"
-            width={44}
-            height={44}
-            className="shrink-0"
-            priority
-          />
-          <span className="text-xl font-bold">Panel Dashboard</span>
+          <div className="rounded-lg bg-white/5 p-1.5 shadow-inner backdrop-blur-sm">
+            <Image
+              src="/logo_sleman.png"
+              alt="Logo Sleman"
+              width={40}
+              height={40}
+              className="shrink-0"
+              priority
+            />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-base font-bold leading-tight tracking-wide text-white">
+              Arsip Data
+            </span>
+            <span className="text-sm font-medium text-blue-400">
+              Pengajuan Fasilitasi HKI
+            </span>
+          </div>
         </Link>
       </div>
 
@@ -262,20 +267,20 @@ const SidebarContent = memo(function SidebarContent() {
       </nav>
 
       <div className="mt-auto border-t border-slate-700/50 p-4">
-        <UserProfileSection />
+        <UserProfileSection user={user} />
       </div>
     </div>
   )
 })
 SidebarContent.displayName = 'SidebarContent'
 
-// --- Komponen Wrapper Utama ---
 interface SidebarProps {
   sidebarOpen: boolean
   setSidebarOpen: (val: boolean) => void
+  user?: User | null
 }
 
-export const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
+export const Sidebar = ({ sidebarOpen, setSidebarOpen, user }: SidebarProps) => {
   const sidebarRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -322,11 +327,10 @@ export const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             initial="closed"
             animate="open"
             exit="closed"
-            // IMPROVE: Menggunakan transisi 'spring' untuk efek yang lebih natural
             transition={{ type: 'spring', stiffness: 400, damping: 40 }}
             className="fixed inset-y-0 left-0 z-40 flex w-72 flex-col"
           >
-            <SidebarContent />
+            <SidebarContent user={user} />
           </motion.aside>
         </>
       )}

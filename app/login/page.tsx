@@ -83,6 +83,7 @@ export default function LoginPage() {
               width={56}
               height={56}
               className="h-20 w-auto"
+              style={{ width: 'auto', height: 'auto' }}
             />
           </div>
           <CardTitle className="text-2xl font-bold">

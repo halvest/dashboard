@@ -77,8 +77,10 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+import type { User } from '@supabase/supabase-js'
+
 // --- Komponen Layout Utama ---
-function AdminLayoutComponent({ children }: { children: ReactNode }) {
+function AdminLayoutComponent({ children, user }: { children: ReactNode; user?: User | null }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Memoize fungsi untuk stabilitas referensi
@@ -91,6 +93,7 @@ function AdminLayoutComponent({ children }: { children: ReactNode }) {
       <Sidebar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
+        user={user}
         aria-expanded={sidebarOpen}
       />
 
@@ -99,6 +102,7 @@ function AdminLayoutComponent({ children }: { children: ReactNode }) {
         <Topbar
           sidebarOpen={sidebarOpen}
           setSidebarOpen={handleToggleSidebar}
+          user={user}
         />
 
         {/* Content */}
@@ -122,12 +126,14 @@ function AdminLayoutComponent({ children }: { children: ReactNode }) {
 // Komponen akhir yang diekspor, sudah dibungkus ErrorBoundary dan di-memoize.
 export const AdminLayout = React.memo(function AdminLayout({
   children,
+  user,
 }: {
   children: ReactNode
+  user?: User | null
 }) {
   return (
     <ErrorBoundary>
-      <AdminLayoutComponent>{children}</AdminLayoutComponent>
+      <AdminLayoutComponent user={user}>{children}</AdminLayoutComponent>
     </ErrorBoundary>
   )
 })

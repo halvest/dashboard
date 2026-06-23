@@ -13,8 +13,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest) {
   try {
     // 1. Validasi sesi dan role admin
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
+    const supabase = await createClient()
 
     const {
       data: { user },

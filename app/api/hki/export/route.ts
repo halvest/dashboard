@@ -1,7 +1,6 @@
 // app/api/hki/export/route.ts
 
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import ExcelJS from 'exceljs'
 import { createClient } from '@/utils/supabase/server'
 import { Database } from '@/lib/database.types' // ✅ Perbaikan: Impor tipe Database untuk type safety
@@ -43,7 +42,7 @@ type NormalizedRow = Record<(typeof EXPORT_COLUMNS)[number]['key'], string | num
 /**
  * ✅ Perbaikan: Fungsi otorisasi yang diekstraksi untuk penggunaan kembali.
  */
-async function authorizeAdmin(supabase: ReturnType<typeof createClient>) {
+async function authorizeAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data: { user }, } = await supabase.auth.getUser()
   if (!user) {
     throw new Error('Tidak terautentikasi')
@@ -86,7 +85,7 @@ function escapeCsvValue(value: any): string {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient(cookies())
+    const supabase = await createClient()
     await authorizeAdmin(supabase)
 
     const { searchParams } = request.nextUrl

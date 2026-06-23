@@ -27,7 +27,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart'
-import { TrendingUp, BookCheck, Copyright } from 'lucide-react'
+import { TrendingUp, BookCheck, Copyright, FileSearch } from 'lucide-react'
 import type { HKIReportSummary } from '@/lib/reports/hki-report-types'
 
 const STATUS_PALETTE = [
@@ -49,6 +49,14 @@ const BAR_PALETTE = [
 interface LaporanChartsProps {
   summary: HKIReportSummary
 }
+
+// Komponen Empty State Reusable
+const EmptyChartState = ({ message = "Belum Ada Data" }: { message?: string }) => (
+  <div className="flex flex-col h-[200px] items-center justify-center text-muted-foreground bg-slate-50/50 dark:bg-slate-900/20 rounded-lg border border-dashed border-slate-200 dark:border-slate-800 m-4">
+    <FileSearch className="h-10 w-10 text-slate-300 dark:text-slate-700 mb-3" />
+    <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{message}</p>
+  </div>
+)
 
 // Custom label untuk pie chart — tampilkan nama + angka di dalam / dekat slice
 const renderCustomLabel = ({
@@ -90,8 +98,10 @@ const renderCustomLabel = ({
 
 export function LaporanCharts({ summary }: LaporanChartsProps) {
   const yearChartConfig: ChartConfig = {
-    total: { label: 'Jumlah Pengajuan' },
+    total: { label: 'Jumlah Pengajuan', color: 'hsl(var(--chart-1))' },
   }
+
+  const sortedYearData = [...summary.by_year].sort((a, b) => a.tahun - b.tahun)
 
   const statusData = summary.by_status
     .filter((s) => s.total > 0)
@@ -116,15 +126,13 @@ export function LaporanCharts({ summary }: LaporanChartsProps) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {summary.by_year.length === 0 ? (
-            <div className="flex h-[250px] items-center justify-center text-muted-foreground text-sm">
-              Tidak ada data untuk ditampilkan.
-            </div>
+          {sortedYearData.length === 0 ? (
+            <EmptyChartState message="Belum ada data pengajuan per tahun." />
           ) : (
             <ChartContainer config={yearChartConfig} className="h-[250px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={[...summary.by_year].sort((a, b) => a.tahun - b.tahun)}
+                  data={sortedYearData}
                   margin={{ top: 30, right: 10, left: 0, bottom: 0 }}
                 >
                   <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/50" />
@@ -134,14 +142,14 @@ export function LaporanCharts({ summary }: LaporanChartsProps) {
                     cursor={{ fill: 'hsl(var(--accent))', radius: 4 }}
                     content={
                       <ChartTooltipContent
-                        labelFormatter={(_, payload) => `Tahun ${payload[0]?.payload?.tahun}`}
+                        labelFormatter={(label) => `Tahun ${label}`}
                         indicator="dot"
                       />
                     }
                   />
-                  <Bar dataKey="total" radius={[4, 4, 0, 0]}>
-                    <LabelList position="top" offset={8} className="fill-foreground text-xs" formatter={(v: number) => (v > 0 ? v : '')} />
-                    {summary.by_year.map((_, i) => (
+                  <Bar dataKey="total" radius={[6, 6, 0, 0]}>
+                    <LabelList position="top" offset={8} className="fill-foreground text-xs font-semibold" formatter={(v: number) => (v > 0 ? v : '')} />
+                    {sortedYearData.map((_, i) => (
                       <Cell key={i} fill={BAR_PALETTE[i % BAR_PALETTE.length]} />
                     ))}
                   </Bar>
@@ -163,9 +171,7 @@ export function LaporanCharts({ summary }: LaporanChartsProps) {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {statusData.length === 0 ? (
-            <div className="flex h-[220px] items-center justify-center text-muted-foreground text-sm">
-              Tidak ada data untuk ditampilkan.
-            </div>
+            <EmptyChartState message="Belum ada data distribusi status." />
           ) : (
             <>
               <ResponsiveContainer width="100%" height={200}>
@@ -182,6 +188,7 @@ export function LaporanCharts({ summary }: LaporanChartsProps) {
                     nameKey="nama_status"
                     cx="50%"
                     cy="50%"
+                    innerRadius={55}
                     outerRadius={90}
                     label={renderCustomLabel}
                     labelLine={false}
@@ -226,9 +233,7 @@ export function LaporanCharts({ summary }: LaporanChartsProps) {
         </CardHeader>
         <CardContent>
           {jenisData.length === 0 ? (
-            <div className="flex h-[160px] items-center justify-center text-muted-foreground text-sm">
-              Tidak ada data untuk ditampilkan.
-            </div>
+            <EmptyChartState message="Belum ada data jenis HKI." />
           ) : (
             <ResponsiveContainer width="100%" height={160}>
               <BarChart data={jenisData} layout="vertical" margin={{ top: 0, right: 50, left: 10, bottom: 0 }}>
@@ -243,8 +248,8 @@ export function LaporanCharts({ summary }: LaporanChartsProps) {
                   className="text-xs"
                   tick={{ fontSize: 11 }}
                 />
-                <Tooltip formatter={(v: number) => [v.toLocaleString('id-ID'), 'Jumlah']} />
-                <Bar dataKey="total" radius={[0, 4, 4, 0]}>
+                <Tooltip cursor={{ fill: 'hsl(var(--accent))', opacity: 0.4 }} formatter={(v: number) => [v.toLocaleString('id-ID'), 'Jumlah']} />
+                <Bar dataKey="total" radius={[0, 6, 6, 0]}>
                   <LabelList position="right" className="fill-foreground text-xs font-semibold" formatter={(v: number) => (v > 0 ? v.toLocaleString('id-ID') : '')} />
                   {jenisData.map((_, i) => (
                     <Cell key={i} fill={STATUS_PALETTE[i % STATUS_PALETTE.length]} />

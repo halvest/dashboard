@@ -11,8 +11,7 @@ export async function getHKIReportSummary(
   year: number | null,
   statusId: number | null
 ): Promise<HKIReportSummary> {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+  const supabase = await createClient()
 
   const { data, error } = await supabase.rpc('get_hki_report_summary', {
     p_year: year,
@@ -44,8 +43,7 @@ export async function getHKIReportSummary(
  * Data ini tidak bergantung pada filter aktif.
  */
 export async function getReportFilterOptions(): Promise<ReportFilterOptions> {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+  const supabase = await createClient()
 
   const [yearsResult, statusResult] = await Promise.all([
     supabase

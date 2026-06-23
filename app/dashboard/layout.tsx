@@ -24,8 +24,7 @@ export const dynamic = 'force-dynamic'
  * Ini adalah optimasi performa kunci di App Router.
  */
 const getUserProfile = cache(async () => {
-  const cookieStore = cookies()
-  const supabase = createClient(cookieStore)
+  const supabase = await createClient()
 
   const {
     data: { user },
@@ -87,7 +86,7 @@ export default async function DashboardLayout({
   children: ReactNode
 }) {
   try {
-    const { profile } = await getUserProfile()
+    const { profile, user } = await getUserProfile()
 
     // ✅ Logika otorisasi disederhanakan.
     // Jika peran bukan 'admin', redirect dengan pesan error.
@@ -96,7 +95,7 @@ export default async function DashboardLayout({
     }
 
     // Jika semua validasi lolos, render layout dengan children (halaman).
-    return <AdminLayout>{children}</AdminLayout>
+    return <AdminLayout user={user}>{children}</AdminLayout>
   } catch (error: any) {
     // Menangkap semua kemungkinan error dari `getUserProfile`
     // dan menampilkannya dengan UI yang sesuai.
