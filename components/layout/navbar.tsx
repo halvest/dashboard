@@ -124,14 +124,16 @@ export function Topbar({ sidebarOpen, setSidebarOpen, user: initialUser }: Topba
   const handleLogout = useCallback(async () => {
     const toastId = toast.loading('Sedang keluar...')
     try {
-      await supabase.auth.signOut()
+      await supabase.auth.signOut({ scope: 'local' })
       toast.success('Berhasil keluar!', { id: toastId })
-      router.push('/login')
     } catch (err) {
-      console.error('❌ Error saat logout:', err)
-      toast.error('Gagal keluar. Silakan coba lagi.', { id: toastId })
+      toast.error('Gagal keluar. Sesi dibersihkan.', { id: toastId })
+    } finally {
+      // Menggunakan hard redirect (window.location) alih-alih router.push
+      // Ini menjamin pembersihan seluruh cache internal Next.js dan menghindari freeze.
+      window.location.href = '/login'
     }
-  }, [router, supabase])
+  }, [supabase])
 
   const getInitials = (email?: string | null) =>
     email ? email.charAt(0).toUpperCase() : '?'

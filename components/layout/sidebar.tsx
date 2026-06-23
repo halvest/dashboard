@@ -137,14 +137,15 @@ const UserProfileSection = memo(function UserProfileSection({ user: initialUser 
   const handleLogout = useCallback(async () => {
     const toastId = toast.loading('Sedang keluar...')
     try {
-      await supabase.auth.signOut()
+      await supabase.auth.signOut({ scope: 'local' })
       toast.success('Berhasil keluar!', { id: toastId })
-      router.push('/login')
     } catch (err) {
-      console.error('❌ Error saat logout:', err)
-      toast.error('Gagal keluar, coba lagi.', { id: toastId })
+      toast.error('Gagal keluar. Sesi dibersihkan.', { id: toastId })
+    } finally {
+
+      window.location.href = '/login'
     }
-  }, [router, supabase])
+  }, [supabase])
 
   const getInitials = (email?: string) =>
     email ? email.charAt(0).toUpperCase() : '?'
@@ -239,7 +240,7 @@ const SidebarContent = memo(function SidebarContent({ user }: { user?: User | nu
           </div>
           <div className="flex flex-col">
             <span className="text-base font-bold leading-tight tracking-wide text-white">
-              Arsip Data
+              Manajemen Data
             </span>
             <span className="text-sm font-medium text-blue-400">
               Pengajuan Fasilitasi HKI
