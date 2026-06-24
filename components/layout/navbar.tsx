@@ -124,7 +124,7 @@ export function Topbar({ sidebarOpen, setSidebarOpen, user: initialUser }: Topba
   const handleLogout = useCallback(async () => {
     const toastId = toast.loading('Sedang keluar...')
     try {
-      await supabase.auth.signOut({ scope: 'local' })
+      await supabase.auth.signOut()
       toast.success('Berhasil keluar!', { id: toastId })
     } catch (err) {
       toast.error('Gagal keluar. Sesi dibersihkan.', { id: toastId })
