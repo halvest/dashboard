@@ -116,6 +116,21 @@ export async function PATCH(
     const { nama_pemohon, alamat, ...hkiFields } =
       hkiUpdateSchema.parse(rawData)
 
+    // Validasi Relasi Jenis HKI dan Kelas
+    const { data: jenisRecord } = await supabase
+      .from('jenis_hki')
+      .select('nama_jenis_hki')
+      .eq('id_jenis_hki', hkiFields.id_jenis_hki)
+      .single()
+
+    if (jenisRecord) {
+      if (!jenisRecord.nama_jenis_hki.toLowerCase().includes('merek')) {
+        hkiFields.id_kelas = null
+      } else if (!hkiFields.id_kelas) {
+        throw new Error('Kelas HKI wajib diisi untuk Merek.')
+      }
+    }
+
     const { data: currentHki, error: findError } = await supabase
       .from(HKI_TABLE)
       .select('sertifikat_pdf')

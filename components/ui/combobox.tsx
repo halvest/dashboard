@@ -17,8 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { motion, AnimatePresence } from 'framer-motion'
+
 
 interface ComboboxProps {
   options: { value: string; label: string }[]
@@ -60,7 +59,7 @@ export const Combobox = React.memo(function Combobox({
   const displayContent = value ? selectedLabel : placeholder
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={true}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -69,7 +68,7 @@ export const Combobox = React.memo(function Combobox({
           className="min-w-0 w-full justify-between font-normal"
           disabled={disabled || loading}
         >
-          <div className="truncate flex items-center">{displayContent}</div>
+          <div className="flex-1 truncate text-left">{displayContent}</div>
           {loading ? (
             <Loader2 className="ml-2 h-4 w-4 shrink-0 animate-spin opacity-50" />
           ) : (
@@ -78,53 +77,40 @@ export const Combobox = React.memo(function Combobox({
         </Button>
       </PopoverTrigger>
 
-      <AnimatePresence>
-        {open && (
-          <PopoverContent
-            asChild
-            className="w-[--radix-popover-trigger-width] max-w-xs sm:max-w-sm md:max-w-md p-0"
-            align="start"
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98, y: -5 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: -5 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
-            >
-              <Command>
-                <CommandInput placeholder={searchPlaceholder} />
-                <CommandList>
-                  <CommandEmpty>
-                    {options.length > 0 ? noResultsMessage : emptyMessage}
-                  </CommandEmpty>
-                  <ScrollArea className="max-h-[40vh] overflow-y-auto">
-                    <CommandGroup>
-                      {options.map((option) => (
-                        <CommandItem
-                          key={option.value}
-                          value={`${option.value} ${option.label}`}
-                          onSelect={() => handleSelect(option.value)}
-                          className="truncate whitespace-nowrap"
-                        >
-                          <Check
-                            className={cn(
-                              'mr-2 h-4 w-4',
-                              value === option.value
-                                ? 'opacity-100'
-                                : 'opacity-0'
-                            )}
-                          />
-                          {option.label}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </ScrollArea>
-                </CommandList>
-              </Command>
-            </motion.div>
-          </PopoverContent>
-        )}
-      </AnimatePresence>
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] p-0"
+        align="start"
+      >
+        <Command filter={(value, search) => {
+          if (value.toLowerCase().includes(search.toLowerCase())) return 1;
+          return 0;
+        }}>
+          <CommandInput placeholder={searchPlaceholder} />
+          <CommandList>
+            <CommandEmpty>
+              {options.length > 0 ? noResultsMessage : emptyMessage}
+            </CommandEmpty>
+            <CommandGroup>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={`${option.value} ${option.label}`}
+                  onSelect={() => handleSelect(option.value)}
+                  className="break-words"
+                >
+                  <Check
+                    className={cn(
+                      'mr-2 h-4 w-4 shrink-0',
+                      value === option.value ? 'opacity-100' : 'opacity-0'
+                    )}
+                  />
+                  {option.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
     </Popover>
   )
 })

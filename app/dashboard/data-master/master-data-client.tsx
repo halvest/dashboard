@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MasterCrudComponent } from './master-crud-components'
 import { JenisHKI, KelasHKI, Pengusul } from '@/lib/types'
 import { Copyright, Building, FileText } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 export type MasterDataType = 'jenis_hki' | 'kelas_hki' | 'pengusul'
 export type AnyMasterItem = JenisHKI | KelasHKI | Pengusul
@@ -15,20 +16,21 @@ export const masterConfig = {
     description: 'Data referensi untuk tipe-tipe HKI yang tersedia.',
     icon: Copyright,
     columns: [
-      { key: 'id_jenis_hki', label: 'ID' },
       { key: 'nama_jenis_hki', label: 'Nama Jenis' },
+      { key: 'is_active', label: 'Status' },
     ],
     idKey: 'id_jenis_hki',
     nameKey: 'nama_jenis_hki',
   },
   kelas_hki: {
     title: 'Kelas HKI',
-    description: 'Data referensi 45 Kelas Merek (Nice Classification).',
+    description: 'Data referensi Kelas Merek (Nice Classification).',
     icon: FileText,
     columns: [
-      { key: 'id_kelas', label: 'ID Kelas' },
+      { key: 'nomor_kelas', label: 'Nomor Kelas' },
       { key: 'nama_kelas', label: 'Nama Kelas' },
       { key: 'tipe', label: 'Tipe' },
+      { key: 'is_active', label: 'Status' },
     ],
     idKey: 'id_kelas',
     nameKey: 'nama_kelas',
@@ -72,28 +74,34 @@ export const MasterDataClient = memo(function MasterDataClient({
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="jenis_hki" className="mt-4">
-        <MasterCrudComponent
-          dataType="jenis_hki"
-          data={initialJenis}
-          config={masterConfig.jenis_hki}
-        />
+      <TabsContent value="jenis_hki" className="mt-4 outline-none">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: 'easeOut' }}>
+          <MasterCrudComponent
+            dataType="jenis_hki"
+            data={initialJenis}
+            config={masterConfig.jenis_hki}
+          />
+        </motion.div>
       </TabsContent>
 
-      <TabsContent value="kelas_hki" className="mt-4">
-        <MasterCrudComponent
-          dataType="kelas_hki"
-          data={initialKelas}
-          config={masterConfig.kelas_hki}
-        />
+      <TabsContent value="kelas_hki" className="mt-4 outline-none">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: 'easeOut' }}>
+          <MasterCrudComponent
+            dataType="kelas_hki"
+            data={initialKelas}
+            config={masterConfig.kelas_hki}
+          />
+        </motion.div>
       </TabsContent>
 
-      <TabsContent value="pengusul" className="mt-4">
-        <MasterCrudComponent
-          dataType="pengusul"
-          data={initialPengusul}
-          config={masterConfig.pengusul}
-        />
+      <TabsContent value="pengusul" className="mt-4 outline-none">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: 'easeOut' }}>
+          <MasterCrudComponent
+            dataType="pengusul"
+            data={initialPengusul}
+            config={masterConfig.pengusul}
+          />
+        </motion.div>
       </TabsContent>
     </Tabs>
   )

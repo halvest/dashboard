@@ -12,9 +12,6 @@ interface ExportParams {
   filters: ActiveFilters
 }
 
-/**
- * Helper function to trigger a file download in the browser from a blob.
- */
 function triggerBrowserDownload(blob: Blob, filename: string) {
   const blobUrl = window.URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -26,10 +23,6 @@ function triggerBrowserDownload(blob: Blob, filename: string) {
   window.URL.revokeObjectURL(blobUrl)
 }
 
-/**
- * Downloads filtered HKI data. This function now returns a Promise
- * and throws an error on failure, to be handled by React Query's useMutation.
- */
 export async function downloadFilteredExport({
   format,
   filters,
@@ -63,7 +56,6 @@ export async function downloadFilteredExport({
     triggerBrowserDownload(blob, filename)
   } catch (error) {
     console.error('Kesalahan pada layanan ekspor:', error)
-    // Re-throw the error to be caught by the calling function (useMutation)
     throw error
   }
 }

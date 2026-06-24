@@ -34,22 +34,36 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // Memanggil getUser untuk merefresh session
+  // PENTING: Selalu panggil getUser() untuk merefresh token cookie.
+  // Jangan gunakan getSession() sebagai satu-satunya validasi server-side.
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   const path = request.nextUrl.pathname
   const isDashboardRoute = path.startsWith('/dashboard')
-  const isAuthRoute = path.startsWith('/login') || path === '/'
+  // Halaman login dianggap auth route, APAPUN query param yang ada
+  const isLoginPage = path === '/login'
+  const isRootPage = path === '/'
 
+  // Proteksi: user belum login mencoba akses dashboard → redirect ke login
   if (isDashboardRoute && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
+    url.search = '' // Bersihkan query params agar tidak ada loop
     return NextResponse.redirect(url)
   }
 
-  if (isAuthRoute && user) {
+  // User sudah login mencoba akses halaman root → redirect ke dashboard
+  if (isRootPage && user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
+  }
+
+  // User sudah login mencoba akses halaman login TANPA query param logout
+  // Jika ada query param (logout=success/error), biarkan mereka melihat notifikasi
+  if (isLoginPage && user && !request.nextUrl.searchParams.get('logout')) {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'
     return NextResponse.redirect(url)
@@ -57,3 +71,4 @@ export async function updateSession(request: NextRequest) {
 
   return supabaseResponse
 }
+

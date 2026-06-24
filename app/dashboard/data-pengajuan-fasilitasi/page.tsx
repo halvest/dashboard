@@ -14,7 +14,7 @@ export const revalidate = 3600
 
 // Definisikan tipe eksplisit untuk data mentah dari RPC untuk type safety maksimal.
 type PengusulOptionRaw = { id_pengusul: number; nama_opd: string };
-type KelasOptionRaw = { id_kelas: number; nama_kelas: string; tipe: string };
+type KelasOptionRaw = { id_kelas: number; nomor_kelas: number; nama_kelas: string; tipe: string; is_active: boolean };
 
 /**
  * Mengambil semua opsi (untuk filter dan form) dalam satu panggilan RPC.
@@ -26,31 +26,44 @@ type KelasOptionRaw = { id_kelas: number; nama_kelas: string; tipe: string };
  * @returns {Promise<FormOptions>} Objek berisi semua data opsi yang dibutuhkan.
  */
 const getFormOptions = cache(async (supabase: SupabaseClient<Database>): Promise<FormOptions> => {
-  const { data, error } = await supabase.rpc('get_all_form_options');
+  try {
+    const [
+      { data: jenisData, error: jenisError },
+      { data: statusData, error: statusError },
+      { data: pengusulData, error: pengusulError },
+      { data: kelasData, error: kelasError },
+      { data: rpcData, error: rpcError } // still fetch for tahun_options
+    ] = await Promise.all([
+      supabase.from('jenis_hki').select('id_jenis_hki, nama_jenis_hki, is_active').order('id_jenis_hki'),
+      supabase.from('status_hki').select('id_status, nama_status').order('id_status'),
+      supabase.from('pengusul').select('id_pengusul, nama_opd').order('nama_opd'),
+      supabase.from('kelas_hki').select('id_kelas, nomor_kelas, nama_kelas, tipe, is_active').order('nomor_kelas'),
+      supabase.rpc('get_all_form_options')
+    ]);
 
-  if (error) {
-    console.error('Gagal memuat form options via RPC:', error.message);
-    // Melempar error agar bisa ditangkap oleh Error Boundary atau block try-catch di bawah.
+    if (jenisError) throw jenisError;
+    if (statusError) throw statusError;
+    if (pengusulError) throw pengusulError;
+    if (kelasError) throw kelasError;
+
+    return {
+      jenisOptions: jenisData || [],
+      statusOptions: statusData || [],
+      tahunOptions: rpcData?.tahun_options || [],
+      pengusulOptions: pengusulData?.map((p) => ({
+        value: String(p.id_pengusul),
+        label: p.nama_opd,
+      })) || [],
+      kelasOptions: kelasData?.map((k) => ({
+        value: String(k.id_kelas),
+        label: `Kelas ${k.nomor_kelas} (${k.tipe}) - "${k.nama_kelas}"`,
+        is_active: k.is_active,
+        nomor_kelas: k.nomor_kelas
+      })) || [],
+    }
+  } catch (error: any) {
+    console.error('Gagal memuat form options:', error.message);
     throw new Error(`Gagal mengambil data prasyarat form: ${error.message}`);
-  }
-
-  if (!data) {
-    throw new Error('RPC "get_all_form_options" tidak mengembalikan data.');
-  }
-
-  // Transformasi data mentah dari database menjadi format yang siap pakai untuk komponen UI.
-  return {
-    jenisOptions: data.jenis_options || [],
-    statusOptions: data.status_options || [],
-    tahunOptions: data.tahun_options || [],
-    pengusulOptions: data.pengusul_options?.map((p: PengusulOptionRaw) => ({
-      value: String(p.id_pengusul),
-      label: p.nama_opd,
-    })) || [],
-    kelasOptions: data.kelas_options?.map((k: KelasOptionRaw) => ({
-      value: String(k.id_kelas),
-      label: `${k.id_kelas} – ${k.nama_kelas} (${k.tipe})`,
-    })) || [],
   }
 });
 

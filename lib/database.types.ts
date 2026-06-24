@@ -8,11 +8,11 @@
 
 // Tipe untuk data yang akan dikembalikan oleh RPC
 type FormOptionsData = {
-  jenis_options: { id_jenis_hki: number; nama_jenis_hki: string }[];
+  jenis_options: { id_jenis_hki: number; nama_jenis_hki: string; is_active: boolean }[];
   status_options: { id_status: number; nama_status: string }[];
   tahun_options: { tahun: number }[];
   pengusul_options: { id_pengusul: number; nama_opd: string }[];
-  kelas_options: { id_kelas: number; nama_kelas: string; tipe: string }[];
+  kelas_options: { id_kelas: number; nama_kelas: string; tipe: string; is_active: boolean; nomor_kelas: number }[];
 }
 
 // Tipe untuk RPC statistik dashboard
@@ -111,15 +111,15 @@ export type Database = {
         ]
       }
       jenis_hki: {
-        Row: { id_jenis_hki: number; nama_jenis_hki: string }
-        Insert: { id_jenis_hki?: number; nama_jenis_hki: string }
-        Update: { id_jenis_hki?: number; nama_jenis_hki?: string }
+        Row: { id_jenis_hki: number; nama_jenis_hki: string; is_active: boolean }
+        Insert: { id_jenis_hki?: number; nama_jenis_hki: string; is_active?: boolean }
+        Update: { id_jenis_hki?: number; nama_jenis_hki?: string; is_active?: boolean }
         Relationships: []
       }
       kelas_hki: {
-        Row: { id_kelas: number; nama_kelas: string; tipe: string }
-        Insert: { id_kelas: number; nama_kelas: string; tipe: string }
-        Update: { id_kelas?: number; nama_kelas?: string; tipe?: string }
+        Row: { id_kelas: number; nama_kelas: string; tipe: string; is_active: boolean; nomor_kelas: number }
+        Insert: { id_kelas?: number; nama_kelas: string; tipe: string; is_active?: boolean; nomor_kelas: number }
+        Update: { id_kelas?: number; nama_kelas?: string; tipe?: string; is_active?: boolean; nomor_kelas?: number }
         Relationships: []
       }
       pemohon: {

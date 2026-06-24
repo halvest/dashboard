@@ -3,29 +3,25 @@
 
 import React, {
   useEffect,
-  useMemo,
   useRef,
-  useState,
   memo,
-  useCallback,
 } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Home,
   FileText,
-  LogOut,
   Settings,
   BarChart3,
   Users,
   Database,
-  Gauge, 
+  LogOut,
   type LucideIcon,
 } from 'lucide-react'
+import { signOutAction } from '@/app/actions/auth'
 import { User } from '@supabase/supabase-js'
-import { createClient } from '@/lib/supabase-browser'
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -40,8 +36,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
-import { toast } from 'sonner'
 import {
   Tooltip,
   TooltipProvider,
@@ -104,63 +98,9 @@ const SidebarLink = memo(({ item }: { item: NavItem }) => {
 })
 SidebarLink.displayName = 'SidebarLink'
 
-const UserProfileSection = memo(function UserProfileSection({ user: initialUser }: { user?: User | null }) {
-  const router = useRouter()
-  const supabase = useMemo(() => createClient(), [])
-  const [user, setUser] = useState<User | null>(initialUser || null)
-  const [isLoading, setIsLoading] = useState(false)
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      setUser(user)
-      setIsLoading(false)
-    }
-    fetchUser()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'INITIAL_SESSION') return 
-      if (event === 'SIGNED_OUT') {
-        setUser(null)
-      } else if (session) {
-        const { data: { user: currentUser } } = await supabase.auth.getUser()
-        setUser(currentUser)
-      }
-    })
-    return () => subscription.unsubscribe()
-  }, [supabase])
-
-  const handleLogout = useCallback(async () => {
-    const toastId = toast.loading('Sedang keluar...')
-    try {
-      await supabase.auth.signOut()
-      toast.success('Berhasil keluar!', { id: toastId })
-    } catch (err) {
-      toast.error('Gagal keluar. Sesi dibersihkan.', { id: toastId })
-    } finally {
-
-      window.location.href = '/login'
-    }
-  }, [supabase])
-
-  const getInitials = (email?: string) =>
+const UserProfileSection = memo(function UserProfileSection({ user }: { user?: User | null }) {
+  const getInitials = (email?: string | null) =>
     email ? email.charAt(0).toUpperCase() : '?'
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center gap-3">
-        <Skeleton className="h-10 w-10 rounded-full bg-slate-700" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-4 w-3/4 bg-slate-700" />
-          <Skeleton className="h-3 w-1/2 bg-slate-700" />
-        </div>
-      </div>
-    )
-  }
 
   if (!user) return null
 
@@ -206,12 +146,15 @@ const UserProfileSection = memo(function UserProfileSection({ user: initialUser 
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleLogout}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Ya, Keluar
-            </AlertDialogAction>
+            {/* Gunakan <form action={signOutAction}> untuk logout yang stabil */}
+            <form action={signOutAction}>
+              <AlertDialogAction
+                type="submit"
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                Ya, Keluar
+              </AlertDialogAction>
+            </form>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

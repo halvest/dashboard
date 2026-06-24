@@ -80,10 +80,10 @@ const hkiSchema = z
     tahun_fasilitasi: z.coerce
       .number({ invalid_type_error: 'Tahun wajib dipilih.' })
       .int()
-      .min(new Date().getFullYear() - 25, 'Tahun tidak valid.')
+      .min(2020, 'Tahun fasilitasi tidak boleh kurang dari 2020.')
       .max(
-        new Date().getFullYear() + 1,
-        `Tahun tidak boleh melebihi ${new Date().getFullYear() + 1}.`
+        new Date().getFullYear() + 5,
+        `Tahun tidak boleh melebihi ${new Date().getFullYear() + 5}.`
       ),
     keterangan: z.string().optional().nullable(),
     id_jenis_hki: z
@@ -107,7 +107,7 @@ const hkiSchema = z
   }))
 
 type HKIFormData = z.infer<typeof hkiSchema>
-type ComboboxOption = { value: string; label: string }
+type ComboboxOption = { value: string; label: string; is_active?: boolean }
 
 interface HKIFormProps {
   id: string
@@ -285,19 +285,44 @@ export const HKIForm = memo(
       const selectedJenis = jenisOptions.find(
         (opt) => String(opt.id_jenis_hki) === selectedJenisId
       )
-      return selectedJenis?.nama_jenis_hki === 'Merek'
+      return selectedJenis?.nama_jenis_hki?.toLowerCase().includes('merek')
     }, [selectedJenisId, jenisOptions])
+
+    useEffect(() => {
+      if (!showKelasField) {
+        form.setValue('id_kelas', null, { shouldValidate: true })
+      }
+    }, [showKelasField, form])
+
+    // Filter opsi aktif
+    const filteredJenisOptions = useMemo(() => {
+      return jenisOptions.filter((opt) => opt.is_active || String(opt.id_jenis_hki) === String(initialData?.jenis?.id_jenis_hki))
+    }, [jenisOptions, initialData])
+
+    const filteredKelasOptions = useMemo(() => {
+      return kelasOptions.filter((opt) => opt.is_active || opt.value === String(initialData?.kelas?.id_kelas))
+    }, [kelasOptions, initialData])
 
     const yearOptions = useMemo(() => {
       const currentYear = new Date().getFullYear()
-      return Array.from({ length: 27 }, (_, i) => ({
-        value: (currentYear + 1 - i).toString(),
-        label: (currentYear + 1 - i).toString(),
+      const endYear = currentYear + 5
+      const startYear = 2020
+      const length = endYear - startYear + 1
+      return Array.from({ length }, (_, i) => ({
+        value: (endYear - i).toString(),
+        label: (endYear - i).toString(),
       }))
     }, [])
 
     const onSubmit = useCallback(
       async (data: HKIFormData) => {
+        if (showKelasField && !data.id_kelas) {
+          form.setError('id_kelas', { type: 'manual', message: 'Kelas HKI wajib dipilih untuk jenis Merek.' })
+          const el = document.querySelector('[name="id_kelas"]') as HTMLElement
+          el?.focus({ preventScroll: true })
+          return
+        }
+
         const actionText = mode === 'create' ? 'membuat' : 'memperbarui'
         const toastId = toast.loading(`Sedang ${actionText} entri HKI...`)
 
@@ -402,6 +427,7 @@ export const HKIForm = memo(
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   name="jenis_produk"
                   control={control}
@@ -487,12 +513,12 @@ export const HKIForm = memo(
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {jenisOptions.map((opt) => (
+                            {filteredJenisOptions.map((opt) => (
                               <SelectItem
                                 key={opt.id_jenis_hki}
                                 value={String(opt.id_jenis_hki)}
                               >
-                                {opt.nama_jenis_hki}
+                                {opt.nama_jenis_hki} {opt.is_active === false && '(Nonaktif)'}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -537,27 +563,14 @@ export const HKIForm = memo(
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Tahun Fasilitasi *</FormLabel>
-                        <Select
-                          onValueChange={(value) =>
-                            field.onChange(Number(value))
-                          }
-                          defaultValue={String(field.value)}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Pilih tahun" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectGroup>
-                              {yearOptions.map((year) => (
-                                <SelectItem key={year.value} value={year.value}>
-                                  {year.label}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            placeholder="Masukkan tahun..."
+                            {...field}
+                            value={field.value ?? ''}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -567,17 +580,19 @@ export const HKIForm = memo(
                   name="id_pengusul"
                   control={control}
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
+                    <FormItem className="flex flex-col justify-end">
                       <FormLabel>Pengusul (OPD) *</FormLabel>
-                      <Suspense fallback={ComboboxFallback}>
-                        <LazyCombobox
-                          options={pengusulOptions}
-                          value={field.value}
-                          onChange={field.onChange}
-                          placeholder="Pilih OPD pengusul..."
-                          searchPlaceholder="Cari OPD..."
-                        />
-                      </Suspense>
+                      <FormControl>
+                        <Suspense fallback={ComboboxFallback}>
+                          <LazyCombobox
+                            options={pengusulOptions}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Pilih OPD pengusul..."
+                            searchPlaceholder="Cari OPD..."
+                          />
+                        </Suspense>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -588,17 +603,21 @@ export const HKIForm = memo(
                     name="id_kelas"
                     control={control}
                     render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Kelas HKI (untuk Merek)</FormLabel>
-                        <Suspense fallback={ComboboxFallback}>
-                          <LazyCombobox
-                            options={kelasOptions}
-                            value={field.value ?? ''}
-                            onChange={field.onChange}
-                            placeholder="Pilih Kelas HKI (1-45)..."
-                            searchPlaceholder="Cari kelas (cth: 1, 35, atau Iklan)..."
-                          />
-                        </Suspense>
+                      <FormItem>
+                        <FormLabel>Kelas HKI (Nice) *</FormLabel>
+                        <FormControl>
+                          <Suspense fallback={ComboboxFallback}>
+                            <LazyCombobox
+                              options={filteredKelasOptions.map(opt => ({
+                                ...opt,
+                                label: opt.is_active === false ? `${opt.label} (Nonaktif)` : opt.label
+                              }))}
+                              value={field.value ?? ''}
+                              onChange={field.onChange}
+                              placeholder="Pilih kelas HKI..."
+                            />
+                          </Suspense>
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

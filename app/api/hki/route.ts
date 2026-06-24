@@ -183,6 +183,21 @@ export async function POST(request: NextRequest) {
     const validatedData = hkiCreateSchema.parse(rawData)
     const { nama_pemohon, alamat, ...hkiFields } = validatedData
 
+    // Validasi Relasi Jenis HKI dan Kelas
+    const { data: jenisRecord } = await supabase
+      .from('jenis_hki')
+      .select('nama_jenis_hki')
+      .eq('id_jenis_hki', hkiFields.id_jenis_hki)
+      .single()
+
+    if (jenisRecord) {
+      if (!jenisRecord.nama_jenis_hki.toLowerCase().includes('merek')) {
+        hkiFields.id_kelas = null
+      } else if (!hkiFields.id_kelas) {
+        throw new Error('Kelas HKI wajib diisi untuk Merek.')
+      }
+    }
+
     const pemohonId = await getPemohonId(supabase, nama_pemohon, alamat || null)
 
     const hkiRecord = { ...hkiFields, id_pemohon: pemohonId }

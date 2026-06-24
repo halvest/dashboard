@@ -1,26 +1,31 @@
 // app/api/master/[tableName]/[id]/route.ts
 import { createClient } from '@/utils/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import type { Database } from '@/lib/database.types' // <-- Tambahkan impor ini
+import { revalidatePath } from 'next/cache'
+import type { Database } from '@/lib/database.types'
 
-// Definisikan tipe TableName dari Supabase types
 type TableName = keyof Database['public']['Tables']
 
-const TABLE_SAFELIST: TableName[] = ['jenis_hki', 'kelas_hki', 'pengusul']
+const RESOURCE_MAP: Record<string, TableName> = {
+  'jenis-hki': 'jenis_hki',
+  'kelas-hki': 'kelas_hki',
+  'jenis_hki': 'jenis_hki',
+  'kelas_hki': 'kelas_hki',
+  'pengusul': 'pengusul',
+}
 
-const ID_COLUMN_MAP: Record<string, string> = {
+const ID_COLUMN_MAP: Record<TableName, string> = {
   jenis_hki: 'id_jenis_hki',
   kelas_hki: 'id_kelas',
   pengusul: 'id_pengusul',
+  hki: 'id_hki',
+  pemohon: 'id_pemohon',
+  profiles: 'id',
+  status_hki: 'id_status'
 }
 
-/**
- * Admin Guard Helper
- */
 async function isAdmin(supabase: any): Promise<boolean> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
   if (!user) return false
   const { data: profile } = await supabase
     .from('profiles')
@@ -30,17 +35,15 @@ async function isAdmin(supabase: any): Promise<boolean> {
   return profile?.role === 'admin'
 }
 
-/**
- * PATCH: Memperbarui item data master
- */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ tableName: string; id: string }> }
 ) {
-  const { tableName, id } = await params
-  // Lakukan type assertion di sini untuk pengecekan
-  if (!TABLE_SAFELIST.includes(tableName as TableName)) {
-    return NextResponse.json({ message: 'Tabel tidak valid' }, { status: 400 })
+  const { tableName: resource, id } = await params
+  
+  const mappedTable = RESOURCE_MAP[resource]
+  if (!mappedTable) {
+    return NextResponse.json({ message: 'Resource tidak valid' }, { status: 404 })
   }
 
   const supabase = await createClient()
@@ -51,16 +54,14 @@ export async function PATCH(
 
   try {
     const body = await request.json()
-    const idColumn = ID_COLUMN_MAP[tableName]
+    const idColumn = ID_COLUMN_MAP[mappedTable]
 
-    // Hapus ID dari body untuk mencegah pembaruan Primary Key
     if (body[idColumn]) {
       delete body[idColumn]
     }
 
-    // Gunakan type assertion saat memanggil .from()
     const { data, error } = await supabase
-      .from(tableName as TableName)
+      .from(mappedTable)
       .update(body)
       .eq(idColumn, id)
       .select()
@@ -68,29 +69,34 @@ export async function PATCH(
 
     if (error) {
       console.error('Error memperbarui data master:', error)
-      return NextResponse.json({ message: error.message }, { status: 400 })
+      if (error.code === '23505') {
+        return NextResponse.json({ message: 'Nama Jenis HKI / Nomor Kelas sudah terdaftar.' }, { status: 409 })
+      }
+      return NextResponse.json({ message: 'Gagal memperbarui data: ' + error.message }, { status: 400 })
     }
+
+    revalidatePath('/dashboard/data-master')
+    revalidatePath('/dashboard/data-pengajuan-fasilitasi')
+    revalidatePath('/dashboard/hki/create')
 
     return NextResponse.json(
       { message: 'Data berhasil diperbarui', data },
       { status: 200 }
     )
   } catch (error: any) {
-    return NextResponse.json({ message: error.message }, { status: 500 })
+    return NextResponse.json({ message: 'Terjadi kesalahan internal server' }, { status: 500 })
   }
 }
 
-/**
- * DELETE: Menghapus item data master
- */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ tableName: string; id: string }> }
 ) {
-  const { tableName, id } = await params
-  // Lakukan type assertion di sini untuk pengecekan
-  if (!TABLE_SAFELIST.includes(tableName as TableName)) {
-    return NextResponse.json({ message: 'Tabel tidak valid' }, { status: 400 })
+  const { tableName: resource, id } = await params
+  
+  const mappedTable = RESOURCE_MAP[resource]
+  if (!mappedTable) {
+    return NextResponse.json({ message: 'Resource tidak valid' }, { status: 404 })
   }
 
   const supabase = await createClient()
@@ -100,34 +106,35 @@ export async function DELETE(
   }
 
   try {
-    const idColumn = ID_COLUMN_MAP[tableName]
+    const idColumn = ID_COLUMN_MAP[mappedTable]
 
-    // Gunakan type assertion saat memanggil .from()
     const { error } = await supabase
-      .from(tableName as TableName)
+      .from(mappedTable)
       .delete()
       .eq(idColumn, id)
 
     if (error) {
       console.error('Error menghapus data master:', error)
-      // Tangani error foreign key constraint
       if (error.code === '23503') {
         return NextResponse.json(
           {
-            message:
-              'Data tidak dapat dihapus karena masih digunakan oleh entri HKI.',
+            message: 'Data tidak dapat dihapus karena masih digunakan pada data pengajuan HKI. Silakan gunakan fitur Nonaktifkan.',
           },
           { status: 409 }
         )
       }
-      return NextResponse.json({ message: error.message }, { status: 400 })
+      return NextResponse.json({ message: 'Gagal menghapus data: ' + error.message }, { status: 400 })
     }
 
+    revalidatePath('/dashboard/data-master')
+    revalidatePath('/dashboard/data-pengajuan-fasilitasi')
+    revalidatePath('/dashboard/hki/create')
+
     return NextResponse.json(
-      { message: 'Data berhasil dihapus' },
+      { message: 'Data berhasil dihapus permanen' },
       { status: 200 }
     )
   } catch (error: any) {
-    return NextResponse.json({ message: error.message }, { status: 500 })
+    return NextResponse.json({ message: 'Terjadi kesalahan internal server' }, { status: 500 })
   }
 }

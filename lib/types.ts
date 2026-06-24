@@ -9,6 +9,7 @@ export interface Pemohon {
 export interface JenisHKI {
   id_jenis_hki: number
   nama_jenis_hki: string
+  is_active?: boolean
 }
 
 export interface StatusHKI {
@@ -25,6 +26,8 @@ export interface KelasHKI {
   id_kelas: number
   nama_kelas: string
   tipe: string
+  is_active?: boolean
+  nomor_kelas?: number
 }
 
 // Tipe entri HKI yang digabungkan (relasional)
@@ -56,6 +59,7 @@ export type UserProfile = {
 export type SelectOption = {
   value: string
   label: string
+  is_active?: boolean
 }
 
 // Tipe untuk opsi form yang dikirim ke komponen klien

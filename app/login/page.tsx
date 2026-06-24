@@ -1,23 +1,43 @@
 // app/login/page.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase-browser'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
 import { Loader2, Mail, Lock, ArrowRight, ShieldCheck } from 'lucide-react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+
+  // Tampilkan toast berdasarkan query param hasil logout dari server action.
+  // Baca dari window.location.search (bukan React searchParams snapshot) dan
+  // hapus URL SEBELUM menampilkan toast. Dengan begitu, saat React StrictMode
+  // menjalankan ulang effect ini, URL sudah kosong sehingga langsung return.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const logout = params.get('logout')
+    if (!logout) return
+
+    // Hapus query param dari URL SEBELUM toast agar run ke-2 (StrictMode) menemukan URL kosong
+    window.history.replaceState(null, '', '/login')
+
+    if (logout === 'success') {
+      toast.success('Anda telah berhasil keluar dari sesi.')
+    } else if (logout === 'error') {
+      toast.warning('Terjadi kesalahan saat keluar. Sesi telah dibersihkan.')
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,8 +72,9 @@ export default function LoginPage() {
       toast.success('Otentikasi berhasil! Mengarahkan ke dasbor utama...', {
         id: toastId,
       })
-      router.push('/dashboard')
-      router.refresh()
+      // Gunakan window.location.href untuk full page navigation setelah login
+      // agar cookie session Supabase terbaca oleh middleware dengan benar
+      window.location.href = '/dashboard'
     } catch (error) {
       toast.error('Terjadi gangguan pada server. Silakan coba lagi nanti.', { id: toastId })
     } finally {
@@ -222,5 +243,13 @@ export default function LoginPage() {
         </motion.div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
   )
 }

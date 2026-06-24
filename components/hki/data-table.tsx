@@ -277,16 +277,28 @@ const DataTableToolbar = memo(
     // State lokal untuk search agar tabel tidak di-render setiap ada ketikan
     const [localSearch, setLocalSearch] = useState(filters.search)
     const debouncedLocalSearch = useDebounce(localSearch, 400)
+    // Ref untuk mencegah useEffect debounce menimpa saat tombol X diklik langsung
+    const skipDebounceRef = React.useRef(false)
 
     useEffect(() => {
       setLocalSearch(filters.search)
     }, [filters.search])
 
     useEffect(() => {
+      if (skipDebounceRef.current) {
+        skipDebounceRef.current = false
+        return
+      }
       if (debouncedLocalSearch !== filters.search) {
         handleFilterChange('search', debouncedLocalSearch)
       }
     }, [debouncedLocalSearch, filters.search, handleFilterChange])
+
+    const handleClearSearch = useCallback(() => {
+      skipDebounceRef.current = true  // skip debounce effect berikutnya
+      setLocalSearch('')
+      handleFilterChange('search', '')
+    }, [handleFilterChange])
 
     const selectedJenisLabel = useMemo(
       () =>
@@ -323,10 +335,7 @@ const DataTableToolbar = memo(
                     variant="ghost"
                     size="icon"
                     className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
-                    onClick={() => {
-                      setLocalSearch('')
-                      handleFilterChange('search', '')
-                    }}
+                    onClick={handleClearSearch}
                     aria-label="Clear search"
                   >
                     <X className="h-4 w-4" />
