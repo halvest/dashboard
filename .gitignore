@@ -49,3 +49,5 @@ supabase/.branches/
 # AI Agents / Gemini
 .agents/
 skills-lock.json
+
+/docs/testing

@@ -1,8 +1,8 @@
 import { type NextRequest } from 'next/server'
 import { updateSession } from '@/utils/supabase/middleware'
 
-export async function proxy(request: NextRequest) {
-  // Hanya melakukan pengecekan sesi di proxy.
+export async function middleware(request: NextRequest) {
+  // Hanya melakukan pengecekan sesi di middleware.
   // Tidak perlu otorisasi berat seperti mengecek role admin di sini
   // untuk mencegah ketergantungan API Node.js dan mempertahankan kinerja Edge.
   return await updateSession(request)
